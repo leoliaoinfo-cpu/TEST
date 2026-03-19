@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-智腦記事本 — 網頁介面
-使用方式：python app.py
-然後在瀏覽器開啟 http://localhost:5000
+智腦記事本 — 網頁介面 (Gemini + ChromaDB 版)
+使用方式：python app.py → 瀏覽器開啟 http://localhost:5000
+
+需要環境變數：GOOGLE_API_KEY
 """
 
 from flask import Flask, request, jsonify, render_template, Response, stream_with_context
@@ -11,14 +12,112 @@ import json
 import os
 import re
 from datetime import datetime
-import anthropic
+import google.generativeai as genai
+import chromadb
 
 app = Flask(__name__)
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "notebook.db")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "notebook.db")
+CHROMA_PATH = os.path.join(BASE_DIR, "chroma_data")
+TEXT_MODEL = "gemini-3.1-pro-preview"
+EMBED_MODEL = "models/gemini-embedding-2-preview"
 
 
 # ---------------------------------------------------------------------------
-# Database helpers
+# Gemini & ChromaDB initialisation
+# ---------------------------------------------------------------------------
+
+def init_ai() -> None:
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        print("⚠️  警告：未設定 GOOGLE_API_KEY，AI 功能將無法使用")
+        return
+    genai.configure(api_key=api_key)
+
+
+def get_model() -> genai.GenerativeModel:
+    return genai.GenerativeModel(TEXT_MODEL)
+
+
+def get_chroma() -> chromadb.Collection:
+    client = chromadb.PersistentClient(path=CHROMA_PATH)
+    return client.get_or_create_collection(
+        name="notes",
+        metadata={"hnsw:space": "cosine"},
+    )
+
+
+def embed_text(text: str) -> list[float]:
+    """Generate embedding vector via Gemini embedding model."""
+    result = genai.embed_content(
+        model=EMBED_MODEL,
+        content=text[:8000],
+    )
+    return result["embedding"]
+
+
+def upsert_embedding(note_id: int, title: str, content: str, tags: list[str]) -> None:
+    """Upsert a note's embedding into ChromaDB (best-effort)."""
+    try:
+        col = get_chroma()
+        doc = f"{title}\n\n{content}\n\nTags: {', '.join(tags)}"
+        vec = embed_text(doc)
+        col.upsert(
+            ids=[str(note_id)],
+            documents=[doc],
+            embeddings=[vec],
+            metadatas=[{"title": title, "note_id": note_id}],
+        )
+    except Exception as e:
+        print(f"[embedding] upsert 失敗 (note #{note_id}): {e}")
+
+
+def delete_embedding(note_id: int) -> None:
+    try:
+        get_chroma().delete(ids=[str(note_id)])
+    except Exception:
+        pass
+
+
+def semantic_search(query: str, n_results: int = 10) -> list[dict]:
+    """Vector similarity search via ChromaDB."""
+    col = get_chroma()
+    if col.count() == 0:
+        return []
+    try:
+        qvec = embed_text(query)
+        results = col.query(
+            query_embeddings=[qvec],
+            n_results=min(n_results, col.count()),
+        )
+        # Return list of {note_id, distance}
+        out = []
+        for idx, mid in enumerate(results["ids"][0]):
+            out.append({
+                "note_id": int(mid),
+                "distance": results["distances"][0][idx] if results.get("distances") else 0,
+            })
+        return out
+    except Exception as e:
+        print(f"[semantic_search] 失敗: {e}")
+        return []
+
+
+def stream_gemini(prompt: str):
+    """Generator yielding text chunks from Gemini streaming response."""
+    model = get_model()
+    response = model.generate_content(prompt, stream=True)
+    for chunk in response:
+        try:
+            if chunk.text:
+                yield chunk.text
+        except (ValueError, AttributeError):
+            continue
+
+
+# ---------------------------------------------------------------------------
+# SQLite Database
 # ---------------------------------------------------------------------------
 
 def init_db() -> None:
@@ -59,18 +158,23 @@ def init_db() -> None:
     conn.close()
 
 
+def _row_to_dict(row, cols) -> dict:
+    n = dict(zip(cols, row))
+    if "tags" in n:
+        n["tags"] = json.loads(n["tags"])
+    return n
+
+_NOTE_COLS = ["id", "title", "content", "tags", "created_at", "updated_at"]
+
+
 def db_get_note(note_id: int) -> dict | None:
     conn = sqlite3.connect(DB_PATH)
     row = conn.execute(
         "SELECT id, title, content, tags, created_at, updated_at FROM notes WHERE id = ?",
-        (note_id,)
+        (note_id,),
     ).fetchone()
     conn.close()
-    if not row:
-        return None
-    n = dict(zip(["id", "title", "content", "tags", "created_at", "updated_at"], row))
-    n["tags"] = json.loads(n["tags"])
-    return n
+    return _row_to_dict(row, _NOTE_COLS) if row else None
 
 
 def db_all_notes() -> list[dict]:
@@ -79,16 +183,12 @@ def db_all_notes() -> list[dict]:
         "SELECT id, title, content, tags, created_at, updated_at FROM notes ORDER BY updated_at DESC"
     ).fetchall()
     conn.close()
-    result = []
-    for row in rows:
-        n = dict(zip(["id", "title", "content", "tags", "created_at", "updated_at"], row))
-        n["tags"] = json.loads(n["tags"])
-        result.append(n)
-    return result
+    return [_row_to_dict(r, _NOTE_COLS) for r in rows]
 
 
 def db_fts_search(query: str, limit: int = 20) -> list[dict]:
     conn = sqlite3.connect(DB_PATH)
+    cols = ["id", "title", "content", "tags", "created_at", "snippet"]
     try:
         rows = conn.execute("""
             SELECT n.id, n.title, n.content, n.tags, n.created_at,
@@ -96,30 +196,24 @@ def db_fts_search(query: str, limit: int = 20) -> list[dict]:
             FROM notes_fts
             JOIN notes n ON n.id = notes_fts.rowid
             WHERE notes_fts MATCH ?
-            ORDER BY rank
-            LIMIT ?
+            ORDER BY rank LIMIT ?
         """, (query, limit)).fetchall()
     except Exception:
         like = f"%{query}%"
         rows = conn.execute("""
-            SELECT id, title, content, tags, created_at, SUBSTR(content, 1, 200) AS snippet
+            SELECT id, title, content, tags, created_at, SUBSTR(content,1,200) AS snippet
             FROM notes WHERE title LIKE ? OR content LIKE ? LIMIT ?
         """, (like, like, limit)).fetchall()
     conn.close()
-    result = []
-    for row in rows:
-        n = dict(zip(["id", "title", "content", "tags", "created_at", "snippet"], row))
-        n["tags"] = json.loads(n["tags"])
-        result.append(n)
-    return result
+    return [_row_to_dict(r, cols) for r in rows]
 
 
 def db_save_note(title: str, content: str, tags: list | None = None) -> int:
     now = datetime.now().isoformat()
     conn = sqlite3.connect(DB_PATH)
     cur = conn.execute(
-        "INSERT INTO notes (title, content, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        (title, content, json.dumps(tags or []), now, now)
+        "INSERT INTO notes (title, content, tags, created_at, updated_at) VALUES (?,?,?,?,?)",
+        (title, content, json.dumps(tags or []), now, now),
     )
     nid = cur.lastrowid
     conn.commit()
@@ -131,20 +225,14 @@ def db_update_note(note_id: int, content: str = None, tags: list = None) -> None
     conn = sqlite3.connect(DB_PATH)
     now = datetime.now().isoformat()
     if content is not None and tags is not None:
-        conn.execute(
-            "UPDATE notes SET content=?, tags=?, updated_at=? WHERE id=?",
-            (content, json.dumps(tags), now, note_id)
-        )
+        conn.execute("UPDATE notes SET content=?, tags=?, updated_at=? WHERE id=?",
+                     (content, json.dumps(tags), now, note_id))
     elif content is not None:
-        conn.execute(
-            "UPDATE notes SET content=?, updated_at=? WHERE id=?",
-            (content, now, note_id)
-        )
+        conn.execute("UPDATE notes SET content=?, updated_at=? WHERE id=?",
+                     (content, now, note_id))
     elif tags is not None:
-        conn.execute(
-            "UPDATE notes SET tags=?, updated_at=? WHERE id=?",
-            (json.dumps(tags), now, note_id)
-        )
+        conn.execute("UPDATE notes SET tags=?, updated_at=? WHERE id=?",
+                     (json.dumps(tags), now, note_id))
     conn.commit()
     conn.close()
 
@@ -157,41 +245,34 @@ def db_delete_note(note_id: int) -> bool:
     return affected > 0
 
 
-def get_client() -> anthropic.Anthropic:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError("未設定 ANTHROPIC_API_KEY 環境變數")
-    return anthropic.Anthropic(api_key=api_key)
-
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def sse(data: dict) -> str:
-    """Format a dict as an SSE data line."""
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
-# ---------------------------------------------------------------------------
-# Auto-tag helper (non-streaming, fast)
-# ---------------------------------------------------------------------------
+def _sse_headers():
+    return {"X-Accel-Buffering": "no", "Cache-Control": "no-cache"}
+
 
 def run_autotag(note_id: int, title: str, content: str) -> list[str]:
     try:
-        client = get_client()
-        resp = client.messages.create(
-            model="claude-opus-4-6",
-            max_tokens=150,
-            messages=[{"role": "user", "content":
-                f"為以下筆記產生 3-7 個相關標籤。只輸出 JSON 陣列，不要其他文字。\n"
-                f"範例：[\"python\", \"程式設計\", \"教學\"]\n\n"
-                f"標題：{title}\n內容：{content[:400]}"}]
+        model = get_model()
+        resp = model.generate_content(
+            f"為以下筆記產生 3-7 個相關標籤。只輸出 JSON 陣列，不要其他文字。\n"
+            f"範例：[\"python\", \"程式設計\", \"教學\"]\n\n"
+            f"標題：{title}\n內容：{content[:400]}"
         )
-        text = resp.content[0].text.strip()
+        text = resp.text.strip()
         match = re.search(r"\[.*?\]", text, re.DOTALL)
         if match:
             tags = json.loads(match.group())
             db_update_note(note_id, tags=tags)
             return tags
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[autotag] 失敗: {e}")
     return []
 
 
@@ -222,6 +303,7 @@ def api_add_note():
         return jsonify({"error": "標題和內容不能為空"}), 400
     note_id = db_save_note(title, content)
     tags = run_autotag(note_id, title, content)
+    upsert_embedding(note_id, title, content, tags)
     note = db_get_note(note_id)
     return jsonify(note), 201
 
@@ -238,6 +320,7 @@ def api_get_note(note_id):
 def api_delete_note(note_id):
     if not db_delete_note(note_id):
         return jsonify({"error": "找不到筆記"}), 404
+    delete_embedding(note_id)
     return jsonify({"ok": True})
 
 
@@ -247,6 +330,7 @@ def api_autotag(note_id):
     if not note:
         return jsonify({"error": "找不到筆記"}), 404
     tags = run_autotag(note_id, note["title"], note["content"])
+    upsert_embedding(note_id, note["title"], note["content"], tags)
     return jsonify({"tags": tags})
 
 
@@ -261,20 +345,24 @@ def api_search():
     if not query:
         return jsonify({"error": "請輸入搜尋詞"}), 400
 
+    # 1) Semantic search via ChromaDB embeddings
+    sem_hits = semantic_search(query, n_results=15)
+    sem_ids = {h["note_id"] for h in sem_hits}
+
+    # 2) FTS keyword backup
     fts_results = db_fts_search(query, limit=15)
-    if not fts_results:
-        all_n = db_all_notes()
-        pool = all_n[:50]
-    else:
-        pool = fts_results
+    fts_ids = {r["id"] for r in fts_results}
+
+    # 3) Merge — semantic first, then any FTS-only matches
+    all_ids = list(dict.fromkeys([h["note_id"] for h in sem_hits] +
+                                 [r["id"] for r in fts_results]))
+    notes_map = {n["id"]: n for n in db_all_notes()}
+
+    pool = [notes_map[nid] for nid in all_ids if nid in notes_map]
+    if not pool:
+        pool = list(notes_map.values())[:50]
 
     def generate():
-        try:
-            client = get_client()
-        except RuntimeError as e:
-            yield sse({"type": "error", "message": str(e)})
-            return
-
         if not pool:
             yield sse({"type": "text", "content": "記事本是空的，請先新增筆記。"})
             yield sse({"type": "done", "results": []})
@@ -286,35 +374,27 @@ def api_search():
         )
         prompt = (
             f"你是一個智能筆記搜尋助手。用戶的搜尋關鍵字是：「{query}」\n\n"
-            f"以下是資料庫中的筆記：\n{overview}\n\n"
+            f"以下是根據語意向量排序的相關筆記：\n{overview}\n\n"
             f"請根據語意相關性排列筆記，說明每篇筆記與搜尋詞的關聯。\n"
             f"- 列出最相關的筆記（格式：**#ID 標題** — 原因）\n"
             f"- 最後給一句話總結\n"
             f"- 若都不相關，請如實說明"
         )
         try:
-            with client.messages.stream(
-                model="claude-opus-4-6",
-                max_tokens=1024,
-                messages=[{"role": "user", "content": prompt}]
-            ) as stream:
-                for text in stream.text_stream:
-                    yield sse({"type": "text", "content": text})
+            for text in stream_gemini(prompt):
+                yield sse({"type": "text", "content": text})
         except Exception as e:
             yield sse({"type": "error", "message": str(e)})
             return
 
         yield sse({"type": "done", "results": [
             {"id": r["id"], "title": r["title"],
-             "snippet": (r.get("snippet") or r["content"])[:120],
-             "tags": r["tags"]}
+             "snippet": r["content"][:120], "tags": r["tags"]}
             for r in pool[:8]
         ]})
 
     return Response(stream_with_context(generate()),
-                    mimetype="text/event-stream",
-                    headers={"X-Accel-Buffering": "no",
-                             "Cache-Control": "no-cache"})
+                    mimetype="text/event-stream", headers=_sse_headers())
 
 
 @app.route("/api/notes/<int:note_id>/augment", methods=["POST"])
@@ -324,12 +404,6 @@ def api_augment(note_id):
         return jsonify({"error": "找不到筆記"}), 404
 
     def generate():
-        try:
-            client = get_client()
-        except RuntimeError as e:
-            yield sse({"type": "error", "message": str(e)})
-            return
-
         prompt = (
             f"你是一個知識補充系統。請根據以下筆記的主題，補充更多相關知識：\n\n"
             f"**筆記標題**：{note['title']}\n"
@@ -344,15 +418,9 @@ def api_augment(note_id):
         )
         buf = []
         try:
-            with client.messages.stream(
-                model="claude-opus-4-6",
-                max_tokens=3000,
-                thinking={"type": "adaptive"},
-                messages=[{"role": "user", "content": prompt}]
-            ) as stream:
-                for text in stream.text_stream:
-                    buf.append(text)
-                    yield sse({"type": "text", "content": text})
+            for text in stream_gemini(prompt):
+                buf.append(text)
+                yield sse({"type": "text", "content": text})
         except Exception as e:
             yield sse({"type": "error", "message": str(e)})
             return
@@ -360,12 +428,11 @@ def api_augment(note_id):
         supplement = "".join(buf)
         new_content = note["content"] + "\n\n---\n**🤖 AI 補充知識：**\n\n" + supplement
         db_update_note(note_id, content=new_content)
+        upsert_embedding(note_id, note["title"], new_content, note["tags"])
         yield sse({"type": "done", "message": "已補充並儲存至筆記", "note_id": note_id})
 
     return Response(stream_with_context(generate()),
-                    mimetype="text/event-stream",
-                    headers={"X-Accel-Buffering": "no",
-                             "Cache-Control": "no-cache"})
+                    mimetype="text/event-stream", headers=_sse_headers())
 
 
 @app.route("/api/notes/<int:note_id>/improve", methods=["POST"])
@@ -375,12 +442,6 @@ def api_improve(note_id):
         return jsonify({"error": "找不到筆記"}), 404
 
     def generate():
-        try:
-            client = get_client()
-        except RuntimeError as e:
-            yield sse({"type": "error", "message": str(e)})
-            return
-
         prompt = (
             f"請改善以下筆記的品質，包括：\n"
             f"1. 改善清晰度與可讀性\n"
@@ -393,25 +454,20 @@ def api_improve(note_id):
         )
         buf = []
         try:
-            with client.messages.stream(
-                model="claude-opus-4-6",
-                max_tokens=3000,
-                messages=[{"role": "user", "content": prompt}]
-            ) as stream:
-                for text in stream.text_stream:
-                    buf.append(text)
-                    yield sse({"type": "text", "content": text})
+            for text in stream_gemini(prompt):
+                buf.append(text)
+                yield sse({"type": "text", "content": text})
         except Exception as e:
             yield sse({"type": "error", "message": str(e)})
             return
 
-        db_update_note(note_id, content="".join(buf))
+        improved = "".join(buf)
+        db_update_note(note_id, content=improved)
+        upsert_embedding(note_id, note["title"], improved, note["tags"])
         yield sse({"type": "done", "message": "已改善並儲存至筆記", "note_id": note_id})
 
     return Response(stream_with_context(generate()),
-                    mimetype="text/event-stream",
-                    headers={"X-Accel-Buffering": "no",
-                             "Cache-Control": "no-cache"})
+                    mimetype="text/event-stream", headers=_sse_headers())
 
 
 @app.route("/api/analyze", methods=["GET"])
@@ -422,11 +478,6 @@ def api_analyze():
         if not notes:
             yield sse({"type": "text", "content": "記事本是空的，請先新增筆記。"})
             yield sse({"type": "done"})
-            return
-        try:
-            client = get_client()
-        except RuntimeError as e:
-            yield sse({"type": "error", "message": str(e)})
             return
 
         overview = "\n".join(
@@ -444,14 +495,8 @@ def api_analyze():
             f"請給出具體且可執行的建議。"
         )
         try:
-            with client.messages.stream(
-                model="claude-opus-4-6",
-                max_tokens=2500,
-                thinking={"type": "adaptive"},
-                messages=[{"role": "user", "content": prompt}]
-            ) as stream:
-                for text in stream.text_stream:
-                    yield sse({"type": "text", "content": text})
+            for text in stream_gemini(prompt):
+                yield sse({"type": "text", "content": text})
         except Exception as e:
             yield sse({"type": "error", "message": str(e)})
             return
@@ -459,9 +504,7 @@ def api_analyze():
         yield sse({"type": "done"})
 
     return Response(stream_with_context(generate()),
-                    mimetype="text/event-stream",
-                    headers={"X-Accel-Buffering": "no",
-                             "Cache-Control": "no-cache"})
+                    mimetype="text/event-stream", headers=_sse_headers())
 
 
 @app.route("/api/summarize", methods=["POST"])
@@ -471,17 +514,20 @@ def api_summarize():
     if not topic:
         return jsonify({"error": "請輸入主題"}), 400
 
-    results = db_fts_search(topic, limit=10)
+    # Use semantic search to find relevant notes
+    sem_hits = semantic_search(topic, n_results=10)
+    fts_results = db_fts_search(topic, limit=10)
+
+    all_ids = list(dict.fromkeys(
+        [h["note_id"] for h in sem_hits] + [r["id"] for r in fts_results]
+    ))
+    notes_map = {n["id"]: n for n in db_all_notes()}
+    results = [notes_map[nid] for nid in all_ids if nid in notes_map]
 
     def generate():
         if not results:
             yield sse({"type": "text", "content": f"找不到與「{topic}」相關的筆記。"})
             yield sse({"type": "done"})
-            return
-        try:
-            client = get_client()
-        except RuntimeError as e:
-            yield sse({"type": "error", "message": str(e)})
             return
 
         notes_content = "\n\n---\n\n".join(
@@ -500,13 +546,8 @@ def api_summarize():
             f"格式要清晰有層次。"
         )
         try:
-            with client.messages.stream(
-                model="claude-opus-4-6",
-                max_tokens=2500,
-                messages=[{"role": "user", "content": prompt}]
-            ) as stream:
-                for text in stream.text_stream:
-                    yield sse({"type": "text", "content": text})
+            for text in stream_gemini(prompt):
+                yield sse({"type": "text", "content": text})
         except Exception as e:
             yield sse({"type": "error", "message": str(e)})
             return
@@ -514,17 +555,82 @@ def api_summarize():
         yield sse({"type": "done"})
 
     return Response(stream_with_context(generate()),
-                    mimetype="text/event-stream",
-                    headers={"X-Accel-Buffering": "no",
-                             "Cache-Control": "no-cache"})
+                    mimetype="text/event-stream", headers=_sse_headers())
 
 
 # ---------------------------------------------------------------------------
-# Start
+# Routes — Mind Map (知識地圖)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/mindmap", methods=["GET"])
+def api_mindmap():
+    notes = db_all_notes()
+
+    def generate():
+        if not notes:
+            yield sse({"type": "text", "content": "記事本是空的，請先新增筆記。"})
+            yield sse({"type": "done"})
+            return
+
+        overview = "\n".join(
+            f"#{n['id']}: {n['title']}\n   內容摘要: {n['content'][:150]}...\n   標籤: {', '.join(n['tags']) or '無'}"
+            for n in notes
+        )
+
+        # Phase 1: text analysis (streamed)
+        analysis_prompt = (
+            f"你是一位知識架構師。請分析以下所有筆記，產出一份「知識地圖」報告：\n\n"
+            f"{overview}\n\n"
+            f"請完成以下工作：\n"
+            f"1. **主題群組**：將筆記分成幾個知識領域/群組\n"
+            f"2. **連結關係**：說明筆記之間的關聯（哪些筆記共享概念、互相補充或依賴）\n"
+            f"3. **核心節點**：哪些筆記是知識網路中最重要的樞紐？\n"
+            f"4. **擴展建議**：基於現有知識地圖，建議下一步可以新增的 3 個知識節點\n\n"
+            f"最後，請產生一段 Mermaid mindmap 圖表語法來視覺化這個知識地圖。\n"
+            f"語法範例：\n"
+            f"```mermaid\n"
+            f"mindmap\n"
+            f"  root((我的知識庫))\n"
+            f"    程式設計\n"
+            f"      Python\n"
+            f"      Flask\n"
+            f"    資料科學\n"
+            f"      機器學習\n"
+            f"```\n"
+            f"請用繁體中文，確保 Mermaid 語法正確可渲染。"
+        )
+
+        buf = []
+        try:
+            for text in stream_gemini(analysis_prompt):
+                buf.append(text)
+                yield sse({"type": "text", "content": text})
+        except Exception as e:
+            yield sse({"type": "error", "message": str(e)})
+            return
+
+        # Extract mermaid code block if present
+        full = "".join(buf)
+        match = re.search(r"```mermaid\s*\n(.*?)```", full, re.DOTALL)
+        if match:
+            yield sse({"type": "mermaid", "content": match.group(1).strip()})
+
+        yield sse({"type": "done"})
+
+    return Response(stream_with_context(generate()),
+                    mimetype="text/event-stream", headers=_sse_headers())
+
+
+# ---------------------------------------------------------------------------
+# Startup
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     init_db()
+    init_ai()
     port = int(os.environ.get("PORT", 5000))
-    print(f"\n🧠 智腦記事本已啟動！請用瀏覽器開啟：http://localhost:{port}\n")
+    print(f"\n🧠 智腦記事本 (Gemini + ChromaDB) 已啟動！")
+    print(f"   📡 模型：{TEXT_MODEL}")
+    print(f"   🔢 嵌入：{EMBED_MODEL}")
+    print(f"   🌐 網址：http://localhost:{port}\n")
     app.run(debug=True, threaded=True, port=port)

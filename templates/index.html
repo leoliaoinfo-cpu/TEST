@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🧠 智腦記事本</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <style>
   /* ── Reset & base ───────────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -83,254 +84,135 @@
   .btn-slate:hover:not(:disabled)    { background: #334155; }
   .btn-ghost     { background: #e2e8f0; color: #374151; }
   .btn-ghost:hover:not(:disabled)    { background: #cbd5e1; }
+  .btn-emerald   { background: #059669; color: #fff; }
+  .btn-emerald:hover:not(:disabled)  { background: #047857; }
   .btn-sm        { padding: 5px 10px; font-size: .8rem; }
 
   /* ── Layout ──────────────────────────────────────── */
-  .layout {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
+  .layout { display: flex; flex: 1; overflow: hidden; }
 
   /* ── Sidebar ─────────────────────────────────────── */
   .sidebar {
-    width: 260px;
-    min-width: 260px;
-    background: #1e293b;
-    color: #e2e8f0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border-right: 1px solid #0f172a;
+    width: 260px; min-width: 260px;
+    background: #1e293b; color: #e2e8f0;
+    display: flex; flex-direction: column;
+    overflow: hidden; border-right: 1px solid #0f172a;
   }
   .sidebar-top {
     padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    display: flex; flex-direction: column; gap: 8px;
     border-bottom: 1px solid #334155;
   }
   .sidebar-top .btn { width: 100%; justify-content: center; }
-  .notes-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px 0;
-  }
+  .notes-list { flex: 1; overflow-y: auto; padding: 8px 0; }
   .notes-list::-webkit-scrollbar { width: 4px; }
   .notes-list::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
   .note-item {
-    padding: 10px 14px;
-    cursor: pointer;
-    border-left: 3px solid transparent;
-    transition: background .15s;
+    padding: 10px 14px; cursor: pointer;
+    border-left: 3px solid transparent; transition: background .15s;
   }
   .note-item:hover { background: #334155; }
   .note-item.active { background: #334155; border-left-color: #6366f1; }
   .note-item-title {
-    font-size: .88rem;
-    font-weight: 600;
-    color: #f1f5f9;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: .88rem; font-weight: 600; color: #f1f5f9;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .note-item-meta {
-    font-size: .75rem;
-    color: #94a3b8;
-    margin-top: 3px;
-  }
-  .note-item-tags {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-    margin-top: 4px;
-  }
-  .tag {
-    background: #312e81;
-    color: #a5b4fc;
-    font-size: .7rem;
-    padding: 1px 6px;
-    border-radius: 100px;
-  }
+  .note-item-meta { font-size: .75rem; color: #94a3b8; margin-top: 3px; }
+  .note-item-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+  .tag { background: #312e81; color: #a5b4fc; font-size: .7rem; padding: 1px 6px; border-radius: 100px; }
   .sidebar-bottom {
-    padding: 12px;
-    border-top: 1px solid #334155;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    padding: 12px; border-top: 1px solid #334155;
+    display: flex; flex-direction: column; gap: 6px;
   }
   .sidebar-bottom .btn { width: 100%; justify-content: center; }
-  .note-count {
-    text-align: center;
-    font-size: .75rem;
-    color: #64748b;
-    padding: 4px 0;
-  }
+  .note-count { text-align: center; font-size: .75rem; color: #64748b; padding: 4px 0; }
 
   /* ── Main content ────────────────────────────────── */
-  .main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: #f1f5f9;
-  }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f1f5f9; }
 
   /* ── Note view ───────────────────────────────────── */
-  .note-view {
-    flex: 1;
-    overflow-y: auto;
-    padding: 28px 32px;
-    display: none;
-  }
+  .note-view { flex: 1; overflow-y: auto; padding: 28px 32px; display: none; }
   .note-view.visible { display: block; }
   .note-view::-webkit-scrollbar { width: 6px; }
   .note-view::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-  .note-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 16px;
-  }
-  .note-title {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: #0f172a;
-    line-height: 1.3;
-  }
+  .note-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+  .note-title { font-size: 1.6rem; font-weight: 700; color: #0f172a; line-height: 1.3; }
   .note-actions { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
   .note-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-  .note-tag {
-    background: #ddd6fe;
-    color: #5b21b6;
-    font-size: .78rem;
-    padding: 2px 10px;
-    border-radius: 100px;
-    font-weight: 500;
-  }
-  .note-meta {
-    font-size: .78rem;
-    color: #94a3b8;
-    margin-bottom: 20px;
-  }
+  .note-tag { background: #ddd6fe; color: #5b21b6; font-size: .78rem; padding: 2px 10px; border-radius: 100px; font-weight: 500; }
+  .note-meta { font-size: .78rem; color: #94a3b8; margin-bottom: 20px; }
+
+  /* shared rich-text styles */
+  .rich-text { line-height: 1.7; font-size: .95rem; color: #1e293b; }
+  .rich-text h1, .rich-text h2, .rich-text h3 { margin: 1em 0 .5em; color: #0f172a; }
+  .rich-text p { margin-bottom: .8em; }
+  .rich-text ul, .rich-text ol { padding-left: 1.5em; margin-bottom: .8em; }
+  .rich-text li { margin-bottom: .3em; }
+  .rich-text code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: .88em; }
+  .rich-text pre { background: #1e293b; color: #e2e8f0; padding: 14px; border-radius: 8px; overflow-x: auto; margin-bottom: .8em; }
+  .rich-text pre code { background: none; padding: 0; }
+  .rich-text strong { font-weight: 700; }
+  .rich-text hr { border: none; border-top: 1px solid #e2e8f0; margin: 1.5em 0; }
+  .rich-text blockquote { border-left: 3px solid #6366f1; padding-left: 14px; color: #64748b; margin: .8em 0; }
+
   .note-body {
-    background: #fff;
-    border-radius: 12px;
-    padding: 24px 28px;
+    background: #fff; border-radius: 12px; padding: 24px 28px;
     box-shadow: 0 1px 4px rgba(0,0,0,.06);
-    line-height: 1.7;
-    font-size: .95rem;
-    color: #1e293b;
   }
-  .note-body h1, .note-body h2, .note-body h3 { margin: 1em 0 .5em; color: #0f172a; }
-  .note-body p { margin-bottom: .8em; }
-  .note-body ul, .note-body ol { padding-left: 1.5em; margin-bottom: .8em; }
-  .note-body li { margin-bottom: .3em; }
-  .note-body code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: .88em; }
-  .note-body pre { background: #1e293b; color: #e2e8f0; padding: 14px; border-radius: 8px; overflow-x: auto; margin-bottom: .8em; }
-  .note-body pre code { background: none; padding: 0; }
-  .note-body strong { font-weight: 700; }
-  .note-body hr { border: none; border-top: 1px solid #e2e8f0; margin: 1.5em 0; }
-  .note-body blockquote { border-left: 3px solid #6366f1; padding-left: 14px; color: #64748b; margin: .8em 0; }
 
   /* ── AI output panel ─────────────────────────────── */
-  .ai-panel {
-    flex: 1;
-    display: none;
-    flex-direction: column;
-    overflow: hidden;
-  }
+  .ai-panel { flex: 1; display: none; flex-direction: column; overflow: hidden; }
   .ai-panel.visible { display: flex; }
   .ai-panel-header {
-    padding: 16px 28px 12px;
-    background: #f1f5f9;
+    padding: 16px 28px 12px; background: #f1f5f9;
     border-bottom: 1px solid #e2e8f0;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    display: flex; align-items: center; gap: 12px;
   }
-  .ai-panel-title {
-    font-weight: 700;
-    font-size: 1rem;
-    color: #1e293b;
-    flex: 1;
-  }
-  .ai-stream-area {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px 32px 24px;
-  }
+  .ai-panel-title { font-weight: 700; font-size: 1rem; color: #1e293b; flex: 1; }
+  .ai-stream-area { flex: 1; overflow-y: auto; padding: 20px 32px 24px; }
   .ai-stream-area::-webkit-scrollbar { width: 6px; }
   .ai-stream-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
   .ai-bubble {
-    background: #fff;
-    border-radius: 12px;
-    padding: 20px 24px;
-    box-shadow: 0 1px 4px rgba(0,0,0,.06);
-    border: 1px solid #e2e8f0;
-    line-height: 1.7;
-    font-size: .95rem;
-    color: #1e293b;
+    background: #fff; border-radius: 12px; padding: 20px 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06); border: 1px solid #e2e8f0;
     min-height: 80px;
   }
-  .ai-bubble h1, .ai-bubble h2, .ai-bubble h3 { margin: 1em 0 .5em; color: #0f172a; }
-  .ai-bubble p { margin-bottom: .8em; }
-  .ai-bubble ul, .ai-bubble ol { padding-left: 1.5em; margin-bottom: .8em; }
-  .ai-bubble li { margin-bottom: .3em; }
-  .ai-bubble code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: .88em; }
-  .ai-bubble pre { background: #1e293b; color: #e2e8f0; padding: 14px; border-radius: 8px; overflow-x: auto; margin-bottom: .8em; }
-  .ai-bubble pre code { background: none; padding: 0; }
-  .ai-bubble strong { font-weight: 700; }
-  .ai-bubble hr { border: none; border-top: 1px solid #e2e8f0; margin: 1.5em 0; }
-  .ai-bubble blockquote { border-left: 3px solid #6366f1; padding-left: 14px; color: #64748b; margin: .8em 0; }
-  .ai-results {
-    margin-top: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
+  .ai-results { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
   .ai-result-item {
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: 10px;
-    padding: 10px 16px;
-    cursor: pointer;
-    transition: background .15s;
+    background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px;
+    padding: 10px 16px; cursor: pointer; transition: background .15s;
   }
   .ai-result-item:hover { background: #dbeafe; }
   .ai-result-item-title { font-weight: 600; font-size: .9rem; color: #1d4ed8; }
   .ai-result-item-snippet { font-size: .82rem; color: #475569; margin-top: 3px; }
   .status-bar {
-    padding: 8px 28px;
-    font-size: .8rem;
-    color: #64748b;
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 34px;
+    padding: 8px 28px; font-size: .8rem; color: #64748b;
+    background: #f8fafc; border-top: 1px solid #e2e8f0;
+    display: flex; align-items: center; gap: 8px; min-height: 34px;
   }
   .spinner {
     width: 14px; height: 14px;
-    border: 2px solid #cbd5e1;
-    border-top-color: #6366f1;
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-    flex-shrink: 0;
+    border: 2px solid #cbd5e1; border-top-color: #6366f1;
+    border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ── Mermaid diagram ─────────────────────────────── */
+  .mermaid-container {
+    margin-top: 20px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    border: 1px solid #e2e8f0;
+    overflow-x: auto;
+  }
+  .mermaid-container svg { max-width: 100%; height: auto; }
+
   /* ── Empty state ─────────────────────────────────── */
   .empty-state {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: #94a3b8;
-    gap: 12px;
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; color: #94a3b8; gap: 12px;
   }
   .empty-state.hidden { display: none; }
   .empty-state-icon { font-size: 3rem; }
@@ -338,38 +220,24 @@
 
   /* ── Modal ───────────────────────────────────────── */
   .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,.5);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.5); z-index: 100;
+    align-items: center; justify-content: center;
   }
   .modal-overlay.open { display: flex; }
   .modal {
-    background: #fff;
-    border-radius: 14px;
-    padding: 28px;
-    width: 540px;
-    max-width: 95vw;
+    background: #fff; border-radius: 14px; padding: 28px;
+    width: 540px; max-width: 95vw;
     box-shadow: 0 20px 60px rgba(0,0,0,.2);
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    display: flex; flex-direction: column; gap: 16px;
   }
   .modal-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
   .form-group { display: flex; flex-direction: column; gap: 6px; }
   .form-label { font-size: .85rem; font-weight: 600; color: #374151; }
   .form-input {
-    padding: 9px 13px;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: .9rem;
-    color: #0f172a;
-    outline: none;
-    transition: border-color .15s;
-    font-family: inherit;
+    padding: 9px 13px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: .9rem; color: #0f172a; outline: none;
+    transition: border-color .15s; font-family: inherit;
   }
   .form-input:focus { border-color: #6366f1; }
   textarea.form-input { resize: vertical; min-height: 120px; }
@@ -377,43 +245,26 @@
 
   /* ── Summarize bar ───────────────────────────────── */
   .summarize-bar {
-    display: none;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 28px;
-    background: #fff7ed;
-    border-bottom: 1px solid #fed7aa;
+    display: none; align-items: center; gap: 8px;
+    padding: 10px 28px; background: #fff7ed; border-bottom: 1px solid #fed7aa;
   }
   .summarize-bar.visible { display: flex; }
   .summarize-bar input {
-    flex: 1;
-    padding: 7px 12px;
-    border: 1.5px solid #fb923c;
-    border-radius: 8px;
-    font-size: .9rem;
-    outline: none;
-    font-family: inherit;
-    color: #0f172a;
+    flex: 1; padding: 7px 12px; border: 1.5px solid #fb923c;
+    border-radius: 8px; font-size: .9rem; outline: none;
+    font-family: inherit; color: #0f172a;
   }
   .summarize-bar input:focus { border-color: #ea580c; }
 
   /* ── Toast ───────────────────────────────────────── */
   .toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    background: #1e293b;
-    color: #f8fafc;
-    padding: 12px 20px;
-    border-radius: 10px;
-    font-size: .88rem;
-    font-weight: 500;
+    position: fixed; bottom: 24px; right: 24px;
+    background: #1e293b; color: #f8fafc;
+    padding: 12px 20px; border-radius: 10px;
+    font-size: .88rem; font-weight: 500;
     box-shadow: 0 4px 20px rgba(0,0,0,.25);
-    z-index: 200;
-    opacity: 0;
-    transform: translateY(10px);
-    transition: opacity .25s, transform .25s;
-    max-width: 320px;
+    z-index: 200; opacity: 0; transform: translateY(10px);
+    transition: opacity .25s, transform .25s; max-width: 320px;
   }
   .toast.show { opacity: 1; transform: translateY(0); }
   .toast.success { border-left: 4px solid #10b981; }
@@ -426,7 +277,7 @@
 <header class="header">
   <div class="header-logo">🧠 智腦記事本</div>
   <div class="header-search">
-    <input id="searchInput" type="text" placeholder="搜尋筆記…（支援 AI 語意理解）"
+    <input id="searchInput" type="text" placeholder="語意搜尋…（AI 理解你的意思，不只是關鍵字）"
       onkeydown="if(event.key==='Enter') doSearch()">
     <button class="btn btn-primary" onclick="doSearch()">🔍 搜尋</button>
   </div>
@@ -454,6 +305,7 @@
     </div>
     <div class="notes-list" id="notesList"></div>
     <div class="sidebar-bottom">
+      <button class="btn btn-emerald" onclick="doMindmap()">🗺️ 知識地圖</button>
       <button class="btn btn-violet" onclick="doAnalyze()">🔬 分析知識缺口</button>
       <div class="note-count" id="noteCount"></div>
     </div>
@@ -465,7 +317,7 @@
     <!-- Empty state -->
     <div class="empty-state" id="emptyState">
       <div class="empty-state-icon">📝</div>
-      <div class="empty-state-text">點選左側筆記，或使用搜尋開始</div>
+      <div class="empty-state-text">點選左側筆記，或使用語意搜尋開始</div>
     </div>
 
     <!-- Note view -->
@@ -476,7 +328,7 @@
       </div>
       <div class="note-tags" id="noteTags"></div>
       <div class="note-meta" id="noteMeta"></div>
-      <div class="note-body" id="noteBody"></div>
+      <div class="note-body rich-text" id="noteBody"></div>
     </div>
 
     <!-- AI panel -->
@@ -485,8 +337,9 @@
         <div class="ai-panel-title" id="aiPanelTitle">🤖 AI 回應</div>
         <button class="btn btn-ghost btn-sm" onclick="closeAiPanel()">✕ 關閉</button>
       </div>
-      <div class="ai-stream-area">
-        <div class="ai-bubble" id="aiBubble"></div>
+      <div class="ai-stream-area" id="aiStreamArea">
+        <div class="ai-bubble rich-text" id="aiBubble"></div>
+        <div id="mermaidContainer"></div>
         <div class="ai-results" id="aiResults"></div>
       </div>
       <div class="status-bar" id="statusBar">就緒</div>
@@ -510,7 +363,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeAddModal()">取消</button>
-      <button class="btn btn-primary" id="addBtn" onclick="submitAddNote()">💾 儲存（AI 自動標籤）</button>
+      <button class="btn btn-primary" id="addBtn" onclick="submitAddNote()">💾 儲存（AI 自動標籤 + 向量索引）</button>
     </div>
   </div>
 </div>
@@ -519,6 +372,9 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ── Mermaid init ────────────────────────────────────
+mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+
 // ── State ───────────────────────────────────────────
 let currentNoteId = null;
 let notes = [];
@@ -568,20 +424,16 @@ async function viewNote(id) {
   document.getElementById('noteTitle').textContent = note.title;
   document.getElementById('noteMeta').textContent =
     `建立：${note.created_at.slice(0,19)}　更新：${note.updated_at.slice(0,19)}`;
-
-  const tagsEl = document.getElementById('noteTags');
-  tagsEl.innerHTML = note.tags.map(t => `<span class="note-tag">#${t}</span>`).join('');
-
+  document.getElementById('noteTags').innerHTML =
+    note.tags.map(t => `<span class="note-tag">#${t}</span>`).join('');
   document.getElementById('noteBody').innerHTML = marked.parse(note.content);
-
   document.getElementById('noteActions').innerHTML = `
     <button class="btn btn-teal btn-sm" onclick="doAugment(${id})">🤖 補充知識</button>
     <button class="btn btn-violet btn-sm" onclick="doImprove(${id})">✨ 改善筆記</button>
     <button class="btn btn-slate btn-sm" onclick="doAutotag(${id})">🏷 自動標籤</button>
     <button class="btn btn-rose btn-sm" onclick="doDelete(${id})">🗑 刪除</button>
   `;
-
-  renderNoteList(); // refresh active state
+  renderNoteList();
 }
 
 // ── Add note ─────────────────────────────────────────
@@ -591,9 +443,8 @@ function openAddModal() {
   document.getElementById('addModal').classList.add('open');
   setTimeout(() => document.getElementById('newTitle').focus(), 50);
 }
-function closeAddModal() {
-  document.getElementById('addModal').classList.remove('open');
-}
+function closeAddModal() { document.getElementById('addModal').classList.remove('open'); }
+
 async function submitAddNote() {
   const title   = document.getElementById('newTitle').value.trim();
   const content = document.getElementById('newContent').value.trim();
@@ -601,7 +452,7 @@ async function submitAddNote() {
 
   const btn = document.getElementById('addBtn');
   btn.disabled = true;
-  btn.textContent = '儲存中…';
+  btn.textContent = '儲存中（AI 標籤 + 向量化）…';
 
   const res = await fetch('/api/notes', {
     method: 'POST',
@@ -610,11 +461,11 @@ async function submitAddNote() {
   });
   const note = await res.json();
   btn.disabled = false;
-  btn.innerHTML = '💾 儲存（AI 自動標籤）';
+  btn.innerHTML = '💾 儲存（AI 自動標籤 + 向量索引）';
   closeAddModal();
   await loadNotes();
   viewNote(note.id);
-  showToast(`✓ 已新增筆記並自動標籤`, 'success');
+  showToast('✓ 已新增筆記（含標籤 + 向量索引）', 'success');
 }
 
 // ── Delete ───────────────────────────────────────────
@@ -623,16 +474,14 @@ async function doDelete(id) {
   if (!confirm(`確定刪除「${note?.title}」？此操作無法復原。`)) return;
   await fetch(`/api/notes/${id}`, {method:'DELETE'});
   currentNoteId = null;
-  show('emptyState');
-  hide('noteView');
-  closeAiPanel();
+  show('emptyState'); hide('noteView'); closeAiPanel();
   await loadNotes();
   showToast('筆記已刪除', 'success');
 }
 
 // ── Autotag ──────────────────────────────────────────
 async function doAutotag(id) {
-  showToast('AI 標籤產生中…');
+  showToast('Gemini 標籤產生中…');
   const res = await fetch(`/api/notes/${id}/autotag`, {method:'POST'});
   const data = await res.json();
   await loadNotes();
@@ -644,7 +493,7 @@ async function doAutotag(id) {
 function doSearch() {
   const query = document.getElementById('searchInput').value.trim();
   if (!query) return;
-  showAiPanel(`🔍 搜尋：「${query}」`);
+  showAiPanel(`🔍 語意搜尋：「${query}」`);
   streamSSE('/api/search', {method:'POST', body:{query}}, results => {
     if (!results) return;
     const el = document.getElementById('aiResults');
@@ -661,8 +510,7 @@ async function doAugment(id) {
   const note = notes.find(n => n.id === id) || await (await fetch(`/api/notes/${id}`)).json();
   showAiPanel(`🤖 AI 補充知識：${note.title}`);
   streamSSE(`/api/notes/${id}/augment`, {method:'POST'}, async () => {
-    await loadNotes();
-    viewNote(id);
+    await loadNotes(); viewNote(id);
   });
 }
 
@@ -671,8 +519,7 @@ async function doImprove(id) {
   const note = notes.find(n => n.id === id) || await (await fetch(`/api/notes/${id}`)).json();
   showAiPanel(`✨ AI 改善筆記：${note.title}`);
   streamSSE(`/api/notes/${id}/improve`, {method:'POST'}, async () => {
-    await loadNotes();
-    viewNote(id);
+    await loadNotes(); viewNote(id);
   });
 }
 
@@ -680,6 +527,12 @@ async function doImprove(id) {
 function doAnalyze() {
   showAiPanel('🔬 AI 知識缺口分析');
   streamSSE('/api/analyze', {method:'GET'});
+}
+
+// ── Mind Map ─────────────────────────────────────────
+function doMindmap() {
+  showAiPanel('🗺️ 知識地圖（Mind Map）');
+  streamSSE('/api/mindmap', {method:'GET'});
 }
 
 // ── Summarize ────────────────────────────────────────
@@ -707,11 +560,10 @@ function streamSSE(url, opts, onDone) {
   }
 
   const bubble = document.getElementById('aiBubble');
-  const statusBar = document.getElementById('statusBar');
   bubble.innerHTML = '';
   document.getElementById('aiResults').innerHTML = '';
-
-  setStatus(true, 'AI 思考中…');
+  document.getElementById('mermaidContainer').innerHTML = '';
+  setStatus(true, 'Gemini 思考中…');
 
   let rawText = '';
 
@@ -722,10 +574,7 @@ function streamSSE(url, opts, onDone) {
 
     function pump() {
       reader.read().then(({ done, value }) => {
-        if (done) {
-          setStatus(false, '完成');
-          return;
-        }
+        if (done) { setStatus(false, '完成'); return; }
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop();
@@ -736,7 +585,10 @@ function streamSSE(url, opts, onDone) {
             if (evt.type === 'text') {
               rawText += evt.content;
               bubble.innerHTML = marked.parse(rawText);
-              bubble.scrollIntoView({ behavior:'smooth', block:'end' });
+              const area = document.getElementById('aiStreamArea');
+              area.scrollTop = area.scrollHeight;
+            } else if (evt.type === 'mermaid') {
+              renderMermaid(evt.content);
             } else if (evt.type === 'done') {
               setStatus(false, evt.message || '完成');
               if (evt.results) onDone && onDone(evt.results);
@@ -759,12 +611,25 @@ function streamSSE(url, opts, onDone) {
   });
 }
 
+// ── Mermaid rendering ────────────────────────────────
+async function renderMermaid(code) {
+  const container = document.getElementById('mermaidContainer');
+  try {
+    const id = 'mm-' + Date.now();
+    const { svg } = await mermaid.render(id, code);
+    container.innerHTML = `<div class="mermaid-container">${svg}</div>`;
+    const area = document.getElementById('aiStreamArea');
+    area.scrollTop = area.scrollHeight;
+  } catch (e) {
+    // Fallback: show raw code
+    container.innerHTML = `<div class="mermaid-container"><pre style="background:#f8fafc;color:#334155;padding:16px;border-radius:8px;white-space:pre-wrap">${esc(code)}</pre></div>`;
+  }
+}
+
 // ── AI panel helpers ─────────────────────────────────
 function showAiPanel(title) {
   document.getElementById('aiPanelTitle').textContent = title;
-  hide('noteView');
-  hide('emptyState');
-  show('aiPanel');
+  hide('noteView'); hide('emptyState'); show('aiPanel');
 }
 function closeAiPanel() {
   hide('aiPanel');
@@ -783,7 +648,6 @@ function setStatus(loading, text) {
 // ── Utilities ────────────────────────────────────────
 function show(id) { document.getElementById(id).classList.add('visible'); }
 function hide(id) { document.getElementById(id).classList.remove('visible'); }
-
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -797,10 +661,7 @@ function showToast(msg, type='') {
   toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// Close modal on Escape
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeAddModal();
-});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAddModal(); });
 </script>
 </body>
 </html>
