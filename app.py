@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-智腦記事本 — 網頁介面 (Gemini + ChromaDB 版)
+智腦記事本 — 網頁介面 (Google GenAI + ChromaDB 版)
 使用方式：python app.py → 瀏覽器開啟 http://localhost:5000
 
 需要環境變數：GOOGLE_API_KEY
+（可在專案目錄建立 .env 檔案自動載入）
 """
 
 from flask import Flask, request, jsonify, render_template, Response, stream_with_context
@@ -12,7 +13,16 @@ import json
 import os
 import re
 from datetime import datetime
-import google.generativeai as genai
+
+# Auto-load .env file if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+from google import genai
+from google.genai import types
 import chromadb
 
 app = Flask(__name__)
@@ -20,25 +30,54 @@ app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "notebook.db")
 CHROMA_PATH = os.path.join(BASE_DIR, "chroma_data")
-TEXT_MODEL = "gemini-3.1-pro-preview"
-EMBED_MODEL = "models/gemini-embedding-2-preview"
+
+# ---------------------------------------------------------------------------
+# Model names — adjust if your API key has different access
+# ---------------------------------------------------------------------------
+TEXT_MODEL  = "gemini-2.0-flash"          # fast & capable; change to gemini-1.5-pro if preferred
+EMBED_MODEL = "text-embedding-004"         # stable embedding model
+
+# ---------------------------------------------------------------------------
+# Google GenAI client (singleton)
+# ---------------------------------------------------------------------------
+
+_genai_client: genai.Client | None = None
+
+def get_client() -> genai.Client:
+    global _genai_client
+    if _genai_client is None:
+        api_key = os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            raise RuntimeError("未設定 GOOGLE_API_KEY，請建立 .env 檔案或設定環境變數")
+        _genai_client = genai.Client(api_key=api_key)
+    return _genai_client
+
+
+def embed_text(text: str) -> list[float]:
+    """Generate embedding vector via Google text-embedding model."""
+    client = get_client()
+    result = client.models.embed_content(
+        model=EMBED_MODEL,
+        contents=text[:8000],
+    )
+    return result.embeddings[0].values
+
+
+def stream_gemini(prompt: str):
+    """Generator yielding text chunks from Gemini streaming response."""
+    client = get_client()
+    for chunk in client.models.generate_content_stream(
+        model=TEXT_MODEL,
+        contents=prompt,
+    ):
+        text = chunk.text
+        if text:
+            yield text
 
 
 # ---------------------------------------------------------------------------
-# Gemini & ChromaDB initialisation
+# ChromaDB (semantic vector store)
 # ---------------------------------------------------------------------------
-
-def init_ai() -> None:
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
-        print("⚠️  警告：未設定 GOOGLE_API_KEY，AI 功能將無法使用")
-        return
-    genai.configure(api_key=api_key)
-
-
-def get_model() -> genai.GenerativeModel:
-    return genai.GenerativeModel(TEXT_MODEL)
-
 
 def get_chroma() -> chromadb.Collection:
     client = chromadb.PersistentClient(path=CHROMA_PATH)
@@ -46,15 +85,6 @@ def get_chroma() -> chromadb.Collection:
         name="notes",
         metadata={"hnsw:space": "cosine"},
     )
-
-
-def embed_text(text: str) -> list[float]:
-    """Generate embedding vector via Gemini embedding model."""
-    result = genai.embed_content(
-        model=EMBED_MODEL,
-        content=text[:8000],
-    )
-    return result["embedding"]
 
 
 def upsert_embedding(note_id: int, title: str, content: str, tags: list[str]) -> None:
@@ -91,7 +121,6 @@ def semantic_search(query: str, n_results: int = 10) -> list[dict]:
             query_embeddings=[qvec],
             n_results=min(n_results, col.count()),
         )
-        # Return list of {note_id, distance}
         out = []
         for idx, mid in enumerate(results["ids"][0]):
             out.append({
@@ -102,18 +131,6 @@ def semantic_search(query: str, n_results: int = 10) -> list[dict]:
     except Exception as e:
         print(f"[semantic_search] 失敗: {e}")
         return []
-
-
-def stream_gemini(prompt: str):
-    """Generator yielding text chunks from Gemini streaming response."""
-    model = get_model()
-    response = model.generate_content(prompt, stream=True)
-    for chunk in response:
-        try:
-            if chunk.text:
-                yield chunk.text
-        except (ValueError, AttributeError):
-            continue
 
 
 # ---------------------------------------------------------------------------
@@ -259,13 +276,16 @@ def _sse_headers():
 
 def run_autotag(note_id: int, title: str, content: str) -> list[str]:
     try:
-        model = get_model()
-        resp = model.generate_content(
-            f"為以下筆記產生 3-7 個相關標籤。只輸出 JSON 陣列，不要其他文字。\n"
-            f"範例：[\"python\", \"程式設計\", \"教學\"]\n\n"
-            f"標題：{title}\n內容：{content[:400]}"
+        client = get_client()
+        response = client.models.generate_content(
+            model=TEXT_MODEL,
+            contents=(
+                f"為以下筆記產生 3-7 個相關標籤。只輸出 JSON 陣列，不要其他文字。\n"
+                f"範例：[\"python\", \"程式設計\", \"教學\"]\n\n"
+                f"標題：{title}\n內容：{content[:400]}"
+            ),
         )
-        text = resp.text.strip()
+        text = response.text.strip()
         match = re.search(r"\[.*?\]", text, re.DOTALL)
         if match:
             tags = json.loads(match.group())
@@ -283,6 +303,17 @@ def run_autotag(note_id: int, title: str, content: str) -> list[str]:
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/api/status")
+def api_status():
+    """Check if API key is configured."""
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    return jsonify({
+        "api_key_set": bool(api_key),
+        "text_model": TEXT_MODEL,
+        "embed_model": EMBED_MODEL,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -345,15 +376,9 @@ def api_search():
     if not query:
         return jsonify({"error": "請輸入搜尋詞"}), 400
 
-    # 1) Semantic search via ChromaDB embeddings
     sem_hits = semantic_search(query, n_results=15)
-    sem_ids = {h["note_id"] for h in sem_hits}
-
-    # 2) FTS keyword backup
     fts_results = db_fts_search(query, limit=15)
-    fts_ids = {r["id"] for r in fts_results}
 
-    # 3) Merge — semantic first, then any FTS-only matches
     all_ids = list(dict.fromkeys([h["note_id"] for h in sem_hits] +
                                  [r["id"] for r in fts_results]))
     notes_map = {n["id"]: n for n in db_all_notes()}
@@ -514,7 +539,6 @@ def api_summarize():
     if not topic:
         return jsonify({"error": "請輸入主題"}), 400
 
-    # Use semantic search to find relevant notes
     sem_hits = semantic_search(topic, n_results=10)
     fts_results = db_fts_search(topic, limit=10)
 
@@ -577,7 +601,6 @@ def api_mindmap():
             for n in notes
         )
 
-        # Phase 1: text analysis (streamed)
         analysis_prompt = (
             f"你是一位知識架構師。請分析以下所有筆記，產出一份「知識地圖」報告：\n\n"
             f"{overview}\n\n"
@@ -609,7 +632,6 @@ def api_mindmap():
             yield sse({"type": "error", "message": str(e)})
             return
 
-        # Extract mermaid code block if present
         full = "".join(buf)
         match = re.search(r"```mermaid\s*\n(.*?)```", full, re.DOTALL)
         if match:
@@ -627,10 +649,11 @@ def api_mindmap():
 
 if __name__ == "__main__":
     init_db()
-    init_ai()
     port = int(os.environ.get("PORT", 5000))
-    print(f"\n🧠 智腦記事本 (Gemini + ChromaDB) 已啟動！")
-    print(f"   📡 模型：{TEXT_MODEL}")
-    print(f"   🔢 嵌入：{EMBED_MODEL}")
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    print(f"\n🧠 智腦記事本 (Google GenAI + ChromaDB) 已啟動！")
+    print(f"   📡 文字模型：{TEXT_MODEL}")
+    print(f"   🔢 嵌入模型：{EMBED_MODEL}")
+    print(f"   🔑 API 金鑰：{'✓ 已設定' if api_key else '✗ 未設定（請建立 .env 或設定 GOOGLE_API_KEY）'}")
     print(f"   🌐 網址：http://localhost:{port}\n")
     app.run(debug=True, threaded=True, port=port)
