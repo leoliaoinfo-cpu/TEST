@@ -1,0 +1,122 @@
+{% extends "crm_base.html" %}
+{% block title %}商機追蹤{% endblock %}
+{% block page_title %}商機追蹤{% endblock %}
+
+{% block content %}
+
+<!-- Pipeline summary bar -->
+<div class="row g-3 mb-4">
+  {% for stage_key, lbl, prob, color in STAGES %}
+    {% if stage_key not in ('won', 'lost') %}
+      {% set found = namespace(cnt=0, total=0) %}
+      {% for row in pipeline %}
+        {% if row.stage == stage_key %}
+          {% set found.cnt = row.cnt %}
+          {% set found.total = row.total %}
+        {% endif %}
+      {% endfor %}
+      <div class="col">
+        <a href="{{ url_for('opportunities', stage=stage_key) }}" class="text-decoration-none">
+          <div class="stat-card text-center py-3 border-top border-3 border-{{ color }}">
+            <div class="value" style="font-size:1.3rem; color:#1a2035">{{ found.cnt }}</div>
+            <div class="label">{{ lbl }}</div>
+            <div class="mt-1" style="font-size:.78rem; color:#4a6080">
+              {% if found.total %}NT$ {{ found.total|int|string|replace("000","K"[0:]) }}{% else %}—{% endif %}
+            </div>
+          </div>
+        </a>
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<!-- Filter -->
+<div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+  <span class="text-muted" style="font-size:.875rem">篩選階段：</span>
+  <a href="{{ url_for('opportunities') }}"
+     class="btn btn-sm {% if not sel_stage %}btn-primary{% else %}btn-outline-secondary{% endif %}">全部</a>
+  {% for key, lbl, prob, color in STAGES %}
+    <a href="{{ url_for('opportunities', stage=key) }}"
+       class="btn btn-sm {% if sel_stage==key %}btn-{{ color }}{% else %}btn-outline-{{ color }}{% endif %}">
+      {{ lbl }}
+    </a>
+  {% endfor %}
+</div>
+
+<!-- Table -->
+<div class="crm-table">
+  <table class="table table-hover mb-0">
+    <thead>
+      <tr>
+        <th>標題</th>
+        <th>客戶 / 公司</th>
+        <th>階段</th>
+        <th>金額</th>
+        <th>成交機率</th>
+        <th>預計成交日</th>
+        <th>更新時間</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in opps %}
+      {% set si = STAGE_MAP.get(o.stage, {}) %}
+      <tr>
+        <td class="fw-semibold">{{ o.title }}</td>
+        <td>
+          <a href="{{ url_for('customer_detail', cid=o.customer_id) }}" class="text-decoration-none">
+            {{ o.customer_name }}
+          </a>
+          {% if o.company %}<br><small class="text-muted">{{ o.company }}</small>{% endif %}
+        </td>
+        <td>
+          <span class="badge bg-{{ si.get('color','secondary') }} stage-badge">{{ si.get('label', o.stage) }}</span>
+        </td>
+        <td>{{ fmt_amount(o.amount) }}</td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <div class="progress flex-fill" style="height:6px;border-radius:3px;min-width:60px">
+              <div class="progress-bar bg-{{ si.get('color','secondary') }}"
+                   style="width:{{ o.probability }}%"></div>
+            </div>
+            <small class="text-muted">{{ o.probability }}%</small>
+          </div>
+        </td>
+        <td>
+          {% if o.expected_close_date %}
+            <small class="{% if o.expected_close_date < today()|string and o.stage not in ('won','lost') %}text-danger{% else %}text-muted{% endif %}">
+              {{ o.expected_close_date }}
+            </small>
+          {% else %}
+            <small class="text-muted">—</small>
+          {% endif %}
+        </td>
+        <td><small class="text-muted">{{ o.updated_at[:10] }}</small></td>
+        <td>
+          <div class="d-flex gap-1 justify-content-end">
+            <a href="{{ url_for('opportunity_edit', oid=o.id) }}" class="btn btn-sm btn-outline-secondary" title="編輯">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form method="post" action="{{ url_for('opportunity_delete', oid=o.id) }}"
+                  onsubmit="return confirm('確認刪除此商機？')">
+              <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="8" class="text-center text-muted py-5">
+          <i class="bi bi-lightning display-6 d-block mb-2"></i>
+          目前無商機{% if sel_stage %}（此階段）{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="mt-2">
+  <small class="text-muted">共 {{ opps|length }} 筆</small>
+</div>
+
+{% endblock %}

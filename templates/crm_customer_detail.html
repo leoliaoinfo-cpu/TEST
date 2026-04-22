@@ -1,0 +1,192 @@
+{% extends "crm_base.html" %}
+{% block title %}{{ customer.name }}{% endblock %}
+{% block page_title %}客戶詳情{% endblock %}
+
+{% block content %}
+{% set status_colors = {'active': 'success', 'prospect': 'warning', 'inactive': 'secondary'} %}
+{% set status_labels = {'active': '往來客戶', 'prospect': '潛在客戶', 'inactive': '非活躍'} %}
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('customers') }}">客戶管理</a></li>
+    <li class="breadcrumb-item active">{{ customer.name }}</li>
+  </ol>
+</nav>
+
+<div class="row g-4">
+  <!-- Left: customer info -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm rounded-3 mb-3">
+      <div class="card-body p-4">
+        <div class="d-flex align-items-start justify-content-between mb-3">
+          <div>
+            <h5 class="mb-0 fw-bold">{{ customer.name }}</h5>
+            {% if customer.company %}
+              <div class="text-muted" style="font-size:.875rem">{{ customer.company }}
+                {% if customer.title %} · {{ customer.title }}{% endif %}
+              </div>
+            {% endif %}
+          </div>
+          <span class="badge bg-{{ status_colors.get(customer.status, 'secondary') }}-subtle
+                              text-{{ status_colors.get(customer.status, 'secondary') }} border
+                              border-{{ status_colors.get(customer.status, 'secondary') }}-subtle">
+            {{ status_labels.get(customer.status, customer.status) }}
+          </span>
+        </div>
+
+        <ul class="list-unstyled mb-0" style="font-size:.875rem">
+          {% if customer.phone %}
+          <li class="mb-2"><i class="bi bi-telephone text-muted me-2"></i>{{ customer.phone }}</li>
+          {% endif %}
+          {% if customer.email %}
+          <li class="mb-2"><i class="bi bi-envelope text-muted me-2"></i>
+            <a href="mailto:{{ customer.email }}">{{ customer.email }}</a>
+          </li>
+          {% endif %}
+          {% if customer.address %}
+          <li class="mb-2"><i class="bi bi-geo-alt text-muted me-2"></i>{{ customer.address }}</li>
+          {% endif %}
+          {% if customer.industry %}
+          <li class="mb-2"><i class="bi bi-building text-muted me-2"></i>{{ customer.industry }}</li>
+          {% endif %}
+          {% if customer.source %}
+          <li class="mb-2"><i class="bi bi-signpost text-muted me-2"></i>來源：{{ customer.source }}</li>
+          {% endif %}
+          <li class="text-muted"><i class="bi bi-calendar text-muted me-2"></i>加入 {{ customer.created_at[:10] }}</li>
+        </ul>
+
+        {% if customer.notes %}
+        <div class="mt-3 p-3 rounded-2" style="background:#f8fafd;font-size:.84rem">
+          <i class="bi bi-sticky text-muted me-1"></i>{{ customer.notes }}
+        </div>
+        {% endif %}
+
+        <div class="d-flex gap-2 mt-3">
+          <a href="{{ url_for('customer_edit', cid=customer.id) }}" class="btn btn-outline-primary btn-sm flex-fill">
+            <i class="bi bi-pencil me-1"></i>編輯
+          </a>
+          <form method="post" action="{{ url_for('customer_delete', cid=customer.id) }}"
+                onsubmit="return confirm('確認刪除此客戶？所有相關紀錄將一併刪除。')">
+            <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="row g-2">
+      <div class="col-6">
+        <div class="stat-card text-center py-3">
+          <div class="value" style="font-size:1.4rem">{{ contacts|length }}</div>
+          <div class="label">聯絡次數</div>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="stat-card text-center py-3">
+          <div class="value" style="font-size:1.4rem">{{ opps|length }}</div>
+          <div class="label">商機數</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: contacts + opportunities -->
+  <div class="col-lg-8">
+    <!-- Opportunities -->
+    <div class="crm-table mb-4">
+      <div class="p-3 d-flex align-items-center justify-content-between">
+        <span class="fw-semibold" style="font-size:.9rem">
+          <i class="bi bi-lightning-charge-fill text-warning me-1"></i>商機
+        </span>
+        <a href="{{ url_for('opportunity_new', cid=customer.id) }}" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-plus-lg me-1"></i>新增商機
+        </a>
+      </div>
+      {% if opps %}
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr><th>標題</th><th>階段</th><th>金額</th><th>預計成交</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for o in opps %}
+          {% set si = STAGE_MAP.get(o.stage, {}) %}
+          <tr>
+            <td class="fw-semibold">{{ o.title }}</td>
+            <td><span class="badge bg-{{ si.get('color','secondary') }} stage-badge">{{ si.get('label', o.stage) }}</span></td>
+            <td>{{ fmt_amount(o.amount) }}</td>
+            <td><small class="text-muted">{{ o.expected_close_date or '—' }}</small></td>
+            <td>
+              <div class="d-flex gap-1 justify-content-end">
+                <a href="{{ url_for('opportunity_edit', oid=o.id) }}" class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <form method="post" action="{{ url_for('opportunity_delete', oid=o.id) }}"
+                      onsubmit="return confirm('確認刪除此商機？')">
+                  <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="text-center text-muted py-4" style="font-size:.875rem">
+        尚無商機，<a href="{{ url_for('opportunity_new', cid=customer.id) }}">新增第一筆</a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Contacts timeline -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <span class="fw-semibold" style="font-size:.9rem">
+        <i class="bi bi-chat-left-text text-primary me-1"></i>聯絡紀錄
+      </span>
+      <a href="{{ url_for('contact_new', cid=customer.id) }}" class="btn btn-sm btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>新增紀錄
+      </a>
+    </div>
+
+    {% if contacts %}
+    <div class="timeline">
+      {% for c in contacts %}
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-card">
+          <div class="d-flex align-items-start justify-content-between">
+            <div>
+              <span class="badge bg-light text-dark me-2">{{ c.type }}</span>
+              <span class="tl-meta">{{ c.contact_date[:16] }}</span>
+            </div>
+            <form method="post" action="{{ url_for('contact_delete', rid=c.id) }}"
+                  onsubmit="return confirm('確認刪除此聯絡紀錄？')">
+              <button class="btn btn-link btn-sm text-muted p-0"><i class="bi bi-x-lg"></i></button>
+            </form>
+          </div>
+          <div class="mt-2" style="font-size:.875rem">{{ c.content }}</div>
+          {% if c.result %}
+          <div class="mt-1 text-muted" style="font-size:.82rem">
+            <i class="bi bi-check-circle me-1 text-success"></i>結果：{{ c.result }}
+          </div>
+          {% endif %}
+          {% if c.next_action %}
+          <div class="mt-1 p-2 rounded-2" style="background:#fff8e1;font-size:.82rem">
+            <i class="bi bi-alarm text-warning me-1"></i>
+            後續行動：{{ c.next_action }}
+            {% if c.next_action_date %} · <strong>{{ c.next_action_date }}</strong>{% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5 crm-table">
+      <i class="bi bi-chat-left display-6 d-block mb-2"></i>
+      尚無聯絡紀錄，<a href="{{ url_for('contact_new', cid=customer.id) }}">新增第一筆</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

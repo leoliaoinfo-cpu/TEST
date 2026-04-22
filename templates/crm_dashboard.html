@@ -1,0 +1,163 @@
+{% extends "crm_base.html" %}
+{% block title %}儀表板{% endblock %}
+{% block page_title %}儀表板{% endblock %}
+
+{% block content %}
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3">
+    <div class="stat-card d-flex gap-3 align-items-center">
+      <div class="icon" style="background:#eef2ff">
+        <i class="bi bi-people-fill" style="color:#4f6ef7"></i>
+      </div>
+      <div>
+        <div class="value">{{ total_customers }}</div>
+        <div class="label">客戶總數</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="stat-card d-flex gap-3 align-items-center">
+      <div class="icon" style="background:#eafaf1">
+        <i class="bi bi-person-check-fill" style="color:#27ae60"></i>
+      </div>
+      <div>
+        <div class="value">{{ active_customers }}</div>
+        <div class="label">往來客戶</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="stat-card d-flex gap-3 align-items-center">
+      <div class="icon" style="background:#fff8e1">
+        <i class="bi bi-lightning-charge-fill" style="color:#f0a500"></i>
+      </div>
+      <div>
+        <div class="value">{{ total_opps }}</div>
+        <div class="label">進行中商機</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="stat-card d-flex gap-3 align-items-center">
+      <div class="icon" style="background:#fde8f0">
+        <i class="bi bi-currency-dollar" style="color:#e74c8b"></i>
+      </div>
+      <div>
+        <div class="value" style="font-size:1.25rem">{{ fmt_amount(pipeline_value) }}</div>
+        <div class="label">Pipeline 總值</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Pipeline by stage -->
+  <div class="col-lg-5">
+    <div class="crm-table p-0">
+      <div class="p-3 pb-0 d-flex align-items-center justify-content-between">
+        <span class="fw-semibold" style="font-size:.9rem">商機 Pipeline</span>
+        <a href="{{ url_for('opportunities') }}" class="btn btn-sm btn-outline-secondary">全部</a>
+      </div>
+      <div class="p-3">
+        {% set active_stages = ['prospecting','qualification','proposal','negotiation'] %}
+        {% for stage_key in active_stages %}
+          {% set info = STAGE_MAP[stage_key] %}
+          {% set found = namespace(cnt=0, total=0) %}
+          {% for row in stage_counts %}
+            {% if row.stage == stage_key %}
+              {% set found.cnt = row.cnt %}
+              {% set found.total = row.total %}
+            {% endif %}
+          {% endfor %}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="badge bg-{{ info.color }} stage-badge">{{ info.label }}</span>
+              <small class="text-muted">{{ found.cnt }} 件 · {{ fmt_amount(found.total) }}</small>
+            </div>
+            <div class="progress" style="height:6px;border-radius:3px">
+              <div class="progress-bar bg-{{ info.color }}"
+                   style="width: {% if pipeline_value > 0 %}{{ (found.total / pipeline_value * 100)|round|int }}{% else %}0{% endif %}%">
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+        <div class="border-top pt-2 mt-1 d-flex justify-content-between">
+          <small class="text-muted">已成交</small>
+          <small class="text-success fw-semibold">{{ fmt_amount(won_value) }}</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent contacts -->
+  <div class="col-lg-7">
+    <div class="crm-table">
+      <div class="p-3 pb-0 d-flex align-items-center justify-content-between">
+        <span class="fw-semibold" style="font-size:.9rem">最近聯絡紀錄</span>
+      </div>
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>客戶</th><th>類型</th><th>日期</th><th>內容摘要</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in recent_contacts %}
+          <tr>
+            <td>
+              <a href="{{ url_for('customer_detail', cid=c.customer_id) }}" class="text-decoration-none fw-semibold">
+                {{ c.customer_name }}
+              </a>
+              {% if c.company %}<br><small class="text-muted">{{ c.company }}</small>{% endif %}
+            </td>
+            <td><span class="badge bg-light text-dark">{{ c.type }}</span></td>
+            <td><small>{{ c.contact_date[:10] }}</small></td>
+            <td><small class="text-muted">{{ c.content[:40] }}{% if c.content|length > 40 %}…{% endif %}</small></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-muted py-4">尚無聯絡紀錄</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Upcoming actions -->
+  <div class="col-12">
+    <div class="crm-table">
+      <div class="p-3 pb-0">
+        <span class="fw-semibold" style="font-size:.9rem"><i class="bi bi-alarm me-1 text-warning"></i>待辦後續行動</span>
+      </div>
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr><th>客戶</th><th>預計行動</th><th>預定日期</th><th>上次聯絡</th></tr>
+        </thead>
+        <tbody>
+          {% for c in upcoming %}
+          <tr>
+            <td>
+              <a href="{{ url_for('customer_detail', cid=c.customer_id) }}" class="text-decoration-none fw-semibold">
+                {{ c.customer_name }}
+              </a>
+              {% if c.company %}<small class="text-muted ms-1">{{ c.company }}</small>{% endif %}
+            </td>
+            <td>{{ c.next_action }}</td>
+            <td>
+              <span class="badge {% if c.next_action_date <= today()|string %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                {{ c.next_action_date }}
+              </span>
+            </td>
+            <td><small class="text-muted">{{ c.type }} · {{ c.contact_date[:10] }}</small></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-muted py-4">目前無待辦行動</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

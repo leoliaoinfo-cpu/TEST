@@ -1,0 +1,73 @@
+{% extends "crm_base.html" %}
+{% block title %}新增聯絡紀錄{% endblock %}
+{% block page_title %}新增聯絡紀錄{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('customers') }}">客戶管理</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('customer_detail', cid=customer.id) }}">{{ customer.name }}</a></li>
+    <li class="breadcrumb-item active">新增聯絡紀錄</li>
+  </ol>
+</nav>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm rounded-3">
+      <div class="card-header bg-white border-bottom py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-chat-left-text text-primary me-2"></i>
+          與 <strong>{{ customer.name }}</strong> 的聯絡紀錄
+        </h6>
+      </div>
+      <div class="card-body p-4">
+        <form method="post">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">聯絡方式 <span class="text-danger">*</span></label>
+              <select name="type" class="form-select" required>
+                {% for t in CONTACT_TYPES %}
+                  <option value="{{ t }}" {% if contact and contact.type==t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">聯絡時間 <span class="text-danger">*</span></label>
+              <input type="datetime-local" name="contact_date" class="form-control" required
+                     value="{{ contact.contact_date[:16] if contact else now }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">聯絡內容 <span class="text-danger">*</span></label>
+              <textarea name="content" class="form-control" rows="4" required
+                        placeholder="詳細記錄此次聯絡的內容、討論事項…">{{ contact.content if contact else '' }}</textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">結果 / 客戶反應</label>
+              <textarea name="result" class="form-control" rows="2"
+                        placeholder="客戶的反應或此次聯絡的成果…">{{ contact.result if contact else '' }}</textarea>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label fw-semibold">後續行動</label>
+              <input type="text" name="next_action" class="form-control"
+                     value="{{ contact.next_action if contact else '' }}"
+                     placeholder="例：安排產品簡報、寄送報價單…">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">預計日期</label>
+              <input type="date" name="next_action_date" class="form-control"
+                     value="{{ contact.next_action_date if contact else '' }}">
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-check-lg me-1"></i>儲存紀錄
+            </button>
+            <a href="{{ url_for('customer_detail', cid=customer.id) }}" class="btn btn-outline-secondary">取消</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

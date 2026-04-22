@@ -1,0 +1,91 @@
+{% extends "crm_base.html" %}
+{% block title %}{% if opp %}編輯商機{% else %}新增商機{% endif %}{% endblock %}
+{% block page_title %}{% if opp %}編輯商機{% else %}新增商機{% endif %}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('customers') }}">客戶管理</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('customer_detail', cid=customer.id) }}">{{ customer.name }}</a></li>
+    <li class="breadcrumb-item active">{% if opp %}編輯商機{% else %}新增商機{% endif %}</li>
+  </ol>
+</nav>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm rounded-3">
+      <div class="card-header bg-white border-bottom py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-lightning-charge-fill text-warning me-2"></i>
+          {{ customer.name }} {% if customer.company %} · {{ customer.company }}{% endif %}
+        </h6>
+      </div>
+      <div class="card-body p-4">
+        <form method="post">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">商機標題 <span class="text-danger">*</span></label>
+              <input type="text" name="title" class="form-control" required
+                     value="{{ opp.title if opp else '' }}" placeholder="例：ERP 系統導入、年度維護合約…">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">預估金額 (NT$)</label>
+              <input type="number" name="amount" class="form-control" min="0" step="1000"
+                     value="{{ opp.amount|int if opp else '' }}" placeholder="0">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">預計成交日</label>
+              <input type="date" name="expected_close_date" class="form-control"
+                     value="{{ opp.expected_close_date if opp else '' }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">銷售階段</label>
+              <div class="row g-2 mt-0">
+                {% for key, lbl, prob, color in STAGES %}
+                <div class="col-6 col-md-4">
+                  <label class="stage-radio">
+                    <input type="radio" name="stage" value="{{ key }}" class="d-none stage-input"
+                           {% if opp and opp.stage==key %}checked
+                           {% elif not opp and key=='prospecting' %}checked{% endif %}>
+                    <div class="stage-option badge bg-{{ color }} stage-badge w-100 py-2 cursor-pointer">
+                      {{ lbl }}
+                    </div>
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">說明</label>
+              <textarea name="description" class="form-control" rows="3"
+                        placeholder="商機詳情、需求說明…">{{ opp.description if opp else '' }}</textarea>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-check-lg me-1"></i>{% if opp %}儲存變更{% else %}新增商機{% endif %}
+            </button>
+            <a href="{{ url_for('customer_detail', cid=customer.id) }}" class="btn btn-outline-secondary">取消</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .stage-option { cursor: pointer; opacity: .55; transition: opacity .15s; }
+  input.stage-input:checked + .stage-option { opacity: 1; box-shadow: 0 0 0 2px #1a2035; }
+</style>
+<script>
+  document.querySelectorAll('.stage-input').forEach(r => {
+    r.addEventListener('change', () => {
+      document.querySelectorAll('.stage-option').forEach(o => o.style.opacity = '.55');
+      r.nextElementSibling.style.opacity = '1';
+    });
+  });
+</script>
+{% endblock %}
