@@ -9,6 +9,7 @@ __pycache__/
 
 # Database & vector store (local data, not for version control)
 notebook.db
+crm.db
 chroma_data/
 
 # OS
