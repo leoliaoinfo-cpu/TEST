@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚛 卡旺貨車業務系統</title>
+<style>
+:root {
+  --bg:#ffffff; --bg2:#f7f6f3; --bg3:#efeeeb; --border:#e0deda;
+  --text:#37352f; --text2:#6b6b6b; --text3:#9b9a97;
+  --blue:#2563eb; --blue-bg:#eff6ff;
+  --green:#0f7b6c; --green-bg:#d3f1ec;
+  --red:#dc2626; --red-bg:#fee2e2;
+  --yellow:#d97706; --yellow-bg:#fef3c7;
+  --purple:#7c3aed; --purple-bg:#ede9fe;
+  --orange:#ea580c; --orange-bg:#ffedd5;
+  --r:6px; --sw:220px;
+  --shadow:0 1px 4px rgba(0,0,0,.07),0 4px 14px rgba(0,0,0,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"Segoe UI",sans-serif;background:var(--bg2);color:var(--text);min-height:100vh;display:flex}
+
+/* ── Sidebar ── */
+#sb{width:var(--sw);min-height:100vh;background:var(--bg3);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:10px 0;position:fixed;top:0;left:0;z-index:100}
+.sb-logo{padding:10px 14px 14px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.sb-logo .ico{font-size:24px}
+.sb-nav-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:6px 14px 2px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:7px 14px;border-radius:var(--r);margin:1px 8px;
+  cursor:pointer;font-size:13.5px;color:var(--text2);transition:background .1s}
+.sb-item:hover,.sb-item.active{background:var(--border);color:var(--text)}
+.sb-item .ico{font-size:15px;width:18px;text-align:center}
+.sb-footer{margin-top:auto;padding:12px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+.sb-footer strong{color:var(--text);font-size:13px}
+
+/* ── Main ── */
+#main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:11px 24px;
+  display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:90}
+.topbar h1{font-size:17px;font-weight:700;flex:1}
+.search-w{position:relative}
+.search-w input{border:1px solid var(--border);border-radius:var(--r);padding:6px 10px 6px 30px;
+  font-size:13px;background:var(--bg2);color:var(--text);width:200px;outline:none;transition:border-color .15s,width .2s}
+.search-w input:focus{border-color:var(--blue);background:var(--bg);width:250px}
+.search-w .si{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px}
+.btn{border:none;border-radius:var(--r);padding:7px 13px;font-size:13px;cursor:pointer;font-weight:500;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-pri{background:var(--text);color:#fff}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-sm{padding:4px 9px;font-size:11.5px}
+
+/* ── Content ── */
+#content{padding:22px 24px}
+.page{display:none}.page.active{display:block}
+
+/* ── Stats ── */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.scard{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px 18px;box-shadow:var(--shadow)}
+.scard .lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.scard .val{font-size:26px;font-weight:700}
+.scard .sub{font-size:11px;color:var(--text3);margin-top:3px}
+.scard.blue .val{color:var(--blue)}.scard.green .val{color:var(--green)}
+.scard.red .val{color:var(--red)}.scard.yellow .val{color:var(--yellow)}
+
+/* ── Section ── */
+.sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.sec-title{font-size:14px;font-weight:600;color:var(--text2)}
+.card-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);overflow:hidden}
+
+/* ── Vehicle cards ── */
+.veh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.veh-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden;
+  box-shadow:var(--shadow);transition:box-shadow .15s,transform .15s;cursor:pointer}
+.veh-card:hover{box-shadow:0 4px 18px rgba(0,0,0,.1);transform:translateY(-2px)}
+.veh-img{width:100%;height:160px;object-fit:cover;background:var(--bg3);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:36px}
+.veh-img img{width:100%;height:100%;object-fit:cover}
+.veh-body{padding:12px 14px}
+.veh-body h3{font-size:15px;font-weight:700;margin-bottom:2px}
+.veh-body .veh-sub{font-size:11px;color:var(--text3);margin-bottom:8px}
+.veh-body .veh-price{font-size:19px;font-weight:700;color:var(--green);margin-bottom:8px}
+.veh-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.vm-item .vm-lbl{font-size:10px;color:var(--text3)}
+.vm-item .vm-val{font-size:12px;font-weight:600}
+.veh-footer{padding:8px 14px 12px;display:flex;gap:6px;justify-content:flex-end;border-top:1px solid var(--border)}
+
+/* ── Image gallery ── */
+.img-gallery{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.img-thumb{width:80px;height:60px;border-radius:4px;object-fit:cover;cursor:pointer;border:2px solid transparent;transition:border-color .15s}
+.img-thumb:hover{border-color:var(--blue)}
+.img-thumb.main{border-color:var(--green)}
+.img-upload-btn{width:80px;height:60px;border-radius:4px;border:2px dashed var(--border);background:var(--bg2);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:10px;color:var(--text3);transition:border-color .15s}
+.img-upload-btn:hover{border-color:var(--blue);color:var(--blue)}
+.img-upload-btn span{font-size:20px;margin-bottom:2px}
+
+/* ── Tags ── */
+.tag{display:inline-block;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;letter-spacing:.03em}
+.t-avail{background:var(--green-bg);color:var(--green)}
+.t-sold{background:var(--red-bg);color:var(--red)}
+.t-rsv{background:var(--yellow-bg);color:var(--yellow)}
+.t-mnt{background:var(--purple-bg);color:var(--purple)}
+.t-lead{background:var(--blue-bg);color:var(--blue)}
+.t-follow{background:var(--orange-bg);color:var(--orange)}
+.t-deal{background:var(--green-bg);color:var(--green)}
+.t-lost{background:var(--bg3);color:var(--text3)}
+
+/* ── Customer list ── */
+.cust-item{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;
+  box-shadow:var(--shadow);margin-bottom:10px;display:flex;gap:13px;align-items:flex-start;cursor:pointer;transition:box-shadow .15s}
+.cust-item:hover{box-shadow:0 3px 14px rgba(0,0,0,.09)}
+.avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:16px;font-weight:700;flex-shrink:0}
+.cust-main{flex:1;min-width:0}
+.cust-name{font-size:14px;font-weight:700}
+.cust-contact{font-size:12px;color:var(--text3);margin-top:2px}
+.cust-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.linked-vehs{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.lv-chip{background:var(--blue-bg);color:var(--blue);border-radius:4px;padding:2px 8px;font-size:11px;font-weight:500}
+.cust-actions{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+
+/* ── Appointments ── */
+.cal-wrap{display:grid;grid-template-columns:1fr 320px;gap:16px}
+.cal-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;box-shadow:var(--shadow)}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-nav h3{font-size:15px;font-weight:700}
+.cal-nav button{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:4px 10px;cursor:pointer;font-size:13px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-dow{text-align:center;font-size:11px;color:var(--text3);padding:4px;text-transform:uppercase}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:6px;font-size:13px;cursor:pointer;position:relative;transition:background .1s;padding:2px}
+.cal-day:hover{background:var(--bg2)}
+.cal-day.today{background:var(--blue);color:#fff;font-weight:700}
+.cal-day.selected{background:var(--blue-bg);color:var(--blue);font-weight:700;border:2px solid var(--blue)}
+.cal-day.other-month{color:var(--text3)}
+.cal-day .dot-row{display:flex;gap:2px;position:absolute;bottom:3px}
+.cal-dot{width:5px;height:5px;border-radius:50%;background:var(--orange)}
+.cal-dot.done{background:var(--green)}
+.cal-dot.cancel{background:var(--red)}
+.apt-list{display:flex;flex-direction:column;gap:8px;max-height:500px;overflow-y:auto}
+.apt-item{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:11px 13px;box-shadow:var(--shadow)}
+.apt-item .apt-time{font-size:12px;font-weight:700;color:var(--blue);margin-bottom:4px}
+.apt-item .apt-cust{font-size:14px;font-weight:600}
+.apt-item .apt-veh{font-size:12px;color:var(--text3)}
+.apt-item .apt-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.empty{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty .eico{font-size:40px;margin-bottom:10px}
+
+/* ── Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:200;
+  display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);
+  opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--bg);border-radius:10px;width:580px;max-width:96vw;max-height:92vh;
+  overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.18);transform:translateY(14px);transition:transform .2s}
+.overlay.open .modal{transform:translateY(0)}
+.modal-hd{padding:18px 22px 0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--bg);z-index:1;border-bottom:1px solid var(--border);padding-bottom:12px}
+.modal-hd h2{font-size:16px;font-weight:700}
+.modal-x{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);line-height:1}
+.modal-bd{padding:16px 22px 20px}
+.modal-ft{padding:0 22px 18px;display:flex;justify-content:flex-end;gap:8px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em}
+.fg input,.fg select,.fg textarea{border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;
+  font-size:13px;font-family:inherit;color:var(--text);background:var(--bg);outline:none;transition:border-color .15s}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--blue)}
+.fg textarea{resize:vertical;min-height:65px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fgrid .full{grid-column:1/-1}
+
+/* ── Detail sections ── */
+.det-hero{background:linear-gradient(135deg,#1e293b,#334155);border-radius:8px;padding:18px;margin-bottom:14px;color:#fff}
+.det-hero h2{font-size:20px;font-weight:700}
+.det-hero .dh-sub{opacity:.65;font-size:12px;margin-bottom:8px}
+.det-hero .dh-price{font-size:26px;font-weight:700;color:#34d399}
+.det-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.det-item{background:var(--bg2);border-radius:var(--r);padding:9px 11px}
+.det-item .di-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:2px}
+.det-item .di-val{font-size:13px;font-weight:600}
+.notes-box{background:var(--bg2);border-radius:var(--r);padding:11px;font-size:13px;color:var(--text2);line-height:1.6;white-space:pre-wrap;margin-bottom:14px}
+.det-img-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.det-img-row img{width:100px;height:75px;object-fit:cover;border-radius:5px;cursor:pointer;transition:transform .15s}
+.det-img-row img:hover{transform:scale(1.04)}
+.linked-section{margin-top:12px}
+.linked-section h4{font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;margin-bottom:8px}
+.lc-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg2);border-radius:var(--r);margin-bottom:6px}
+.lc-row .lc-name{font-size:13px;font-weight:600;flex:1}
+.lc-row .lc-ph{font-size:12px;color:var(--text3)}
+
+/* ── Link picker ── */
+.pick-list{max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r);margin-top:6px}
+.pick-item{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s}
+.pick-item:last-child{border-bottom:none}
+.pick-item:hover{background:var(--bg2)}
+.pick-item.selected{background:var(--blue-bg)}
+.pick-chk{width:16px;height:16px;border-radius:3px;border:2px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;transition:all .15s}
+.pick-item.selected .pick-chk{background:var(--blue);border-color:var(--blue);color:#fff;font-size:11px}
+
+/* ── Lightbox ── */
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;display:flex;align-items:center;
+  justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+#lightbox.open{opacity:1;pointer-events:all}
+#lightbox img{max-width:92vw;max-height:88vh;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+#lightbox .lb-x{position:absolute;top:16px;right:20px;color:#fff;font-size:28px;cursor:pointer;line-height:1}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:#fff;padding:11px 16px;
+  border-radius:8px;font-size:13px;z-index:999;transform:translateY(50px);opacity:0;
+  transition:all .25s;box-shadow:var(--shadow)}
+#toast.show{transform:translateY(0);opacity:1}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+/* ── Responsive ── */
+@media(max-width:860px){
+  #sb{display:none}#main{margin-left:0}
+  .stat-row{grid-template-columns:1fr 1fr}
+  .cal-wrap{grid-template-columns:1fr}
+}
+@media(max-width:560px){.fgrid{grid-template-columns:1fr}.det-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<nav id="sb">
+  <div class="sb-logo"><span class="ico">🚛</span><div>卡旺<br><span style="font-weight:400;font-size:11px;color:var(--text3)">貨車業務系統</span></div></div>
+  <div class="sb-nav-lbl">選單</div>
+  <div class="sb-item active" onclick="goto('dash')"><span class="ico">📊</span>儀表板</div>
+  <div class="sb-item" onclick="goto('vehs')"><span class="ico">🚛</span>車輛管理</div>
+  <div class="sb-item" onclick="goto('custs')"><span class="ico">👥</span>客戶管理</div>
+  <div class="sb-item" onclick="goto('apts')"><span class="ico">📅</span>試乘預約</div>
+  <div class="sb-footer">
+    <div>庫存車輛</div><strong id="sb-veh">—</strong>
+    <div style="margin-top:6px">本月預約</div><strong id="sb-apt">—</strong>
+  </div>
+</nav>
+
+<!-- ── Main ── -->
+<div id="main">
+  <div class="topbar">
+    <h1 id="pg-title">📊 儀表板</h1>
+    <div class="search-w"><span class="si">🔍</span>
+      <input type="text" id="gSearch" placeholder="搜尋車輛、客戶…" oninput="doSearch()">
+    </div>
+    <button class="btn btn-pri" id="tb-btn" onclick="openAddVeh()">＋ 新增車輛</button>
+  </div>
+  <div id="content">
+
+    <!-- Dashboard -->
+    <div class="page active" id="page-dash">
+      <div class="stat-row">
+        <div class="scard blue"><div class="lbl">在庫車輛</div><div class="val" id="st-v">0</div><div class="sub">輛</div></div>
+        <div class="scard green"><div class="lbl">可售</div><div class="val" id="st-a">0</div><div class="sub">輛可售</div></div>
+        <div class="scard yellow"><div class="lbl">客戶總數</div><div class="val" id="st-c">0</div><div class="sub">位客戶</div></div>
+        <div class="scard red"><div class="lbl">今日預約</div><div class="val" id="st-t">0</div><div class="sub">組試乘</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+        <div>
+          <div class="sec-hd"><span class="sec-title">最新車輛</span><button class="btn btn-ghost btn-sm" onclick="goto('vehs')">全部 →</button></div>
+          <div id="dash-vehs"></div>
+        </div>
+        <div>
+          <div class="sec-hd"><span class="sec-title">近期試乘預約</span><button class="btn btn-ghost btn-sm" onclick="goto('apts')">全部 →</button></div>
+          <div id="dash-apts"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vehicles -->
+    <div class="page" id="page-vehs">
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <select id="vf-status" onchange="renderVehs()" style="border:1px solid var(--border);border-radius:var(--r);padding:5px 9px;font-size:13px;background:var(--bg);outline:none;cursor:pointer">
+          <option value="">所有狀態</option>
+          <option value="可售">可售</option><option value="保留中">保留中</option>
+          <option value="已售">已售</option><option value="維修中">維修中</option>
+        </select>
+        <select id="vf-model" onchange="renderVehs()" style="border:1px solid var(--border);border-radius:var(--r);padding:5px 9px;font-size:13px;background:var(--bg);outline:none;cursor:pointer">
+          <option value="">所有型號</option>
+        </select>
+      </div>
+      <div class="veh-grid" id="veh-grid"></div>
+      <div class="empty" id="veh-empty" style="display:none"><div class="eico">🚛</div><p>無符合條件的車輛</p></div>
+    </div>
+
+    <!-- Customers -->
+    <div class="page" id="page-custs">
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <select id="cf-status" onchange="renderCusts()" style="border:1px solid var(--border);border-radius:var(--r);padding:5px 9px;font-size:13px;background:var(--bg);outline:none;cursor:pointer">
+          <option value="">所有狀態</option>
+          <option value="潛在">潛在</option><option value="跟進中">跟進中</option>
+          <option value="已成交">已成交</option><option value="失聯">失聯</option>
+        </select>
+      </div>
+      <div id="cust-list"></div>
+      <div class="empty" id="cust-empty" style="display:none"><div class="eico">👥</div><p>尚無客戶資料</p></div>
+    </div>
+
+    <!-- Appointments -->
+    <div class="page" id="page-apts">
+      <div class="cal-wrap">
+        <div class="cal-card">
+          <div class="cal-nav">
+            <button onclick="calMove(-1)">‹</button>
+            <h3 id="cal-title"></h3>
+            <button onclick="calMove(1)">›</button>
+          </div>
+          <div class="cal-grid" id="cal-dow">
+            <div class="cal-dow">日</div><div class="cal-dow">一</div><div class="cal-dow">二</div>
+            <div class="cal-dow">三</div><div class="cal-dow">四</div><div class="cal-dow">五</div><div class="cal-dow">六</div>
+          </div>
+          <div class="cal-grid" id="cal-days"></div>
+        </div>
+        <div>
+          <div class="sec-hd">
+            <span class="sec-title" id="apt-list-title">預約列表</span>
+            <button class="btn btn-blue btn-sm" onclick="openAddApt()">＋ 新增預約</button>
+          </div>
+          <div class="apt-list" id="apt-list"></div>
+          <div class="empty" id="apt-empty" style="display:none"><div class="eico">📅</div><p>選擇日期查看預約</p></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div id="toast"></div>
+
+<!-- ── Lightbox ── -->
+<div id="lightbox" onclick="closeLightbox()">
+  <span class="lb-x" onclick="closeLightbox()">×</span>
+  <img id="lb-img" src="" alt="">
+</div>
+
+<!-- ── Vehicle Modal ── -->
+<div class="overlay" id="veh-modal">
+  <div class="modal" style="width:620px">
+    <div class="modal-hd"><h2 id="vm-title">新增車輛</h2><button class="modal-x" onclick="closeM('veh-modal')">×</button></div>
+    <div class="modal-bd">
+      <!-- Images -->
+      <div class="fg" style="margin-bottom:14px">
+        <label>車輛照片（最多6張）</label>
+        <div id="vm-imgs" class="img-gallery">
+          <label class="img-upload-btn" for="img-input"><span>📷</span>上傳</label>
+        </div>
+        <input type="file" id="img-input" accept="image/*" multiple style="display:none" onchange="handleImgUpload(event)">
+      </div>
+      <div class="fgrid">
+        <div class="fg"><label>型號 *</label>
+          <input id="vm-model" list="model-list" placeholder="K1 輕型貨車…">
+          <datalist id="model-list">
+            <option>K1 輕型貨車</option><option>K2 輕型貨車</option>
+            <option>T5 小型貨車</option><option>T7 中型貨車</option>
+            <option>廂型貨車</option><option>冷凍廂型車</option>
+            <option>雙排座貨車</option><option>超長平板車</option>
+          </datalist>
+        </div>
+        <div class="fg"><label>年份</label><input id="vm-year" type="number" min="2000" max="2030" placeholder="2024"></div>
+        <div class="fg"><label>顏色</label><input id="vm-color" placeholder="白色、藍色…"></div>
+        <div class="fg"><label>引擎</label><input id="vm-engine" placeholder="2.0L 柴油、2.5 汽油…"></div>
+        <div class="fg"><label>載重</label><input id="vm-payload" placeholder="800kg / 1000kg…"></div>
+        <div class="fg"><label>里程 (km)</label><input id="vm-mileage" type="number" min="0" placeholder="0"></div>
+        <div class="fg"><label>售價 (萬元) *</label><input id="vm-price" type="number" step="0.1" placeholder="55.0"></div>
+        <div class="fg"><label>成本 (萬元)</label><input id="vm-cost" type="number" step="0.1" placeholder="50.0"></div>
+        <div class="fg"><label>車牌</label><input id="vm-plate" placeholder="ABC-1234"></div>
+        <div class="fg"><label>入庫日期</label><input id="vm-date" type="date"></div>
+        <div class="fg full"><label>狀態</label>
+          <select id="vm-status">
+            <option value="可售">可售</option><option value="保留中">保留中</option>
+            <option value="已售">已售</option><option value="維修中">維修中</option>
+          </select>
+        </div>
+        <div class="fg full"><label>備註 / 配備說明</label><textarea id="vm-notes" placeholder="車況、特殊配備、改裝記錄…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeM('veh-modal')">取消</button>
+      <button class="btn btn-pri" onclick="saveVeh()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Vehicle Detail Modal ── -->
+<div class="overlay" id="vdet-modal">
+  <div class="modal" style="width:600px">
+    <div class="modal-hd"><h2>車輛詳情</h2><button class="modal-x" onclick="closeM('vdet-modal')">×</button></div>
+    <div class="modal-bd" id="vdet-body"></div>
+    <div class="modal-ft" id="vdet-ft"></div>
+  </div>
+</div>
+
+<!-- ── Customer Modal ── -->
+<div class="overlay" id="cust-modal">
+  <div class="modal" style="width:560px">
+    <div class="modal-hd"><h2 id="cm-title">新增客戶</h2><button class="modal-x" onclick="closeM('cust-modal')">×</button></div>
+    <div class="modal-bd">
+      <div class="fgrid">
+        <div class="fg"><label>姓名 *</label><input id="cm-name" placeholder="王大明"></div>
+        <div class="fg"><label>電話 *</label><input id="cm-phone" placeholder="0912-345-678"></div>
+        <div class="fg"><label>公司名稱</label><input id="cm-co" placeholder="XX 物流有限公司"></div>
+        <div class="fg"><label>LINE ID</label><input id="cm-line" placeholder="line_id"></div>
+        <div class="fg"><label>Email</label><input id="cm-email" type="email" placeholder="name@email.com"></div>
+        <div class="fg"><label>預算 (萬元)</label><input id="cm-budget" type="number" placeholder="60"></div>
+        <div class="fg"><label>用途需求</label><input id="cm-usage" placeholder="食品配送、建材運輸…"></div>
+        <div class="fg"><label>客戶狀態</label>
+          <select id="cm-status">
+            <option value="潛在">潛在</option><option value="跟進中">跟進中</option>
+            <option value="已成交">已成交</option><option value="失聯">失聯</option>
+          </select>
+        </div>
+        <div class="fg full"><label>地址</label><input id="cm-addr" placeholder="台中市…"></div>
+        <div class="fg full"><label>備註</label><textarea id="cm-notes" placeholder="特殊需求、跟進紀錄…"></textarea></div>
+      </div>
+      <!-- Vehicle linking -->
+      <div style="margin-top:14px">
+        <div class="fg"><label>連結有興趣的車輛</label></div>
+        <input type="text" id="cm-veh-search" placeholder="搜尋車輛型號…" oninput="renderPickList()"
+          style="width:100%;border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;font-size:13px;margin:6px 0 0;outline:none">
+        <div class="pick-list" id="veh-pick"></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeM('cust-modal')">取消</button>
+      <button class="btn btn-pri" onclick="saveCust()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Customer Detail Modal ── -->
+<div class="overlay" id="cdet-modal">
+  <div class="modal" style="width:580px">
+    <div class="modal-hd"><h2>客戶詳情</h2><button class="modal-x" onclick="closeM('cdet-modal')">×</button></div>
+    <div class="modal-bd" id="cdet-body"></div>
+    <div class="modal-ft" id="cdet-ft"></div>
+  </div>
+</div>
+
+<!-- ── Appointment Modal ── -->
+<div class="overlay" id="apt-modal">
+  <div class="modal" style="width:480px">
+    <div class="modal-hd"><h2 id="am-title">新增試乘預約</h2><button class="modal-x" onclick="closeM('apt-modal')">×</button></div>
+    <div class="modal-bd">
+      <div class="fgrid">
+        <div class="fg"><label>預約日期 *</label><input id="am-date" type="date"></div>
+        <div class="fg"><label>預約時間 *</label><input id="am-time" type="time" value="10:00"></div>
+        <div class="fg full"><label>客戶 *</label>
+          <select id="am-cust"><option value="">— 選擇客戶 —</option></select>
+        </div>
+        <div class="fg full"><label>試乘車輛 *</label>
+          <select id="am-veh"><option value="">— 選擇車輛 —</option></select>
+        </div>
+        <div class="fg"><label>狀態</label>
+          <select id="am-status">
+            <option value="預約">預約</option><option value="完成">完成</option><option value="取消">取消</option>
+          </select>
+        </div>
+        <div class="fg full"><label>備註</label><textarea id="am-notes" placeholder="注意事項…" style="min-height:50px"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeM('apt-modal')">取消</button>
+      <button class="btn btn-blue" onclick="saveApt()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════
+//  DATA
+// ════════════════════════════════
+const VK = 'kw_vehs', CK = 'kw_custs', AK = 'kw_apts';
+
+const demoVehs = [
+  { id:1, model:'K1 輕型貨車', year:2023, color:'白色', engine:'1.5L 汽油', payload:'800kg',
+    mileage:12000, price:52, cost:47, status:'可售', plate:'ABC-1234', date:'2025-02-10',
+    notes:'一手車，原廠保固中，附原廠踏板', images:[] },
+  { id:2, model:'T5 小型貨車', year:2024, color:'藍色', engine:'2.0L 柴油', payload:'1500kg',
+    mileage:0, price:88, cost:80, status:'保留中', plate:'', date:'2025-03-01',
+    notes:'全新車，客戶陳先生保留，4/1 交車', images:[] },
+  { id:3, model:'廂型貨車', year:2022, color:'銀色', engine:'2.5L 柴油', payload:'1000kg',
+    mileage:35000, price:72, cost:63, status:'可售', plate:'XYZ-5678', date:'2025-01-15',
+    notes:'加裝後車廂冷凍設備，適合食品配送', images:[] },
+  { id:4, model:'K2 輕型貨車', year:2023, color:'白色', engine:'1.8L 汽油', payload:'1000kg',
+    mileage:8500, price:62, cost:56, status:'已售', plate:'DEF-9012', date:'2024-12-05',
+    notes:'已售客戶：李先生，2025/1/20 成交', images:[] },
+];
+const demoCusts = [
+  { id:1, name:'王大明', phone:'0912-345-678', co:'大明物流', line:'wangdm', email:'', addr:'台中市北區',
+    budget:60, usage:'一般貨物配送', status:'跟進中', notes:'偏好白色，需要較大載重', date:'2025-03-10',
+    intVehs:[1,3] },
+  { id:2, name:'李志強', phone:'0923-456-789', co:'志強建材', line:'', email:'li@gmail.com', addr:'台南市東區',
+    budget:90, usage:'建材運輸', status:'潛在', notes:'需要 1.5 噸以上，考慮廂型', date:'2025-03-20',
+    intVehs:[2,3] },
+  { id:3, name:'陳美玲', phone:'0934-567-890', co:'美玲食品', line:'meiling88', email:'', addr:'彰化縣',
+    budget:75, usage:'食品冷凍配送', status:'已成交', notes:'已購買 K2', date:'2025-02-15',
+    intVehs:[4] },
+];
+const demoApts = [
+  { id:1, custId:1, vehId:1, date:'2025-04-30', time:'10:00', status:'預約', notes:'客戶從台中北區過來' },
+  { id:2, custId:2, vehId:3, date:'2025-05-01', time:'14:30', status:'預約', notes:'' },
+  { id:3, custId:3, vehId:2, date:'2025-04-25', time:'11:00', status:'完成', notes:'試乘滿意，已訂車' },
+];
+
+let vehs = JSON.parse(localStorage.getItem(VK) || 'null') || demoVehs;
+let custs = JSON.parse(localStorage.getItem(CK) || 'null') || demoCusts;
+let apts = JSON.parse(localStorage.getItem(AK) || 'null') || demoApts;
+
+let editVehId = null, editCustId = null, editAptId = null;
+let selCustVehs = [];   // selected veh ids in customer modal
+let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
+let calSel = null;      // selected date string YYYY-MM-DD
+let searchQ = '';
+
+function save() {
+  localStorage.setItem(VK, JSON.stringify(vehs));
+  localStorage.setItem(CK, JSON.stringify(custs));
+  localStorage.setItem(AK, JSON.stringify(apts));
+}
+
+// ════════════════════════════════
+//  NAV
+// ════════════════════════════════
+function goto(pg) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + pg).classList.add('active');
+  document.querySelector(`.sb-item[onclick="goto('${pg}')"]`).classList.add('active');
+  const titles = { dash:'📊 儀表板', vehs:'🚛 車輛管理', custs:'👥 客戶管理', apts:'📅 試乘預約' };
+  document.getElementById('pg-title').textContent = titles[pg];
+  const btns = { dash:'openAddVeh()', vehs:'openAddVeh()', custs:'openAddCust()', apts:'openAddApt()' };
+  const bTxt = { dash:'＋ 新增車輛', vehs:'＋ 新增車輛', custs:'＋ 新增客戶', apts:'＋ 新增預約' };
+  document.getElementById('tb-btn').textContent = bTxt[pg];
+  document.getElementById('tb-btn').setAttribute('onclick', btns[pg]);
+  updateSidebar();
+  if (pg === 'dash') renderDash();
+  if (pg === 'vehs') { populateVehFilter(); renderVehs(); }
+  if (pg === 'custs') renderCusts();
+  if (pg === 'apts') { renderCal(); renderAptList(); }
+}
+
+function updateSidebar() {
+  document.getElementById('sb-veh').textContent = vehs.filter(v => v.status !== '已售').length + ' 輛';
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('sb-apt').textContent = apts.filter(a => a.date === today && a.status === '預約').length + ' 組';
+}
+
+function doSearch() {
+  searchQ = document.getElementById('gSearch').value.toLowerCase();
+  if (document.getElementById('page-vehs').classList.contains('active')) renderVehs();
+  if (document.getElementById('page-custs').classList.contains('active')) renderCusts();
+}
+
+// ════════════════════════════════
+//  DASHBOARD
+// ════════════════════════════════
+function renderDash() {
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('st-v').textContent = vehs.length;
+  document.getElementById('st-a').textContent = vehs.filter(v => v.status === '可售').length;
+  document.getElementById('st-c').textContent = custs.length;
+  document.getElementById('st-t').textContent = apts.filter(a => a.date === today && a.status === '預約').length;
+  updateSidebar();
+
+  // recent vehs
+  const rv = [...vehs].sort((a,b) => (b.date||'').localeCompare(a.date||'')).slice(0,4);
+  document.getElementById('dash-vehs').innerHTML = rv.map(v => `
+    <div onclick="openVehDet(${v.id})" style="background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:11px 13px;margin-bottom:8px;cursor:pointer;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 3px 12px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow='var(--shadow)'">
+      <div style="width:44px;height:38px;border-radius:5px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${v.images && v.images[0] ? `<img src="${v.images[0]}" style="width:44px;height:38px;object-fit:cover;border-radius:5px">` : '🚛'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${v.model}</div>
+        <div style="font-size:11px;color:var(--text3)">${v.year||''}年 · ${v.color||''}  ${v.price} 萬</div>
+      </div>
+      <span class="tag t-${statusCls(v.status)}">${v.status}</span>
+    </div>`).join('') || '<div class="empty"><p>尚無車輛</p></div>';
+
+  // upcoming apts
+  const ua = [...apts].filter(a => a.date >= today && a.status === '預約').sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time)).slice(0,5);
+  document.getElementById('dash-apts').innerHTML = ua.map(a => {
+    const c = custs.find(x => x.id === a.custId);
+    const v = vehs.find(x => x.id === a.vehId);
+    return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:11px 13px;margin-bottom:8px;box-shadow:var(--shadow)">
+      <div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:3px">${a.date} ${a.time}</div>
+      <div style="font-size:13px;font-weight:600">${c ? c.name : '—'} <span style="font-weight:400;color:var(--text3);font-size:12px">${c && c.co ? '· ' + c.co : ''}</span></div>
+      <div style="font-size:12px;color:var(--text3)">${v ? v.model : '—'}</div>
+    </div>`;
+  }).join('') || '<div class="empty"><p>近期無預約</p></div>';
+}
+
+// ════════════════════════════════
+//  VEHICLES
+// ════════════════════════════════
+function populateVehFilter() {
+  const models = [...new Set(vehs.map(v => v.model))].sort();
+  const sel = document.getElementById('vf-model');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">所有型號</option>' + models.map(m => `<option value="${m}">${m}</option>`).join('');
+  sel.value = cur;
+}
+
+function getFilteredVehs() {
+  const st = document.getElementById('vf-status').value;
+  const mo = document.getElementById('vf-model').value;
+  return vehs.filter(v => {
+    if (st && v.status !== st) return false;
+    if (mo && v.model !== mo) return false;
+    if (searchQ) return (v.model + v.color + v.plate + v.notes).toLowerCase().includes(searchQ);
+    return true;
+  });
+}
+
+function renderVehs() {
+  const filtered = getFilteredVehs();
+  const grid = document.getElementById('veh-grid');
+  const empty = document.getElementById('veh-empty');
+  if (!filtered.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  grid.innerHTML = filtered.map(v => {
+    const profit = v.cost ? (v.price - v.cost).toFixed(1) : null;
+    const imgHtml = v.images && v.images[0]
+      ? `<img src="${v.images[0]}" style="width:100%;height:160px;object-fit:cover">`
+      : `<div class="veh-img" style="height:160px">🚛</div>`;
+    return `<div class="veh-card">
+      <div onclick="openVehDet(${v.id})" style="cursor:pointer">${imgHtml}
+        <div class="veh-body">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+            <div><div style="font-size:11px;color:var(--text3)">${v.year||''}年</div><h3>${v.model}</h3></div>
+            <span class="tag t-${statusCls(v.status)}">${v.status}</span>
+          </div>
+          <div class="veh-price">$ ${v.price} 萬${profit !== null ? ` <span style="font-size:12px;font-weight:400;color:var(--text3)">毛利 ${profit}萬</span>` : ''}</div>
+          <div class="veh-meta">
+            <div class="vm-item"><div class="vm-lbl">顏色</div><div class="vm-val">${v.color||'—'}</div></div>
+            <div class="vm-item"><div class="vm-lbl">里程</div><div class="vm-val">${v.mileage != null ? Number(v.mileage).toLocaleString() + 'km' : '—'}</div></div>
+            <div class="vm-item"><div class="vm-lbl">載重</div><div class="vm-val">${v.payload||'—'}</div></div>
+            <div class="vm-item"><div class="vm-lbl">車牌</div><div class="vm-val">${v.plate||'—'}</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="veh-footer">
+        <button class="btn btn-ghost btn-sm" onclick="openVehEdit(${v.id})">✏️ 編輯</button>
+        <button class="btn btn-red btn-sm" onclick="delVeh(${v.id})">刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function statusCls(s) {
+  return { '可售':'avail','已售':'sold','保留中':'rsv','維修中':'mnt' }[s] || 'avail';
+}
+
+// ── Image upload ──
+let editingImgs = [];
+function handleImgUpload(e) {
+  const files = Array.from(e.target.files);
+  const remaining = 6 - editingImgs.length;
+  if (remaining <= 0) { toast('最多只能上傳 6 張照片'); return; }
+  files.slice(0, remaining).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX = 700;
+        let w = img.width, h = img.height;
+        if (w > h && w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+        else if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const b64 = canvas.toDataURL('image/jpeg', 0.68);
+        editingImgs.push(b64);
+        renderImgPreview();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = '';
+}
+
+function renderImgPreview() {
+  const wrap = document.getElementById('vm-imgs');
+  wrap.innerHTML = editingImgs.map((src, i) =>
+    `<div style="position:relative">
+      <img src="${src}" class="img-thumb${i===0?' main':''}" onclick="openLightbox('${src}')" title="${i===0?'主圖':'點擊放大'}">
+      <button onclick="removeImg(${i})" style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:10px;cursor:pointer;line-height:1;padding:0;display:flex;align-items:center;justify-content:center">×</button>
+      ${i > 0 ? `<button onclick="setMainImg(${i})" style="position:absolute;bottom:-4px;left:0;right:0;background:rgba(0,0,0,.55);color:#fff;border:none;font-size:9px;cursor:pointer;padding:2px;text-align:center">設主圖</button>` : ''}
+    </div>`
+  ).join('') + (editingImgs.length < 6 ? '<label class="img-upload-btn" for="img-input"><span>📷</span>上傳</label>' : '');
+}
+
+function removeImg(i) { editingImgs.splice(i, 1); renderImgPreview(); }
+function setMainImg(i) { const img = editingImgs.splice(i, 1)[0]; editingImgs.unshift(img); renderImgPreview(); }
+
+// ── Vehicle CRUD ──
+function openAddVeh() {
+  editVehId = null; editingImgs = [];
+  document.getElementById('vm-title').textContent = '新增車輛';
+  ['model','year','color','engine','payload','mileage','price','cost','plate','notes'].forEach(f => { document.getElementById('vm-' + f).value = ''; });
+  document.getElementById('vm-status').value = '可售';
+  document.getElementById('vm-date').value = new Date().toISOString().slice(0,10);
+  renderImgPreview();
+  openM('veh-modal');
+}
+
+function openVehEdit(id) {
+  const v = vehs.find(x => x.id === id);
+  if (!v) return;
+  editVehId = id; editingImgs = [...(v.images || [])];
+  document.getElementById('vm-title').textContent = '編輯車輛';
+  document.getElementById('vm-model').value = v.model || '';
+  document.getElementById('vm-year').value = v.year || '';
+  document.getElementById('vm-color').value = v.color || '';
+  document.getElementById('vm-engine').value = v.engine || '';
+  document.getElementById('vm-payload').value = v.payload || '';
+  document.getElementById('vm-mileage').value = v.mileage ?? '';
+  document.getElementById('vm-price').value = v.price || '';
+  document.getElementById('vm-cost').value = v.cost || '';
+  document.getElementById('vm-plate').value = v.plate || '';
+  document.getElementById('vm-status').value = v.status || '可售';
+  document.getElementById('vm-date').value = v.date || '';
+  document.getElementById('vm-notes').value = v.notes || '';
+  renderImgPreview();
+  openM('veh-modal');
+}
+
+function saveVeh() {
+  const model = document.getElementById('vm-model').value.trim();
+  const price = parseFloat(document.getElementById('vm-price').value);
+  if (!model || isNaN(price)) { toast('❗ 請填寫型號與售價'); return; }
+  const data = {
+    model, price, images: [...editingImgs],
+    year: parseInt(document.getElementById('vm-year').value) || null,
+    color: document.getElementById('vm-color').value.trim(),
+    engine: document.getElementById('vm-engine').value.trim(),
+    payload: document.getElementById('vm-payload').value.trim(),
+    mileage: parseFloat(document.getElementById('vm-mileage').value) || 0,
+    cost: parseFloat(document.getElementById('vm-cost').value) || null,
+    plate: document.getElementById('vm-plate').value.trim(),
+    status: document.getElementById('vm-status').value,
+    date: document.getElementById('vm-date').value,
+    notes: document.getElementById('vm-notes').value.trim(),
+  };
+  if (editVehId) {
+    const i = vehs.findIndex(v => v.id === editVehId);
+    vehs[i] = { ...vehs[i], ...data };
+    toast('✅ 車輛已更新');
+  } else {
+    data.id = Date.now(); vehs.push(data);
+    toast('✅ 車輛已新增');
+  }
+  save(); closeM('veh-modal'); populateVehFilter(); renderVehs(); renderDash();
+}
+
+function delVeh(id) {
+  if (!confirm('確定刪除此車輛？')) return;
+  vehs = vehs.filter(v => v.id !== id);
+  // unlink from customers
+  custs.forEach(c => { c.intVehs = (c.intVehs || []).filter(x => x !== id); });
+  save(); renderVehs(); renderDash(); populateVehFilter();
+  toast('🗑️ 車輛已刪除');
+}
+
+function openVehDet(id) {
+  const v = vehs.find(x => x.id === id);
+  if (!v) return;
+  const profit = v.cost ? (v.price - v.cost).toFixed(1) : null;
+  const linked = custs.filter(c => (c.intVehs || []).includes(id));
+  document.getElementById('vdet-body').innerHTML = `
+    ${v.images && v.images.length ? `<div class="det-img-row">${v.images.map(s => `<img src="${s}" onclick="openLightbox('${s}')">`).join('')}</div>` : ''}
+    <div class="det-hero">
+      <div class="dh-sub">${v.year||''}年 · ${v.color||''} · 卡旺</div>
+      <h2>${v.model}</h2>
+      <div class="dh-price">$ ${v.price} 萬元${profit !== null ? ` <span style="font-size:14px;opacity:.7">毛利 ${profit}萬</span>` : ''}</div>
+    </div>
+    <div class="det-grid">
+      <div class="det-item"><div class="di-lbl">引擎</div><div class="di-val">${v.engine||'—'}</div></div>
+      <div class="det-item"><div class="di-lbl">載重</div><div class="di-val">${v.payload||'—'}</div></div>
+      <div class="det-item"><div class="di-lbl">里程</div><div class="di-val">${v.mileage != null ? Number(v.mileage).toLocaleString() + ' km' : '—'}</div></div>
+      <div class="det-item"><div class="di-lbl">車牌</div><div class="di-val">${v.plate||'—'}</div></div>
+      <div class="det-item"><div class="di-lbl">入庫日期</div><div class="di-val">${v.date||'—'}</div></div>
+      <div class="det-item"><div class="di-lbl">狀態</div><div class="di-val"><span class="tag t-${statusCls(v.status)}">${v.status}</span></div></div>
+    </div>
+    ${v.notes ? `<div class="notes-box">${v.notes}</div>` : ''}
+    <div class="linked-section">
+      <h4>有興趣的客戶 (${linked.length})</h4>
+      ${linked.length ? linked.map(c => `
+        <div class="lc-row">
+          <div class="lc-name">${c.name}</div>
+          <div class="lc-ph">${c.phone}${c.co ? ' · ' + c.co : ''}</div>
+          <span class="tag t-${custStCls(c.status)}">${c.status}</span>
+        </div>`).join('') : '<p style="font-size:13px;color:var(--text3)">尚無客戶連結此車輛</p>'}
+    </div>`;
+  document.getElementById('vdet-ft').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeM('vdet-modal')">關閉</button>
+    <button class="btn btn-ghost" onclick="closeM('vdet-modal');openVehEdit(${v.id})">✏️ 編輯</button>
+    <button class="btn btn-blue" onclick="openAptFromVeh(${v.id})">📅 預約試乘</button>`;
+  openM('vdet-modal');
+}
+
+function openAptFromVeh(vId) {
+  closeM('vdet-modal');
+  openAddApt(vId);
+}
+
+// ════════════════════════════════
+//  CUSTOMERS
+// ════════════════════════════════
+function custStCls(s) { return { '潛在':'lead','跟進中':'follow','已成交':'deal','失聯':'lost' }[s] || 'lead'; }
+const avatarColors = ['#2563eb','#0f7b6c','#d97706','#7c3aed','#dc2626','#ea580c'];
+
+function renderCusts() {
+  const st = document.getElementById('cf-status').value;
+  const filtered = custs.filter(c => {
+    if (st && c.status !== st) return false;
+    if (searchQ) return (c.name + c.co + c.phone + c.usage + c.notes).toLowerCase().includes(searchQ);
+    return true;
+  });
+  const list = document.getElementById('cust-list');
+  const empty = document.getElementById('cust-empty');
+  if (!filtered.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = filtered.map(c => {
+    const col = avatarColors[c.name.charCodeAt(0) % avatarColors.length];
+    const lvs = (c.intVehs || []).map(id => { const v = vehs.find(x => x.id === id); return v ? `<span class="lv-chip">${v.model}</span>` : ''; }).join('');
+    return `<div class="cust-item" onclick="openCustDet(${c.id})">
+      <div class="avatar" style="background:${col}">${c.name.slice(0,1)}</div>
+      <div class="cust-main">
+        <div class="cust-name">${c.name} ${c.co ? `<span style="font-weight:400;font-size:12px;color:var(--text3)">· ${c.co}</span>` : ''}</div>
+        <div class="cust-contact">${c.phone}${c.line ? ' · LINE: ' + c.line : ''}${c.email ? ' · ' + c.email : ''}</div>
+        ${c.usage ? `<div style="font-size:12px;color:var(--text2);margin-top:2px">用途：${c.usage}${c.budget ? '　預算：' + c.budget + ' 萬' : ''}</div>` : ''}
+        <div class="cust-tags"><span class="tag t-${custStCls(c.status)}">${c.status}</span></div>
+        ${lvs ? `<div class="linked-vehs">${lvs}</div>` : ''}
+      </div>
+      <div class="cust-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm" onclick="openCustEdit(${c.id})">✏️ 編輯</button>
+        <button class="btn btn-red btn-sm" onclick="delCust(${c.id})">刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// vehicle pick list
+function renderPickList() {
+  const q = (document.getElementById('cm-veh-search').value || '').toLowerCase();
+  const wrap = document.getElementById('veh-pick');
+  const list = vehs.filter(v => !q || v.model.toLowerCase().includes(q));
+  wrap.innerHTML = list.map(v => {
+    const sel = selCustVehs.includes(v.id);
+    return `<div class="pick-item${sel ? ' selected' : ''}" onclick="togglePickVeh(${v.id})">
+      <div class="pick-chk">${sel ? '✓' : ''}</div>
+      <div><div style="font-size:13px;font-weight:500">${v.model}</div>
+      <div style="font-size:11px;color:var(--text3)">${v.year||''}年 · ${v.color||'—'} · ${v.price}萬 · <span class="tag t-${statusCls(v.status)}" style="padding:1px 5px">${v.status}</span></div></div>
+    </div>`;
+  }).join('') || '<div style="padding:12px;text-align:center;color:var(--text3);font-size:13px">無符合車輛</div>';
+}
+
+function togglePickVeh(id) {
+  const i = selCustVehs.indexOf(id);
+  if (i > -1) selCustVehs.splice(i, 1); else selCustVehs.push(id);
+  renderPickList();
+}
+
+function openAddCust() {
+  editCustId = null; selCustVehs = [];
+  document.getElementById('cm-title').textContent = '新增客戶';
+  ['name','phone','co','line','email','addr','usage','notes'].forEach(f => { document.getElementById('cm-' + f).value = ''; });
+  document.getElementById('cm-budget').value = '';
+  document.getElementById('cm-status').value = '潛在';
+  document.getElementById('cm-veh-search').value = '';
+  renderPickList();
+  openM('cust-modal');
+}
+
+function openCustEdit(id) {
+  const c = custs.find(x => x.id === id);
+  if (!c) return;
+  editCustId = id; selCustVehs = [...(c.intVehs || [])];
+  document.getElementById('cm-title').textContent = '編輯客戶';
+  document.getElementById('cm-name').value = c.name || '';
+  document.getElementById('cm-phone').value = c.phone || '';
+  document.getElementById('cm-co').value = c.co || '';
+  document.getElementById('cm-line').value = c.line || '';
+  document.getElementById('cm-email').value = c.email || '';
+  document.getElementById('cm-budget').value = c.budget || '';
+  document.getElementById('cm-usage').value = c.usage || '';
+  document.getElementById('cm-status').value = c.status || '潛在';
+  document.getElementById('cm-addr').value = c.addr || '';
+  document.getElementById('cm-notes').value = c.notes || '';
+  document.getElementById('cm-veh-search').value = '';
+  renderPickList();
+  openM('cust-modal');
+}
+
+function saveCust() {
+  const name = document.getElementById('cm-name').value.trim();
+  const phone = document.getElementById('cm-phone').value.trim();
+  if (!name || !phone) { toast('❗ 請填寫姓名與電話'); return; }
+  const data = {
+    name, phone,
+    co: document.getElementById('cm-co').value.trim(),
+    line: document.getElementById('cm-line').value.trim(),
+    email: document.getElementById('cm-email').value.trim(),
+    budget: parseFloat(document.getElementById('cm-budget').value) || null,
+    usage: document.getElementById('cm-usage').value.trim(),
+    status: document.getElementById('cm-status').value,
+    addr: document.getElementById('cm-addr').value.trim(),
+    notes: document.getElementById('cm-notes').value.trim(),
+    intVehs: [...selCustVehs],
+    date: new Date().toISOString().slice(0,10),
+  };
+  if (editCustId) {
+    const i = custs.findIndex(c => c.id === editCustId);
+    custs[i] = { ...custs[i], ...data };
+    toast('✅ 客戶已更新');
+  } else {
+    data.id = Date.now(); custs.push(data);
+    toast('✅ 客戶已新增');
+  }
+  save(); closeM('cust-modal'); renderCusts(); renderDash();
+}
+
+function delCust(id) {
+  if (!confirm('確定刪除此客戶？')) return;
+  custs = custs.filter(c => c.id !== id);
+  apts = apts.filter(a => a.custId !== id);
+  save(); renderCusts(); renderDash();
+  toast('🗑️ 客戶已刪除');
+}
+
+function openCustDet(id) {
+  const c = custs.find(x => x.id === id);
+  if (!c) return;
+  const col = avatarColors[c.name.charCodeAt(0) % avatarColors.length];
+  const lvs = (c.intVehs || []).map(vid => {
+    const v = vehs.find(x => x.id === vid);
+    return v ? `<div class="lc-row"><div style="width:40px;height:32px;border-radius:4px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${v.images && v.images[0] ? `<img src="${v.images[0]}" style="width:40px;height:32px;object-fit:cover;border-radius:4px">` : '🚛'}</div><div class="lc-name">${v.model}</div><div style="font-size:12px;color:var(--text3)">${v.price}萬</div><span class="tag t-${statusCls(v.status)}">${v.status}</span></div>` : '';
+  }).join('');
+  const custApts = apts.filter(a => a.custId === id).sort((a,b) => (b.date+b.time).localeCompare(a.date+a.time));
+  document.getElementById('cdet-body').innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+      <div class="avatar" style="width:56px;height:56px;font-size:22px;background:${col}">${c.name.slice(0,1)}</div>
+      <div>
+        <div style="font-size:20px;font-weight:700">${c.name}</div>
+        <div style="font-size:13px;color:var(--text3)">${c.co||''}</div>
+        <div style="margin-top:4px"><span class="tag t-${custStCls(c.status)}">${c.status}</span></div>
+      </div>
+    </div>
+    <div class="det-grid" style="margin-bottom:14px">
+      <div class="det-item"><div class="di-lbl">電話</div><div class="di-val">${c.phone}</div></div>
+      <div class="det-item"><div class="di-lbl">LINE</div><div class="di-val">${c.line||'—'}</div></div>
+      <div class="det-item"><div class="di-lbl">Email</div><div class="di-val">${c.email||'—'}</div></div>
+      <div class="det-item"><div class="di-lbl">預算</div><div class="di-val">${c.budget ? c.budget + ' 萬' : '—'}</div></div>
+      <div class="det-item"><div class="di-lbl">用途</div><div class="di-val">${c.usage||'—'}</div></div>
+      <div class="det-item"><div class="di-lbl">加入日期</div><div class="di-val">${c.date||'—'}</div></div>
+    </div>
+    ${c.notes ? `<div class="notes-box">${c.notes}</div>` : ''}
+    <div class="linked-section">
+      <h4>感興趣車輛 (${(c.intVehs||[]).length})</h4>
+      ${lvs || '<p style="font-size:13px;color:var(--text3)">尚無連結車輛</p>'}
+    </div>
+    <div class="linked-section">
+      <h4>試乘記錄 (${custApts.length})</h4>
+      ${custApts.length ? custApts.map(a => {
+        const v = vehs.find(x => x.id === a.vehId);
+        return `<div class="lc-row"><div style="flex:1"><div style="font-size:13px;font-weight:600">${a.date} ${a.time}</div><div style="font-size:12px;color:var(--text3)">${v ? v.model : '—'}</div></div><span class="tag t-${a.status === '完成' ? 'deal' : a.status === '取消' ? 'lost' : 'follow'}">${a.status}</span></div>`;
+      }).join('') : '<p style="font-size:13px;color:var(--text3)">無試乘記錄</p>'}
+    </div>`;
+  document.getElementById('cdet-ft').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeM('cdet-modal')">關閉</button>
+    <button class="btn btn-ghost" onclick="closeM('cdet-modal');openCustEdit(${c.id})">✏️ 編輯</button>
+    <button class="btn btn-blue" onclick="closeM('cdet-modal');openAddApt(null,${c.id})">📅 預約試乘</button>`;
+  openM('cdet-modal');
+}
+
+// ════════════════════════════════
+//  APPOINTMENTS
+// ════════════════════════════════
+function renderCal() {
+  const d = new Date(calYear, calMonth, 1);
+  document.getElementById('cal-title').textContent = `${calYear} 年 ${calMonth + 1} 月`;
+  const firstDay = d.getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date().toISOString().slice(0,10);
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day other-month"></div>';
+  for (let day = 1; day <= daysInMonth; day++) {
+    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dayApts = apts.filter(a => a.date === ds);
+    const dots = dayApts.slice(0,3).map(a =>
+      `<div class="cal-dot${a.status === '完成' ? ' done' : a.status === '取消' ? ' cancel' : ''}"></div>`
+    ).join('');
+    const cls = `cal-day${ds === today ? ' today' : ds === calSel ? ' selected' : ''}`;
+    html += `<div class="${cls}" onclick="selectDay('${ds}')">${day}${dots ? `<div class="dot-row">${dots}</div>` : ''}</div>`;
+  }
+  document.getElementById('cal-days').innerHTML = html;
+}
+
+function calMove(dir) { calMonth += dir; if (calMonth > 11) { calMonth = 0; calYear++; } else if (calMonth < 0) { calMonth = 11; calYear--; } renderCal(); }
+
+function selectDay(ds) { calSel = ds; renderCal(); renderAptList(); }
+
+function renderAptList() {
+  const list = document.getElementById('apt-list');
+  const empty = document.getElementById('apt-empty');
+  const title = document.getElementById('apt-list-title');
+  const filtered = calSel ? apts.filter(a => a.date === calSel) : apts.filter(a => a.date >= new Date().toISOString().slice(0,10)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).slice(0,10);
+  title.textContent = calSel ? `${calSel} 預約` : '即將到來的預約';
+  if (!filtered.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = filtered.sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time)).map(a => {
+    const c = custs.find(x => x.id === a.custId);
+    const v = vehs.find(x => x.id === a.vehId);
+    const stTag = { '預約':'<span class="tag t-follow">預約</span>', '完成':'<span class="tag t-deal">完成</span>', '取消':'<span class="tag t-lost">取消</span>' }[a.status] || '';
+    return `<div class="apt-item">
+      <div class="apt-time">⏰ ${a.date} ${a.time}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="apt-cust">${c ? c.name : '—'} ${c && c.co ? `<span style="font-weight:400;color:var(--text3);font-size:12px">· ${c.co}</span>` : ''}</div>
+          <div class="apt-veh">🚛 ${v ? v.model : '—'}</div>
+          ${c ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${c.phone}</div>` : ''}
+          ${a.notes ? `<div style="font-size:11px;color:var(--text2);margin-top:3px">${a.notes}</div>` : ''}
+        </div>
+        ${stTag}
+      </div>
+      <div class="apt-footer">
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-ghost btn-sm" onclick="openAptEdit(${a.id})">✏️</button>
+          <button class="btn btn-red btn-sm" onclick="delApt(${a.id})">刪除</button>
+        </div>
+        ${a.status === '預約' ? `<button class="btn btn-blue btn-sm" onclick="markAptDone(${a.id})">✅ 完成</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function populateAptSelects(custId, vehId) {
+  const cs = document.getElementById('am-cust');
+  const vs = document.getElementById('am-veh');
+  cs.innerHTML = '<option value="">— 選擇客戶 —</option>' + custs.map(c => `<option value="${c.id}">${c.name}${c.co ? ' · ' + c.co : ''}</option>`).join('');
+  vs.innerHTML = '<option value="">— 選擇車輛 —</option>' + vehs.filter(v => v.status !== '已售').map(v => `<option value="${v.id}">${v.model} (${v.year||''}年 · ${v.color||''})</option>`).join('');
+  if (custId) cs.value = custId;
+  if (vehId) vs.value = vehId;
+}
+
+function openAddApt(vehId, custId) {
+  editAptId = null;
+  document.getElementById('am-title').textContent = '新增試乘預約';
+  document.getElementById('am-date').value = calSel || new Date().toISOString().slice(0,10);
+  document.getElementById('am-time').value = '10:00';
+  document.getElementById('am-status').value = '預約';
+  document.getElementById('am-notes').value = '';
+  populateAptSelects(custId || null, vehId || null);
+  openM('apt-modal');
+}
+
+function openAptEdit(id) {
+  const a = apts.find(x => x.id === id);
+  if (!a) return;
+  editAptId = id;
+  document.getElementById('am-title').textContent = '編輯預約';
+  document.getElementById('am-date').value = a.date;
+  document.getElementById('am-time').value = a.time;
+  document.getElementById('am-status').value = a.status;
+  document.getElementById('am-notes').value = a.notes || '';
+  populateAptSelects(a.custId, a.vehId);
+  openM('apt-modal');
+}
+
+function saveApt() {
+  const date = document.getElementById('am-date').value;
+  const time = document.getElementById('am-time').value;
+  const custId = parseInt(document.getElementById('am-cust').value);
+  const vehId = parseInt(document.getElementById('am-veh').value);
+  if (!date || !time || !custId || !vehId) { toast('❗ 請填寫所有必填欄位'); return; }
+  const data = { custId, vehId, date, time, status: document.getElementById('am-status').value, notes: document.getElementById('am-notes').value.trim() };
+  if (editAptId) {
+    const i = apts.findIndex(a => a.id === editAptId);
+    apts[i] = { ...apts[i], ...data };
+    toast('✅ 預約已更新');
+  } else {
+    data.id = Date.now(); apts.push(data);
+    toast('✅ 預約已新增');
+  }
+  save(); closeM('apt-modal'); renderCal(); renderAptList(); renderDash();
+}
+
+function delApt(id) {
+  if (!confirm('確定刪除此預約？')) return;
+  apts = apts.filter(a => a.id !== id);
+  save(); renderCal(); renderAptList(); renderDash();
+  toast('🗑️ 預約已刪除');
+}
+
+function markAptDone(id) {
+  const a = apts.find(x => x.id === id);
+  if (!a) return;
+  a.status = '完成';
+  save(); renderCal(); renderAptList(); renderDash();
+  toast('✅ 試乘已完成');
+}
+
+// ════════════════════════════════
+//  MODAL / LIGHTBOX
+// ════════════════════════════════
+function openM(id) { document.getElementById(id).classList.add('open'); }
+function closeM(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+
+function openLightbox(src) {
+  document.getElementById('lb-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ════════════════════════════════
+//  INIT
+// ════════════════════════════════
+renderDash();
+</script>
+</body>
+</html>
