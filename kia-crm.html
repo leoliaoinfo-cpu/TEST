@@ -521,6 +521,50 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 }
 .loss-box-title { font-size: 13px; color: var(--red); font-weight: 700; margin-bottom: 8px; }
 
+/* ── DRAG & DROP ── */
+.pipe-card[draggable="true"] { cursor: grab; }
+.pipe-card.dragging { opacity: 0.35; transform: rotate(1.5deg); pointer-events: none; }
+.pipe-col.drag-over { outline: 2px dashed var(--primary); outline-offset: 4px; border-radius: var(--radius); }
+
+/* ── MOVE PICKER (long-press) ── */
+#movePicker {
+  display: none;
+  position: fixed; inset: 0; z-index: 150;
+  background: rgba(30,25,20,0.5);
+  align-items: center; justify-content: center;
+}
+#movePicker.open { display: flex; }
+.move-box {
+  background: var(--card); border-radius: 16px;
+  padding: 20px 18px; width: min(320px, 88vw);
+  box-shadow: var(--shadow-lg);
+  animation: fadeIn 0.15s ease;
+}
+@keyframes fadeIn { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
+.move-box-sub { font-size: 12px; color: var(--text-sub); margin-bottom: 3px; }
+.move-box-name { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+.move-box-stages { display: flex; flex-wrap: wrap; gap: 8px; }
+.move-box-cancel { margin-top: 14px; width: 100%; }
+
+/* ── ANALYSIS PAGE ── */
+.loss-stat-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 9px; margin-bottom: 14px;
+}
+.loss-list-item {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 12px 14px;
+  margin-bottom: 8px; cursor: pointer;
+  border-left: 3px solid var(--red);
+}
+.loss-list-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.loss-list-meta { font-size: 12px; color: var(--text-sub); line-height: 1.6; }
+.comp-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.comp-row:last-child { border-bottom: none; }
+
 /* ── RESPONSIVE ── */
 @media (min-width: 600px) {
   body { max-width: 480px; margin: 0 auto; }
@@ -556,6 +600,10 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
     看板
   </button>
+  <button class="nav-btn" id="nb-analysis" onclick="goPage('analysis')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    分析
+  </button>
   <button class="nav-btn" id="nb-settings" onclick="goPage('settings')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     設定
@@ -572,6 +620,7 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 <!-- ════════════ HOME PAGE ════════════ -->
 <div class="page active" id="page-home">
   <div class="stats-grid" id="homeStats"></div>
+  <div id="homeChart"></div>
   <div class="section-label" id="redLbl">今天該追的客戶</div>
   <div id="redList"></div>
   <div class="section-label" style="margin-top:18px">最近聯絡</div>
@@ -600,7 +649,7 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 
 <!-- ════════════ PIPELINE PAGE ════════════ -->
 <div class="page" id="page-pipeline">
-  <div class="filter-row" style="margin-bottom:12px" id="pipeFilter">
+  <div class="filter-row" style="margin-bottom:4px" id="pipeFilter">
     <div class="fchip on" data-v="all">全部</div>
     <div class="fchip" data-v="red">🔴 紅燈</div>
     <div class="fchip" data-v="物流">物流</div>
@@ -610,9 +659,29 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
     <div class="fchip" data-v="農用">農用</div>
     <div class="fchip" data-v="食品冷鏈">食品冷鏈</div>
   </div>
+  <div class="filter-row" style="margin-bottom:10px" id="pipeMonthFilter">
+    <div class="fchip on" data-mv="all">所有月份</div>
+  </div>
+  <p style="font-size:11px;color:var(--text-sub);margin-bottom:8px;padding-left:2px">💡 桌機可拖曳卡片移動階段；手機長按卡片可移動</p>
   <div class="pipeline-scroll">
     <div class="pipeline-board" id="pipeBoard"></div>
   </div>
+</div>
+
+<!-- ════════════ ANALYSIS PAGE ════════════ -->
+<div class="page" id="page-analysis">
+  <div class="filter-row" id="analysisFilter">
+    <div class="fchip on" data-days="0">全部時間</div>
+    <div class="fchip" data-days="30">近 30 天</div>
+    <div class="fchip" data-days="90">近 90 天</div>
+  </div>
+  <div class="loss-stat-grid" id="analysisSummary"></div>
+  <div class="section-label">失單原因分布</div>
+  <div class="card" id="analysisReasonChart"></div>
+  <div class="section-label">最常輸給（Top 競品）</div>
+  <div class="card" id="analysisCompetitors"></div>
+  <div class="section-label" id="analysisLossLbl">失單記錄</div>
+  <div id="analysisLossList"></div>
 </div>
 
 <!-- ════════════ SETTINGS PAGE ════════════ -->
@@ -652,7 +721,7 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
   </div>
 
   <div style="text-align:center;padding:16px 0 4px;font-size:12px;color:var(--text-sub)">
-    KIA 卡旺業務作戰 CRM · Phase 1 · 2026
+    KIA 卡旺業務作戰 CRM · Phase 1+2 · 2026
   </div>
 </div>
 
@@ -838,6 +907,16 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
   </div>
 </div>
 
+<!-- MOVE PICKER (long-press / drag fallback) -->
+<div id="movePicker" onclick="if(event.target===this)closePicker()">
+  <div class="move-box">
+    <div class="move-box-sub">長按移動階段</div>
+    <div class="move-box-name" id="movePickerName"></div>
+    <div class="move-box-stages" id="movePickerStages"></div>
+    <button class="btn btn-secondary move-box-cancel" onclick="closePicker()">取消</button>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -930,11 +1009,13 @@ function goPage(name) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   document.getElementById('nb-' + name).classList.add('active');
-  document.getElementById('mainFab').style.display = name === 'settings' ? 'none' : 'flex';
+  document.getElementById('mainFab').style.display =
+    (name === 'settings' || name === 'analysis') ? 'none' : 'flex';
   activePage = name;
   if (name === 'home') renderHome();
   if (name === 'customers') renderCustList();
   if (name === 'pipeline') renderPipeline();
+  if (name === 'analysis') renderAnalysis();
 }
 
 function openOverlay(id) {
@@ -974,6 +1055,24 @@ function renderHome() {
     <div class="stat-card">
       <div class="stat-val" style="font-size:${pipeAmt > 999 ? 20 : 26}px">${pipeAmt ? pipeAmt + '萬' : '—'}</div>
       <div class="stat-lbl">潛在金額</div>
+    </div>`;
+
+  // Stage distribution bar chart
+  const activeStages = ['陌生','接觸','報價','議價'];
+  const stageCounts = activeStages.map(s => ({ s, n: all.filter(c => c.stage === s).length }));
+  const maxN = Math.max(...stageCounts.map(x => x.n), 1);
+  document.getElementById('homeChart').innerHTML = `
+    <div class="card" style="padding:14px 16px 10px">
+      <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:10px;letter-spacing:.5px">各階段客戶數</div>
+      ${stageCounts.map(({s, n}) => `
+        <div class="bar-row">
+          <span class="bar-lbl">${s}</span>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${n === 0 ? '2px' : Math.max(8, Math.round(n/maxN*100)) + '%'}">
+              ${n > 0 ? `<span>${n}</span>` : ''}
+            </div>
+          </div>
+        </div>`).join('')}
     </div>`;
 
   document.getElementById('redLbl').textContent = `今天該追的客戶（${redOnes.length}）`;
@@ -1410,6 +1509,7 @@ function saveLoss() {
 // PIPELINE
 // ════════════════════════════════════════
 let pipeF = 'all';
+let pipeMonthF = 'all';
 
 document.getElementById('pipeFilter').addEventListener('click', e => {
   const chip = e.target.closest('.fchip');
@@ -1420,15 +1520,51 @@ document.getElementById('pipeFilter').addEventListener('click', e => {
   renderPipeline();
 });
 
+document.getElementById('pipeMonthFilter').addEventListener('click', e => {
+  const chip = e.target.closest('.fchip');
+  if (!chip) return;
+  document.querySelectorAll('#pipeMonthFilter .fchip').forEach(c => c.classList.remove('on'));
+  chip.classList.add('on');
+  pipeMonthF = chip.dataset.mv;
+  renderPipeline();
+});
+
+function renderPipeMonthFilter() {
+  const months = [...new Set(
+    db.customers.filter(c => c.expectedCloseMonth).map(c => c.expectedCloseMonth)
+  )].sort();
+
+  const row = document.getElementById('pipeMonthFilter');
+  // Remove old dynamic chips, keep the first "所有月份" chip
+  row.querySelectorAll('.dyn-month').forEach(el => el.remove());
+
+  months.forEach(m => {
+    const chip = document.createElement('div');
+    chip.className = 'fchip dyn-month';
+    chip.dataset.mv = m;
+    chip.textContent = fmtMonth(m);
+    if (m === pipeMonthF) { chip.classList.add('on'); }
+    row.appendChild(chip);
+  });
+
+  row.style.display = months.length ? 'flex' : 'none';
+  // Re-sync the "所有月份" active state
+  const allChip = row.querySelector('[data-mv="all"]');
+  if (allChip) allChip.classList.toggle('on', pipeMonthF === 'all');
+}
+
 function renderPipeline() {
+  renderPipeMonthFilter();
+
   document.getElementById('pipeBoard').innerHTML = STAGES.map(stage => {
     let list = db.customers.filter(c => c.stage === stage);
     if (pipeF === 'red') list = list.filter(c => alertOf(c) === 'red');
     else if (pipeF !== 'all') list = list.filter(c => c.type === pipeF);
+    if (pipeMonthF !== 'all') list = list.filter(c => c.expectedCloseMonth === pipeMonthF);
 
     const cards = list.map(c => {
       const al = alertOf(c);
-      return `<div class="pipe-card alert-${al}" onclick="openDetail('${c.id}')">
+      return `<div class="pipe-card alert-${al}" draggable="true" data-cid="${c.id}" onclick="pipeCardClick(event,'${c.id}')">
         <div class="pipe-card-name">${esc(c.name)}</div>
         ${c.company ? `<div class="pipe-card-co">${esc(c.company)}</div>` : ''}
         <div class="pipe-card-meta">
@@ -1439,7 +1575,7 @@ function renderPipeline() {
       </div>`;
     }).join('') || `<div style="font-size:12px;color:var(--text-sub);padding:6px 2px">無</div>`;
 
-    return `<div class="pipe-col">
+    return `<div class="pipe-col" data-stage="${stage}">
       <div class="pipe-col-hd">
         <div class="pipe-col-dot" style="background:${PIPE_COLORS[stage]}"></div>
         <span class="pipe-col-name" style="color:${PIPE_COLORS[stage]}">${stage}</span>
@@ -1448,6 +1584,220 @@ function renderPipeline() {
       ${cards}
     </div>`;
   }).join('');
+}
+
+// ════════════════════════════════════════
+// DRAG & DROP (desktop)
+// ════════════════════════════════════════
+let dragCid = null;
+let _dragMoved = false;
+
+function initDragDrop() {
+  const board = document.getElementById('pipeBoard');
+
+  board.addEventListener('dragstart', e => {
+    const card = e.target.closest('.pipe-card');
+    if (!card) return;
+    dragCid = card.dataset.cid;
+    _dragMoved = false;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragCid);
+  });
+
+  board.addEventListener('dragend', e => {
+    document.querySelectorAll('.pipe-card.dragging').forEach(c => c.classList.remove('dragging'));
+    document.querySelectorAll('.pipe-col.drag-over').forEach(c => c.classList.remove('drag-over'));
+    dragCid = null;
+  });
+
+  board.addEventListener('dragover', e => {
+    e.preventDefault();
+    _dragMoved = true;
+    e.dataTransfer.dropEffect = 'move';
+    const col = e.target.closest('.pipe-col');
+    document.querySelectorAll('.pipe-col.drag-over').forEach(c => c.classList.remove('drag-over'));
+    if (col) col.classList.add('drag-over');
+  });
+
+  board.addEventListener('dragleave', e => {
+    if (!board.contains(e.relatedTarget)) {
+      document.querySelectorAll('.pipe-col.drag-over').forEach(c => c.classList.remove('drag-over'));
+    }
+  });
+
+  board.addEventListener('drop', e => {
+    e.preventDefault();
+    const col = e.target.closest('.pipe-col');
+    document.querySelectorAll('.pipe-col.drag-over').forEach(c => c.classList.remove('drag-over'));
+    if (col && dragCid) moveCustToStage(dragCid, col.dataset.stage);
+    dragCid = null;
+  });
+}
+
+// Prevent click from firing after a drag
+function pipeCardClick(e, id) {
+  if (_dragMoved) { _dragMoved = false; return; }
+  openDetail(id);
+}
+
+// ════════════════════════════════════════
+// LONG PRESS (mobile move)
+// ════════════════════════════════════════
+let _lpTimer = null;
+let _lpCid = null;
+let _lpMoved = false;
+
+function initLongPress() {
+  const board = document.getElementById('pipeBoard');
+
+  board.addEventListener('touchstart', e => {
+    const card = e.target.closest('.pipe-card');
+    if (!card) return;
+    _lpCid = card.dataset.cid;
+    _lpMoved = false;
+    _lpTimer = setTimeout(() => {
+      if (!_lpMoved) showMovePicker(_lpCid);
+      _lpCid = null;
+    }, 650);
+  }, { passive: true });
+
+  board.addEventListener('touchmove', () => {
+    _lpMoved = true;
+    clearTimeout(_lpTimer);
+    _lpTimer = null;
+  }, { passive: true });
+
+  board.addEventListener('touchend', () => {
+    clearTimeout(_lpTimer);
+    _lpTimer = null;
+  }, { passive: true });
+}
+
+function showMovePicker(cid) {
+  const c = db.customers.find(x => x.id === cid);
+  if (!c) return;
+  document.getElementById('movePickerName').textContent = c.name + (c.company ? ` · ${c.company}` : '');
+  document.getElementById('movePickerStages').innerHTML = STAGES
+    .filter(s => s !== c.stage)
+    .map(s => `<button class="btn btn-sm btn-secondary"
+        onclick="moveCustToStage('${cid}','${s}');closePicker()"
+        style="${s === '成交' ? 'background:var(--green-bg);color:var(--green);border-color:var(--green)' :
+               s === '失單' ? 'background:var(--red-bg);color:var(--red);border-color:var(--red)' : ''}"
+      >${s}</button>`).join('');
+  document.getElementById('movePicker').classList.add('open');
+}
+
+function closePicker() {
+  document.getElementById('movePicker').classList.remove('open');
+}
+
+function moveCustToStage(cid, stage) {
+  if (stage === '失單') {
+    activeCid = cid;
+    markLoss(cid);
+    return;
+  }
+  const c = db.customers.find(x => x.id === cid);
+  if (!c) return;
+  c.stage = stage;
+  c.lastContactAt = todayStr();
+  save();
+  renderPipeline();
+  if (activePage === 'home') renderHome();
+  toast(`已移至「${stage}」`);
+}
+
+// ════════════════════════════════════════
+// ANALYSIS
+// ════════════════════════════════════════
+let analysisDays = 0;
+
+document.getElementById('analysisFilter').addEventListener('click', e => {
+  const chip = e.target.closest('.fchip');
+  if (!chip) return;
+  document.querySelectorAll('#analysisFilter .fchip').forEach(c => c.classList.remove('on'));
+  chip.classList.add('on');
+  analysisDays = parseInt(chip.dataset.days);
+  renderAnalysis();
+});
+
+function renderAnalysis() {
+  const cutoff = analysisDays > 0
+    ? new Date(Date.now() - analysisDays * 86400000).toISOString().slice(0, 10)
+    : null;
+
+  let losses = db.customers.filter(c => c.stage === '失單');
+  if (cutoff) {
+    losses = losses.filter(c => (c.lossDetail?.date || c.lastContactAt || '') >= cutoff);
+  }
+
+  // Summary
+  const withGap = losses.filter(c => c.lossDetail?.gap);
+  const avgGap = withGap.length
+    ? Math.round(withGap.reduce((s, c) => s + c.lossDetail.gap, 0) / withGap.length)
+    : null;
+  document.getElementById('analysisSummary').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-val red">${losses.length}</div>
+      <div class="stat-lbl">失單筆數</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="font-size:${(avgGap||0) > 99 ? 20 : 26}px">
+        ${avgGap !== null ? avgGap + '萬' : '—'}
+      </div>
+      <div class="stat-lbl">平均價差</div>
+    </div>`;
+
+  // Reason bar chart
+  const rCounts = Object.fromEntries(LOSS_RSN.map(r => [r, 0]));
+  losses.forEach(c => { if (c.lossDetail?.reason) rCounts[c.lossDetail.reason]++; });
+  const maxR = Math.max(...Object.values(rCounts), 1);
+  document.getElementById('analysisReasonChart').innerHTML =
+    losses.length === 0
+      ? '<p style="color:var(--text-sub);font-size:13px">暫無失單資料</p>'
+      : LOSS_RSN.map(r => `
+          <div class="bar-row">
+            <span class="bar-lbl" style="width:56px;font-size:11px;text-align:right">${r}</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:${rCounts[r] === 0 ? '2px' : Math.max(8, Math.round(rCounts[r]/maxR*100)) + '%'};background:var(--red)">
+                ${rCounts[r] > 0 ? `<span>${rCounts[r]}</span>` : ''}
+              </div>
+            </div>
+          </div>`).join('');
+
+  // Competitors
+  const compMap = {};
+  losses.forEach(c => {
+    const comp = (c.lossDetail?.competitor || '').trim();
+    if (comp) compMap[comp] = (compMap[comp] || 0) + 1;
+  });
+  const compList = Object.entries(compMap).sort((a, b) => b[1] - a[1]);
+  document.getElementById('analysisCompetitors').innerHTML = compList.length
+    ? compList.map(([name, cnt]) => `
+        <div class="comp-row">
+          <span>${esc(name)}</span>
+          <span style="font-weight:700;color:var(--red)">${cnt} 次</span>
+        </div>`).join('')
+    : '<p style="color:var(--text-sub);font-size:13px">尚無競品記錄（在失單時填寫「輸給誰」即可累積）</p>';
+
+  // Loss list
+  document.getElementById('analysisLossLbl').textContent = `失單記錄（${losses.length}）`;
+  document.getElementById('analysisLossList').innerHTML = losses.length
+    ? [...losses]
+        .sort((a, b) => (b.lossDetail?.date || '').localeCompare(a.lossDetail?.date || ''))
+        .map(c => `
+          <div class="loss-list-item" onclick="openDetail('${c.id}')">
+            <div class="loss-list-name">${esc(c.name)}${c.company ? ' · ' + esc(c.company) : ''}</div>
+            <div class="loss-list-meta">
+              ${c.lossDetail?.reason ? '原因：' + c.lossDetail.reason : ''}
+              ${c.lossDetail?.competitor ? '　輸給：' + esc(c.lossDetail.competitor) : ''}
+              ${c.lossDetail?.gap ? '　差 ' + c.lossDetail.gap + ' 萬' : ''}
+              ${c.lossDetail?.date ? '<br>' + c.lossDetail.date : ''}
+              ${c.lossDetail?.lesson ? '<br>💡 ' + esc(c.lossDetail.lesson) : ''}
+            </div>
+          </div>`).join('')
+    : `<div class="empty"><div class="empty-icon">🎯</div><p>這段時間沒有失單</p></div>`;
 }
 
 // ════════════════════════════════════════
@@ -1558,11 +1908,12 @@ function refreshAll() {
     `${d.getMonth() + 1} 月 ${d.getDate()} 日（週${days[d.getDay()]}）`;
 
   renderHome();
+  initDragDrop();
+  initLongPress();
 
   // Prevent iOS scroll bounce breaking layout
   document.body.addEventListener('touchmove', e => {
     if (e.target.closest('.sheet, .pipeline-scroll, .filter-row, .search-wrap')) return;
-    // allow
   }, { passive: true });
 })();
 </script>
