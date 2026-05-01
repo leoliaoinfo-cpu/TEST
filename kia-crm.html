@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>KIA 卡旺業務作戰</title>
+<style>
+:root {
+  --bg: #F5F2EE;
+  --card: #FAFAF8;
+  --primary: #7B9CAB;
+  --primary-dark: #5E7F8E;
+  --primary-light: #EBF1F4;
+  --text: #3A3836;
+  --text-sub: #8A8480;
+  --border: #E2DEDA;
+  --red: #C97B7B;
+  --red-bg: #FBF2F2;
+  --yellow: #C9A46A;
+  --yellow-bg: #FBF6EE;
+  --green: #7BA88C;
+  --green-bg: #EFF6F2;
+  --radius: 12px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 20px rgba(0,0,0,0.10);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding-bottom: 72px;
+  min-height: 100vh;
+}
+
+/* ── TOP BAR ── */
+.top-bar {
+  background: var(--card);
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.top-bar-title { font-size: 17px; font-weight: 700; color: var(--primary); }
+.top-bar-sub { font-size: 12px; color: var(--text-sub); }
+
+/* ── BOTTOM NAV ── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  z-index: 50;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 0 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-sub);
+  font-size: 10px;
+  font-weight: 500;
+  min-height: 56px;
+  transition: color 0.15s;
+}
+.nav-btn svg { width: 22px; height: 22px; stroke-width: 1.8; }
+.nav-btn.active { color: var(--primary); }
+
+/* ── PAGES ── */
+.page { display: none; padding: 14px 14px 4px; }
+.page.active { display: block; }
+
+/* ── FAB ── */
+.fab {
+  position: fixed;
+  bottom: 76px;
+  right: 18px;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(123,156,171,0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 45;
+  transition: transform 0.15s;
+}
+.fab:active { transform: scale(0.91); }
+
+/* ── CARDS ── */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-sub);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 16px 0 8px 2px;
+}
+
+/* ── CUSTOMER CARD ── */
+.cust-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 13px 15px;
+  margin-bottom: 9px;
+  cursor: pointer;
+  border-left: 4px solid transparent;
+  transition: box-shadow 0.15s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.cust-card:active { box-shadow: var(--shadow-lg); }
+.cust-card.alert-red { border-left-color: var(--red); background: var(--red-bg); }
+.cust-card.alert-yellow { border-left-color: var(--yellow); background: var(--yellow-bg); }
+
+.cust-name-row { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+.cust-name { font-size: 16px; font-weight: 600; }
+.cust-company { font-size: 13px; color: var(--text-sub); }
+
+.cust-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag {
+  display: inline-flex; align-items: center;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  background: var(--bg);
+  color: var(--text-sub);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.tag.s-陌生 { background: #EEF0F3; color: #6A7E8C; border-color: #D0D8E0; }
+.tag.s-接觸 { background: #EAF2EE; color: #4E8068; border-color: #C0D8CC; }
+.tag.s-報價 { background: #EEEAf5; color: #7068A0; border-color: #D0C8E8; }
+.tag.s-議價 { background: #F5EDEA; color: #A06840; border-color: #E0C8B8; }
+.tag.s-成交 { background: var(--green-bg); color: #3A8060; border-color: #B8D8C4; }
+.tag.s-失單 { background: var(--red-bg); color: #A04040; border-color: #E8C0C0; }
+.tag.alert { background: var(--red-bg); color: var(--red); border-color: #E8C0C0; }
+.tag.warn { background: var(--yellow-bg); color: var(--yellow); border-color: #E8D4A0; }
+
+/* ── STATS GRID ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-bottom: 4px;
+}
+.stat-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 12px;
+  text-align: center;
+}
+.stat-val { font-size: 28px; font-weight: 700; color: var(--primary); line-height: 1; }
+.stat-val.red { color: var(--red); }
+.stat-val.green { color: var(--green); }
+.stat-lbl { font-size: 11px; color: var(--text-sub); margin-top: 4px; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 0 18px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 15px; font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s;
+  -webkit-user-select: none;
+}
+.btn:active { opacity: 0.75; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-secondary { background: var(--bg); color: var(--text); border: 1.5px solid var(--border); }
+.btn-danger { background: var(--red); color: white; }
+.btn-green { background: var(--green); color: white; }
+.btn-block { width: 100%; border-radius: var(--radius); }
+.btn-lg { height: 54px; font-size: 16px; }
+.btn-sm { height: 34px; padding: 0 13px; font-size: 13px; border-radius: 8px; }
+
+/* ── MODAL SHEET ── */
+.overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(30,25,20,0.45);
+  z-index: 100;
+  align-items: flex-end;
+}
+.overlay.open { display: flex; }
+
+.sheet {
+  background: var(--card);
+  border-radius: 18px 18px 0 0;
+  width: 100%;
+  max-height: 94dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  animation: slideUp 0.22s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.sheet-handle {
+  width: 38px; height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 11px auto 0;
+}
+.sheet-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px 11px;
+  border-bottom: 1px solid var(--border);
+}
+.sheet-title { font-size: 17px; font-weight: 700; }
+.sheet-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-sub); font-size: 26px; line-height: 1;
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}
+.sheet-body { padding: 16px 18px 0; }
+
+/* ── FORM ELEMENTS ── */
+.fgroup { margin-bottom: 18px; }
+.flabel {
+  display: block;
+  font-size: 12px; font-weight: 700;
+  color: var(--text-sub);
+  margin-bottom: 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.flabel .req { color: var(--red); margin-left: 2px; }
+
+.finput {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 16px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.finput:focus { border-color: var(--primary); }
+textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
+
+/* pill radio/checkbox */
+.pill-group { display: flex; flex-wrap: wrap; gap: 7px; }
+
+.pill-input { display: none; }
+.pill-label {
+  display: inline-flex; align-items: center;
+  padding: 8px 15px;
+  border-radius: 22px;
+  border: 1.5px solid var(--border);
+  font-size: 14px;
+  cursor: pointer;
+  background: var(--bg);
+  color: var(--text);
+  transition: all 0.13s;
+  min-height: 44px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pill-input:checked + .pill-label {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+/* form stepper dots */
+.step-dots { display: flex; gap: 7px; justify-content: center; margin-bottom: 20px; }
+.step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: background 0.2s; }
+.step-dot.on { background: var(--primary); }
+
+.fpage { display: none; }
+.fpage.on { display: block; }
+
+/* ── SEARCH BAR ── */
+.search-wrap { position: relative; margin-bottom: 11px; }
+.search-wrap svg {
+  position: absolute; left: 12px; top: 50%;
+  transform: translateY(-50%);
+  width: 17px; height: 17px;
+  color: var(--text-sub);
+  pointer-events: none;
+}
+.search-wrap input {
+  width: 100%;
+  padding: 11px 14px 11px 38px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 15px;
+  background: var(--card);
+  color: var(--text);
+  outline: none;
+}
+.search-wrap input:focus { border-color: var(--primary); }
+
+/* ── FILTER CHIPS ── */
+.filter-row {
+  display: flex; gap: 7px;
+  overflow-x: auto; padding-bottom: 10px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.filter-row::-webkit-scrollbar { display: none; }
+.fchip {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  color: var(--text-sub);
+  white-space: nowrap;
+  min-height: 36px;
+  display: flex; align-items: center;
+  -webkit-user-select: none;
+}
+.fchip.on { background: var(--primary); border-color: var(--primary); color: white; }
+
+/* ── PIPELINE ── */
+.pipeline-scroll { overflow-x: auto; padding-bottom: 10px; -webkit-overflow-scrolling: touch; }
+.pipeline-board { display: flex; gap: 11px; min-width: max-content; padding: 2px 2px 4px; }
+.pipe-col { width: 175px; flex-shrink: 0; }
+.pipe-col-hd {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 8px; padding: 0 2px;
+}
+.pipe-col-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.pipe-col-name { font-size: 13px; font-weight: 700; }
+.pipe-count {
+  background: var(--border); color: var(--text-sub);
+  border-radius: 10px; font-size: 11px; padding: 1px 7px;
+}
+.pipe-card {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 11px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  border-left: 3px solid transparent;
+}
+.pipe-card.alert-red { border-left-color: var(--red); background: var(--red-bg); }
+.pipe-card.alert-yellow { border-left-color: var(--yellow); background: var(--yellow-bg); }
+.pipe-card-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.pipe-card-co { font-size: 12px; color: var(--text-sub); }
+.pipe-card-meta { font-size: 11px; color: var(--text-sub); margin-top: 5px; line-height: 1.5; }
+
+/* ── DETAIL ── */
+.detail-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  gap: 12px;
+}
+.detail-row:last-child { border-bottom: none; }
+.dk { color: var(--text-sub); flex-shrink: 0; }
+.dv { text-align: right; color: var(--text); word-break: break-all; }
+
+.action-row { display: flex; gap: 9px; margin-bottom: 14px; }
+.action-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 13px 10px; border-radius: 10px;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+  border: none; transition: opacity 0.15s;
+}
+.action-btn:active { opacity: 0.75; }
+.action-phone { background: var(--green-bg); color: #3A8060; }
+.action-line  { background: #E8F5E8; color: #00A040; }
+
+/* ── INTERACTION TIMELINE ── */
+.timeline-item {
+  display: flex; gap: 12px; margin-bottom: 14px;
+}
+.tl-left {
+  display: flex; flex-direction: column; align-items: center;
+  flex-shrink: 0; width: 14px;
+}
+.tl-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--primary); flex-shrink: 0; margin-top: 3px;
+}
+.tl-line { width: 2px; flex: 1; background: var(--border); margin-top: 4px; min-height: 14px; }
+.tl-date { font-size: 12px; color: var(--text-sub); margin-bottom: 3px; }
+.tl-method {
+  display: inline-block; padding: 1px 7px; border-radius: 10px;
+  font-size: 11px; background: var(--bg); color: var(--text-sub);
+  border: 1px solid var(--border); margin-left: 5px;
+}
+.tl-content { font-size: 14px; line-height: 1.5; }
+
+/* ── QUICK TAGS ── */
+.qtags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.qtag {
+  padding: 6px 11px; border-radius: 16px; font-size: 13px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  cursor: pointer; color: var(--text-sub);
+  -webkit-user-select: none;
+}
+.qtag:active { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+
+/* ── VOICE BTN ── */
+.voice-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-sub);
+  width: 44px; height: 44px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.voice-btn.on { color: var(--red); animation: pulse 0.9s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.input-row { display: flex; gap: 8px; align-items: flex-start; }
+.input-row .finput { flex: 1; }
+
+/* ── SETTINGS ── */
+.set-section {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.set-row {
+  display: flex; align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.set-row:last-child { border-bottom: none; }
+.set-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; margin-right: 13px; flex-shrink: 0;
+}
+.set-text { flex: 1; }
+.set-title { font-size: 15px; font-weight: 500; }
+.set-sub { font-size: 12px; color: var(--text-sub); margin-top: 1px; }
+
+/* ── EMPTY STATE ── */
+.empty {
+  text-align: center; padding: 44px 24px;
+  color: var(--text-sub);
+}
+.empty-icon { font-size: 44px; margin-bottom: 14px; }
+.empty p { font-size: 15px; }
+.empty small { font-size: 13px; display: block; margin-top: 5px; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 84px; left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  background: rgba(50,46,42,0.92);
+  color: white; padding: 10px 20px;
+  border-radius: 22px; font-size: 14px;
+  z-index: 200; opacity: 0;
+  transition: all 0.22s; white-space: nowrap;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── BAR CHART ── */
+.bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.bar-lbl { font-size: 12px; color: var(--text-sub); width: 44px; flex-shrink: 0; text-align: right; }
+.bar-track { flex: 1; height: 22px; background: var(--bg); border-radius: 5px; overflow: hidden; }
+.bar-fill {
+  height: 100%; border-radius: 5px;
+  background: var(--primary);
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 6px; transition: width 0.35s;
+  min-width: 2px;
+}
+.bar-fill span { font-size: 11px; color: white; font-weight: 700; }
+
+/* ── LOSS ALERT BOX ── */
+.loss-box {
+  background: var(--red-bg); border: 1px solid #E8C0C0;
+  border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;
+}
+.loss-box-title { font-size: 13px; color: var(--red); font-weight: 700; margin-bottom: 8px; }
+
+/* ── RESPONSIVE ── */
+@media (min-width: 600px) {
+  body { max-width: 480px; margin: 0 auto; }
+  .bottom-nav, .fab { max-width: 480px; }
+  .bottom-nav { left: 50%; transform: translateX(-50%); }
+  .fab { right: calc(50% - 228px); }
+  .toast { max-width: 440px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="top-bar">
+  <div>
+    <div class="top-bar-title">KIA 卡旺業務作戰</div>
+    <div class="top-bar-sub" id="headerDate"></div>
+  </div>
+  <button class="btn btn-sm btn-secondary" onclick="exportData()" style="flex-shrink:0">匯出</button>
+</header>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nb-home" onclick="goPage('home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+    首頁
+  </button>
+  <button class="nav-btn" id="nb-customers" onclick="goPage('customers')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    客戶
+  </button>
+  <button class="nav-btn" id="nb-pipeline" onclick="goPage('pipeline')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+    看板
+  </button>
+  <button class="nav-btn" id="nb-settings" onclick="goPage('settings')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    設定
+  </button>
+</nav>
+
+<!-- FAB -->
+<button class="fab" id="mainFab" onclick="openAddCustomer()" aria-label="新增客戶">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="26" height="26">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+</button>
+
+<!-- ════════════ HOME PAGE ════════════ -->
+<div class="page active" id="page-home">
+  <div class="stats-grid" id="homeStats"></div>
+  <div class="section-label" id="redLbl">今天該追的客戶</div>
+  <div id="redList"></div>
+  <div class="section-label" style="margin-top:18px">最近聯絡</div>
+  <div id="recentList"></div>
+</div>
+
+<!-- ════════════ CUSTOMERS PAGE ════════════ -->
+<div class="page" id="page-customers">
+  <div class="search-wrap">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="search" id="searchInput" placeholder="搜尋姓名、公司、電話…" oninput="renderCustList()">
+  </div>
+  <div class="filter-row" id="stageFilter">
+    <div class="fchip on" data-v="">全部</div>
+    <div class="fchip" data-v="陌生">陌生</div>
+    <div class="fchip" data-v="接觸">接觸</div>
+    <div class="fchip" data-v="報價">報價</div>
+    <div class="fchip" data-v="議價">議價</div>
+    <div class="fchip" data-v="成交">成交</div>
+    <div class="fchip" data-v="失單">失單</div>
+  </div>
+  <div id="custList"></div>
+</div>
+
+<!-- ════════════ PIPELINE PAGE ════════════ -->
+<div class="page" id="page-pipeline">
+  <div class="filter-row" style="margin-bottom:12px" id="pipeFilter">
+    <div class="fchip on" data-v="all">全部</div>
+    <div class="fchip" data-v="red">🔴 紅燈</div>
+    <div class="fchip" data-v="物流">物流</div>
+    <div class="fchip" data-v="車隊">車隊</div>
+    <div class="fchip" data-v="工程行">工程行</div>
+    <div class="fchip" data-v="個體戶">個體戶</div>
+    <div class="fchip" data-v="農用">農用</div>
+    <div class="fchip" data-v="食品冷鏈">食品冷鏈</div>
+  </div>
+  <div class="pipeline-scroll">
+    <div class="pipeline-board" id="pipeBoard"></div>
+  </div>
+</div>
+
+<!-- ════════════ SETTINGS PAGE ════════════ -->
+<div class="page" id="page-settings">
+  <div class="set-section">
+    <div class="set-row" onclick="exportData()">
+      <div class="set-icon" style="background:#E8F0F5">📤</div>
+      <div class="set-text">
+        <div class="set-title">匯出備份</div>
+        <div class="set-sub">下載 JSON 檔案至手機</div>
+      </div>
+    </div>
+    <div class="set-row" onclick="document.getElementById('importInput').click()">
+      <div class="set-icon" style="background:#EAF5EA">📥</div>
+      <div class="set-text">
+        <div class="set-title">匯入備份</div>
+        <div class="set-sub">從 JSON 檔案還原資料</div>
+      </div>
+    </div>
+    <input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+
+  <div class="set-section">
+    <div class="set-row" onclick="confirmClear()">
+      <div class="set-icon" style="background:#F5EAE8">🗑️</div>
+      <div class="set-text">
+        <div class="set-title" style="color:var(--red)">清除所有資料</div>
+        <div class="set-sub">此操作無法復原，請先備份</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="background:#FEF9ED;border:1px solid #EDD898">
+    <p style="font-size:13px;color:#8A6A18;line-height:1.7">
+      ⚠️ 資料儲存於手機本機（localStorage）。清除瀏覽器資料、切換瀏覽器或重裝 App 均會遺失資料。<strong>建議每週匯出一次備份。</strong>
+    </p>
+  </div>
+
+  <div style="text-align:center;padding:16px 0 4px;font-size:12px;color:var(--text-sub)">
+    KIA 卡旺業務作戰 CRM · Phase 1 · 2026
+  </div>
+</div>
+
+<!-- ════════════ DETAIL MODAL ════════════ -->
+<div class="overlay" id="detailOverlay">
+  <div class="sheet" id="detailSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title" id="detailTitle"></span>
+      <div style="display:flex;gap:7px;align-items:center">
+        <button class="btn btn-sm btn-secondary" onclick="openEdit(activeCid)">編輯</button>
+        <button class="sheet-close" onclick="closeOverlay('detailOverlay')">×</button>
+      </div>
+    </div>
+    <div class="sheet-body" id="detailBody"></div>
+  </div>
+</div>
+
+<!-- ════════════ ADD/EDIT CUSTOMER MODAL ════════════ -->
+<div class="overlay" id="custOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title" id="custModalTitle">新增客戶</span>
+      <button class="sheet-close" onclick="closeOverlay('custOverlay')">×</button>
+    </div>
+
+    <div style="padding:14px 18px 0">
+      <div class="step-dots">
+        <div class="step-dot on" id="dot1"></div>
+        <div class="step-dot" id="dot2"></div>
+      </div>
+    </div>
+
+    <div class="sheet-body">
+      <!-- STEP 1 -->
+      <div class="fpage on" id="fp1">
+        <div class="fgroup">
+          <label class="flabel">姓名 <span class="req">*</span></label>
+          <input type="text" class="finput" id="fn" placeholder="王大明" autocomplete="off">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">電話 <span class="req">*</span></label>
+          <input type="tel" class="finput" id="fphone" placeholder="0912-345-678" inputmode="tel">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">客戶類型 <span class="req">*</span></label>
+          <div class="pill-group" id="fg-type"></div>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">用途需求 <span class="req">*</span></label>
+          <textarea class="finput" id="fpurpose" placeholder="載什麼、跑什麼路線…" rows="2"></textarea>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">目前階段 <span class="req">*</span></label>
+          <div class="pill-group" id="fg-stage"></div>
+        </div>
+        <button class="btn btn-primary btn-block btn-lg" onclick="toStep2()">下一步 →</button>
+        <div style="height:8px"></div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="fpage" id="fp2">
+        <div class="fgroup">
+          <label class="flabel">公司名稱</label>
+          <input type="text" class="finput" id="fco" placeholder="大明物流有限公司" autocomplete="off">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">LINE ID / 暱稱</label>
+          <input type="text" class="finput" id="fline" placeholder="wang_dm">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">車型需求（可多選）</label>
+          <div class="pill-group" id="fg-vehicle"></div>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">現有車況</label>
+          <textarea class="finput" id="fveh" placeholder="目前開什麼、幾年、是否滿意…" rows="2"></textarea>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">決策者</label>
+          <div class="pill-group" id="fg-decision"></div>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">預算（萬元）</label>
+          <input type="number" class="finput" id="fbudget" placeholder="95" inputmode="numeric">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">付款方式</label>
+          <div class="pill-group" id="fg-payment"></div>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">預估成交月份</label>
+          <input type="month" class="finput" id="fmonth">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">介紹人</label>
+          <select class="finput" id="freferrer"><option value="">— 無 —</option></select>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">生活細節</label>
+          <textarea class="finput" id="fnotes" placeholder="家庭、寵物、興趣、忌諱…" rows="2"></textarea>
+        </div>
+        <div style="display:flex;gap:9px">
+          <button class="btn btn-secondary" style="flex:1" onclick="toStep1()">← 上一步</button>
+          <button class="btn btn-primary" style="flex:2" onclick="saveCust()">儲存客戶</button>
+        </div>
+        <div style="height:8px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ ADD INTERACTION MODAL ════════════ -->
+<div class="overlay" id="iaOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title">新增跟進記錄</span>
+      <button class="sheet-close" onclick="closeOverlay('iaOverlay')">×</button>
+    </div>
+    <div class="sheet-body">
+      <div class="fgroup">
+        <label class="flabel">日期</label>
+        <input type="date" class="finput" id="iaDate">
+      </div>
+      <div class="fgroup">
+        <label class="flabel">聯絡方式</label>
+        <div class="pill-group" id="fg-method"></div>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">內容摘要</label>
+        <div class="input-row">
+          <textarea class="finput" id="iaContent" placeholder="聊了什麼、客戶反應、下一步行動…" rows="3"></textarea>
+          <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="語音輸入">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+        </div>
+        <div class="qtags" id="qtags"></div>
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" onclick="saveIA()">儲存記錄</button>
+      <div style="height:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ LOSS REASON MODAL ════════════ -->
+<div class="overlay" id="lossOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title" style="color:var(--red)">記錄失單原因</span>
+      <button class="sheet-close" onclick="closeOverlay('lossOverlay')">×</button>
+    </div>
+    <div class="sheet-body">
+      <div class="fgroup">
+        <label class="flabel">失單原因 <span class="req">*</span></label>
+        <div class="pill-group" id="fg-lossreason"></div>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">輸給誰（品牌或經銷商）</label>
+        <input type="text" class="finput" id="lossComp" placeholder="Toyota、ISUZU、中部某經銷商…">
+      </div>
+      <div class="fgroup">
+        <label class="flabel">價差（萬元，可空）</label>
+        <input type="number" class="finput" id="lossGap" placeholder="3" inputmode="numeric">
+      </div>
+      <div class="fgroup">
+        <label class="flabel">學到什麼</label>
+        <textarea class="finput" id="lossLesson" placeholder="下次怎麼應對…" rows="2"></textarea>
+      </div>
+      <div style="display:flex;gap:9px">
+        <button class="btn btn-secondary" style="flex:1" onclick="closeOverlay('lossOverlay')">取消</button>
+        <button class="btn btn-danger" style="flex:1" onclick="saveLoss()">確認失單</button>
+      </div>
+      <div style="height:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════
+// CONSTANTS
+// ════════════════════════════════════════
+const SK = 'kia_crm_v1';
+
+const RED_DAYS = { 陌生: 7, 接觸: 5, 報價: 3, 議價: 1 };
+
+const TYPES   = ['個體戶','車隊','物流','工程行','農用','食品冷鏈','其他'];
+const STAGES  = ['陌生','接觸','報價','議價','成交','失單'];
+const VEHICLES= ['一般貨卡','廂型','冷凍廂型','雙排座','其他'];
+const DECISIONS=['本人','配偶','父母','老闆','兒女','合夥人'];
+const PAYMENTS = ['現金','貸款','租賃','未定'];
+const METHODS  = ['LINE','電話','見面','試乘'];
+const LOSS_RSN = ['價格','配備','交期','對手促銷','客戶轉變','其他'];
+const QTAG_LIST= ['[急件]','[已試乘]','[等老婆同意]','[比價中]','[等貸款]','[已報價]','[下週再談]','[很有意願]'];
+
+const PIPE_COLORS = {
+  陌生:'#8A9BAB', 接觸:'#7BA88C', 報價:'#9B8AB0',
+  議價:'#C4998E', 成交:'#7BA88C', 失單:'#C97B7B'
+};
+
+// ════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════
+let db = { customers: [], settings: { redLightDays: RED_DAYS } };
+
+function load() {
+  try {
+    const r = localStorage.getItem(SK);
+    if (r) db = JSON.parse(r);
+  } catch(e) {}
+}
+
+function save() {
+  try {
+    localStorage.setItem(SK, JSON.stringify(db));
+  } catch(e) { toast('儲存失敗：儲存空間不足'); }
+}
+
+function uid() {
+  return 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,5);
+}
+
+// ════════════════════════════════════════
+// DATE HELPERS
+// ════════════════════════════════════════
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysSince(d) {
+  if (!d) return 9999;
+  return Math.max(0, Math.floor((Date.now() - new Date(d + 'T12:00:00')) / 86400000));
+}
+
+function alertOf(c) {
+  const max = RED_DAYS[c.stage];
+  if (!max) return 'none';
+  const days = daysSince(c.lastContactAt || c.createdAt);
+  if (days >= max) return 'red';
+  if (days >= max * 0.7) return 'yellow';
+  return 'none';
+}
+
+function agoText(d) {
+  const n = daysSince(d);
+  if (n === 0) return '今天';
+  if (n === 1) return '昨天';
+  return n + ' 天前';
+}
+
+function fmtMonth(m) {
+  if (!m) return '';
+  return m.replace('-', '/');
+}
+
+// ════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════
+let activePage = 'home';
+
+function goPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nb-' + name).classList.add('active');
+  document.getElementById('mainFab').style.display = name === 'settings' ? 'none' : 'flex';
+  activePage = name;
+  if (name === 'home') renderHome();
+  if (name === 'customers') renderCustList();
+  if (name === 'pipeline') renderPipeline();
+}
+
+function openOverlay(id) {
+  const el = document.getElementById(id);
+  el.classList.add('open');
+  el.onclick = e => { if (e.target === el) closeOverlay(id); };
+}
+
+function closeOverlay(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ════════════════════════════════════════
+// HOME
+// ════════════════════════════════════════
+function renderHome() {
+  const mo = new Date().toISOString().slice(0, 7);
+  const all = db.customers;
+  const active = all.filter(c => c.stage !== '成交' && c.stage !== '失單');
+  const closed = all.filter(c => c.stage === '成交' && (c.lastContactAt || '').startsWith(mo));
+  const redOnes = active.filter(c => alertOf(c) === 'red');
+  const pipeAmt = active.reduce((s, c) => s + (c.budget || 0), 0);
+
+  document.getElementById('homeStats').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-val green">${closed.length}</div>
+      <div class="stat-lbl">本月成交</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val red">${redOnes.length}</div>
+      <div class="stat-lbl">今天該追</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${active.length}</div>
+      <div class="stat-lbl">進行中</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="font-size:${pipeAmt > 999 ? 20 : 26}px">${pipeAmt ? pipeAmt + '萬' : '—'}</div>
+      <div class="stat-lbl">潛在金額</div>
+    </div>`;
+
+  document.getElementById('redLbl').textContent = `今天該追的客戶（${redOnes.length}）`;
+
+  if (redOnes.length === 0) {
+    document.getElementById('redList').innerHTML =
+      `<div class="card" style="text-align:center;color:var(--green);font-size:14px;padding:18px">✓ 目前沒有逾期未聯絡的客戶</div>`;
+  } else {
+    document.getElementById('redList').innerHTML =
+      redOnes.sort((a, b) => daysSince(b.lastContactAt) - daysSince(a.lastContactAt))
+             .map(custCardHTML).join('');
+  }
+
+  const recent = [...all]
+    .filter(c => c.lastContactAt)
+    .sort((a, b) => b.lastContactAt.localeCompare(a.lastContactAt))
+    .slice(0, 6);
+  document.getElementById('recentList').innerHTML = recent.length
+    ? recent.map(custCardHTML).join('')
+    : `<div class="empty"><div class="empty-icon">👋</div><p>還沒有客戶資料</p><small>點右下角 + 新增第一筆</small></div>`;
+}
+
+// ════════════════════════════════════════
+// CUSTOMER LIST
+// ════════════════════════════════════════
+let stageF = '';
+
+document.getElementById('stageFilter').addEventListener('click', e => {
+  const chip = e.target.closest('.fchip');
+  if (!chip) return;
+  document.querySelectorAll('#stageFilter .fchip').forEach(c => c.classList.remove('on'));
+  chip.classList.add('on');
+  stageF = chip.dataset.v;
+  renderCustList();
+});
+
+function renderCustList() {
+  const q = (document.getElementById('searchInput').value || '').toLowerCase();
+  let list = db.customers.filter(c => {
+    if (stageF && c.stage !== stageF) return false;
+    if (q) return (c.name||'').toLowerCase().includes(q)
+                || (c.company||'').toLowerCase().includes(q)
+                || (c.phone||'').includes(q);
+    return true;
+  }).sort((a, b) =>
+    (b.lastContactAt || b.createdAt || '').localeCompare(a.lastContactAt || a.createdAt || ''));
+
+  document.getElementById('custList').innerHTML = list.length
+    ? list.map(custCardHTML).join('')
+    : `<div class="empty"><div class="empty-icon">${q ? '🔍' : '👤'}</div>
+        <p>${q ? '找不到符合的客戶' : '這個階段還沒有客戶'}</p></div>`;
+}
+
+function custCardHTML(c) {
+  const al = alertOf(c);
+  return `<div class="cust-card alert-${al}" onclick="openDetail('${c.id}')">
+    <div class="cust-name-row">
+      ${al !== 'none' ? `<svg width="8" height="8" viewBox="0 0 8 8" style="flex-shrink:0"><circle cx="4" cy="4" r="4" fill="var(--${al})"/></svg>` : ''}
+      <span class="cust-name">${esc(c.name)}</span>
+      ${c.company ? `<span class="cust-company">${esc(c.company)}</span>` : ''}
+    </div>
+    <div class="cust-tags">
+      <span class="tag s-${c.stage}">${c.stage}</span>
+      ${c.type ? `<span class="tag">${c.type}</span>` : ''}
+      <span class="tag">📞 ${c.lastContactAt ? agoText(c.lastContactAt) : '未聯絡'}</span>
+      ${c.expectedCloseMonth ? `<span class="tag">預計 ${fmtMonth(c.expectedCloseMonth)}</span>` : ''}
+      ${c.budget ? `<span class="tag">${c.budget}萬</span>` : ''}
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════
+// DETAIL
+// ════════════════════════════════════════
+let activeCid = null;
+
+function openDetail(id) {
+  activeCid = id;
+  const c = db.customers.find(x => x.id === id);
+  if (!c) return;
+
+  document.getElementById('detailTitle').textContent = c.name + (c.company ? ` · ${c.company}` : '');
+
+  const al = alertOf(c);
+  const alBadge = al !== 'none'
+    ? `<div class="tag ${al}" style="margin-bottom:12px;font-size:12px">${al === 'red' ? '🔴 逾期未聯絡，今天該追！' : '🟡 即將逾期，提早聯絡'}</div>`
+    : '';
+
+  const iaHTML = (c.interactions || []).length
+    ? [...(c.interactions)].reverse().map((ia, i, arr) => `
+        <div class="timeline-item">
+          <div class="tl-left">
+            <div class="tl-dot"></div>
+            ${i < arr.length - 1 ? '<div class="tl-line"></div>' : ''}
+          </div>
+          <div style="flex:1;padding-top:1px">
+            <div class="tl-date">${ia.date}<span class="tl-method">${ia.method}</span></div>
+            <div class="tl-content">${esc(ia.content)}</div>
+          </div>
+        </div>`).join('')
+    : `<p style="color:var(--text-sub);font-size:13px">尚無跟進記錄</p>`;
+
+  const lossSection = (c.stage === '失單' && c.lossDetail) ? `
+    <div class="loss-box">
+      <div class="loss-box-title">失單記錄</div>
+      ${drow('原因', c.lossDetail.reason)}
+      ${c.lossDetail.competitor ? drow('輸給', c.lossDetail.competitor) : ''}
+      ${c.lossDetail.gap ? drow('價差', c.lossDetail.gap + ' 萬') : ''}
+      ${c.lossDetail.lesson ? drow('心得', c.lossDetail.lesson) : ''}
+    </div>` : '';
+
+  document.getElementById('detailBody').innerHTML = `
+    ${alBadge}
+    <div class="action-row">
+      <a href="tel:${c.phone}" class="action-btn action-phone">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6.49 6.49l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+        </svg>
+        ${esc(c.phone)}
+      </a>
+      ${c.lineId ? `<a href="https://line.me/R/ti/p/~${encodeURIComponent(c.lineId)}" target="_blank" class="action-btn action-line">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
+        LINE
+      </a>` : ''}
+    </div>
+
+    <div class="card" style="padding:4px 14px">
+      ${drow('階段', `<span class="tag s-${c.stage}">${c.stage}</span>`)}
+      ${drow('類型', c.type)}
+      ${drow('用途', c.purpose)}
+      ${c.vehicleNeeds?.length ? drow('車型需求', c.vehicleNeeds.join('、')) : ''}
+      ${c.currentVehicle ? drow('現有車況', c.currentVehicle) : ''}
+      ${c.decisionMaker ? drow('決策者', c.decisionMaker) : ''}
+      ${c.budget ? drow('預算', c.budget + ' 萬') : ''}
+      ${c.paymentMethod ? drow('付款方式', c.paymentMethod) : ''}
+      ${c.expectedCloseMonth ? drow('預計成交', fmtMonth(c.expectedCloseMonth)) : ''}
+      ${c.referrer ? drow('介紹人', refName(c.referrer)) : ''}
+      ${c.personalNotes ? drow('生活細節', c.personalNotes) : ''}
+    </div>
+
+    ${lossSection}
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 10px">
+      <div class="section-label" style="margin:0">跟進記錄</div>
+      <button class="btn btn-sm btn-primary" onclick="openIA('${c.id}')">+ 新增</button>
+    </div>
+    <div id="iaList">${iaHTML}</div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;padding-bottom:4px">
+      ${c.stage !== '成交' && c.stage !== '失單' ? `
+        <button class="btn btn-sm btn-green" onclick="markStage('${c.id}','成交')">✓ 成交</button>
+        <button class="btn btn-sm btn-danger" onclick="markLoss('${c.id}')">✗ 失單</button>` : ''}
+      ${STAGES.filter(s => s !== c.stage && s !== '成交' && s !== '失單').map(s =>
+        `<button class="btn btn-sm btn-secondary" onclick="markStage('${c.id}','${s}')">${s}</button>`
+      ).join('')}
+      <button class="btn btn-sm" style="background:var(--red-bg);color:var(--red)" onclick="delCust('${c.id}')">刪除</button>
+    </div>
+    <div style="height:8px"></div>
+  `;
+
+  openOverlay('detailOverlay');
+}
+
+function drow(k, v) {
+  return `<div class="detail-row"><span class="dk">${k}</span><span class="dv">${v || '—'}</span></div>`;
+}
+
+function refName(id) {
+  const c = db.customers.find(x => x.id === id);
+  return c ? esc(c.name) : '—';
+}
+
+function markStage(id, stage) {
+  const c = db.customers.find(x => x.id === id);
+  if (!c) return;
+  c.stage = stage;
+  c.lastContactAt = todayStr();
+  save();
+  closeOverlay('detailOverlay');
+  refreshAll();
+  toast(`已移至「${stage}」`);
+}
+
+function markLoss(id) {
+  activeCid = id;
+  pills('fg-lossreason', 'lossreason', LOSS_RSN, '價格');
+  document.getElementById('lossComp').value = '';
+  document.getElementById('lossGap').value = '';
+  document.getElementById('lossLesson').value = '';
+  closeOverlay('detailOverlay');
+  openOverlay('lossOverlay');
+}
+
+function delCust(id) {
+  if (!confirm('確定刪除這位客戶？此操作無法復原。')) return;
+  db.customers = db.customers.filter(c => c.id !== id);
+  save();
+  closeOverlay('detailOverlay');
+  refreshAll();
+  toast('已刪除');
+}
+
+// ════════════════════════════════════════
+// ADD / EDIT CUSTOMER
+// ════════════════════════════════════════
+let editId = null;
+
+function openAddCustomer() {
+  editId = null;
+  document.getElementById('custModalTitle').textContent = '新增客戶';
+  clearCustForm();
+  toStep1(true);
+  openOverlay('custOverlay');
+}
+
+function openEdit(id) {
+  editId = id;
+  const c = db.customers.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('custModalTitle').textContent = '編輯客戶';
+  clearCustForm();
+
+  document.getElementById('fn').value = c.name || '';
+  document.getElementById('fphone').value = c.phone || '';
+  document.getElementById('fpurpose').value = c.purpose || '';
+  document.getElementById('fco').value = c.company || '';
+  document.getElementById('fline').value = c.lineId || '';
+  document.getElementById('fveh').value = c.currentVehicle || '';
+  document.getElementById('fbudget').value = c.budget || '';
+  document.getElementById('fmonth').value = c.expectedCloseMonth || '';
+  document.getElementById('fnotes').value = c.personalNotes || '';
+
+  pills('fg-type', 'ctype', TYPES, c.type || '個體戶');
+  pills('fg-stage', 'cstage', STAGES, c.stage || '陌生');
+  checks('fg-vehicle', 'cvehicle', VEHICLES, c.vehicleNeeds || []);
+  pills('fg-decision', 'cdecision', DECISIONS, c.decisionMaker || '本人');
+  pills('fg-payment', 'cpayment', PAYMENTS, c.paymentMethod || '未定');
+  fillReferrer(c.referrer);
+
+  closeOverlay('detailOverlay');
+  toStep1(true);
+  openOverlay('custOverlay');
+}
+
+function clearCustForm() {
+  ['fn','fphone','fpurpose','fco','fline','fveh','fbudget','fmonth','fnotes']
+    .forEach(id => document.getElementById(id).value = '');
+  pills('fg-type', 'ctype', TYPES, '個體戶');
+  pills('fg-stage', 'cstage', STAGES, '陌生');
+  checks('fg-vehicle', 'cvehicle', VEHICLES, []);
+  pills('fg-decision', 'cdecision', DECISIONS, '本人');
+  pills('fg-payment', 'cpayment', PAYMENTS, '未定');
+  fillReferrer(null);
+}
+
+function fillReferrer(sel) {
+  const s = document.getElementById('freferrer');
+  s.innerHTML = '<option value="">— 無 —</option>';
+  db.customers.forEach(c => {
+    if (c.id === editId) return;
+    const o = document.createElement('option');
+    o.value = c.id;
+    o.textContent = c.name + (c.company ? ` (${c.company})` : '');
+    if (c.id === sel) o.selected = true;
+    s.appendChild(o);
+  });
+}
+
+function toStep1(init) {
+  document.getElementById('fp1').classList.add('on');
+  document.getElementById('fp2').classList.remove('on');
+  document.getElementById('dot1').classList.add('on');
+  document.getElementById('dot2').classList.remove('on');
+}
+
+function toStep2() {
+  const name = document.getElementById('fn').value.trim();
+  const phone = document.getElementById('fphone').value.trim();
+  const purpose = document.getElementById('fpurpose').value.trim();
+  if (!name)    { toast('請填寫姓名'); return; }
+  if (!phone)   { toast('請填寫電話'); return; }
+  if (!purpose) { toast('請填寫用途需求'); return; }
+  document.getElementById('fp1').classList.remove('on');
+  document.getElementById('fp2').classList.add('on');
+  document.getElementById('dot1').classList.remove('on');
+  document.getElementById('dot2').classList.add('on');
+  if (!editId) fillReferrer(null);
+}
+
+function saveCust() {
+  const name = document.getElementById('fn').value.trim();
+  const phone = document.getElementById('fphone').value.trim();
+  const ctype = checkedVal('ctype') || '個體戶';
+  const cstage = checkedVal('cstage') || '陌生';
+
+  const patch = {
+    name, phone,
+    type: ctype,
+    stage: cstage,
+    purpose: document.getElementById('fpurpose').value.trim(),
+    company: document.getElementById('fco').value.trim(),
+    lineId: document.getElementById('fline').value.trim(),
+    currentVehicle: document.getElementById('fveh').value.trim(),
+    budget: parseInt(document.getElementById('fbudget').value) || null,
+    expectedCloseMonth: document.getElementById('fmonth').value || null,
+    personalNotes: document.getElementById('fnotes').value.trim(),
+    decisionMaker: checkedVal('cdecision') || null,
+    paymentMethod: checkedVal('cpayment') || null,
+    vehicleNeeds: checkedVals('cvehicle'),
+    referrer: document.getElementById('freferrer').value || null,
+  };
+
+  if (editId) {
+    const idx = db.customers.findIndex(c => c.id === editId);
+    if (idx >= 0) db.customers[idx] = { ...db.customers[idx], ...patch };
+    toast('已更新客戶資料');
+  } else {
+    db.customers.unshift({
+      id: uid(), ...patch,
+      interactions: [],
+      createdAt: todayStr(),
+      lastContactAt: todayStr(),
+      lossDetail: null
+    });
+    toast('已新增客戶 🎉');
+  }
+
+  save();
+  closeOverlay('custOverlay');
+  refreshAll();
+}
+
+// ════════════════════════════════════════
+// INTERACTIONS
+// ════════════════════════════════════════
+let activeIaCid = null;
+let recognition = null;
+let recording = false;
+
+function openIA(id) {
+  activeIaCid = id;
+  document.getElementById('iaDate').value = todayStr();
+  document.getElementById('iaContent').value = '';
+  pills('fg-method', 'imethod', METHODS, 'LINE');
+  document.getElementById('qtags').innerHTML = QTAG_LIST
+    .map(t => `<div class="qtag" onclick="appendTag('${t}')">${t}</div>`).join('');
+  openOverlay('iaOverlay');
+}
+
+function appendTag(t) {
+  const ta = document.getElementById('iaContent');
+  ta.value = (ta.value ? ta.value + ' ' : '') + t;
+  ta.focus();
+}
+
+function saveIA() {
+  const content = document.getElementById('iaContent').value.trim();
+  if (!content) { toast('請填寫內容摘要'); return; }
+  const c = db.customers.find(x => x.id === activeIaCid);
+  if (!c) return;
+  if (!c.interactions) c.interactions = [];
+  const date = document.getElementById('iaDate').value || todayStr();
+  c.interactions.push({ date, method: checkedVal('imethod') || 'LINE', content });
+  c.lastContactAt = date;
+  save();
+  closeOverlay('iaOverlay');
+  toast('跟進記錄已儲存');
+  if (activeCid === activeIaCid && document.getElementById('detailOverlay').classList.contains('open')) {
+    openDetail(activeCid);
+  }
+  refreshAll();
+}
+
+function toggleVoice() {
+  const SRClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SRClass) { toast('此瀏覽器不支援語音輸入'); return; }
+
+  if (recording) {
+    recognition && recognition.stop();
+    return;
+  }
+
+  recognition = new SRClass();
+  recognition.lang = 'zh-TW';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    recording = true;
+    document.getElementById('voiceBtn').classList.add('on');
+    toast('🎙 語音輸入中…');
+  };
+  recognition.onresult = e => {
+    const t = e.results[0][0].transcript;
+    const ta = document.getElementById('iaContent');
+    ta.value = (ta.value ? ta.value + ' ' : '') + t;
+  };
+  recognition.onend = () => {
+    recording = false;
+    document.getElementById('voiceBtn').classList.remove('on');
+  };
+  recognition.onerror = () => {
+    recording = false;
+    document.getElementById('voiceBtn').classList.remove('on');
+    toast('語音輸入失敗');
+  };
+  recognition.start();
+}
+
+// ════════════════════════════════════════
+// LOSS REASON
+// ════════════════════════════════════════
+function saveLoss() {
+  const reason = checkedVal('lossreason');
+  if (!reason) { toast('請選擇失單原因'); return; }
+  const c = db.customers.find(x => x.id === activeCid);
+  if (!c) return;
+  c.stage = '失單';
+  c.lastContactAt = todayStr();
+  c.lossDetail = {
+    reason,
+    competitor: document.getElementById('lossComp').value.trim(),
+    gap: parseInt(document.getElementById('lossGap').value) || null,
+    lesson: document.getElementById('lossLesson').value.trim(),
+    date: todayStr()
+  };
+  save();
+  closeOverlay('lossOverlay');
+  refreshAll();
+  toast('已記錄失單');
+}
+
+// ════════════════════════════════════════
+// PIPELINE
+// ════════════════════════════════════════
+let pipeF = 'all';
+
+document.getElementById('pipeFilter').addEventListener('click', e => {
+  const chip = e.target.closest('.fchip');
+  if (!chip) return;
+  document.querySelectorAll('#pipeFilter .fchip').forEach(c => c.classList.remove('on'));
+  chip.classList.add('on');
+  pipeF = chip.dataset.v;
+  renderPipeline();
+});
+
+function renderPipeline() {
+  document.getElementById('pipeBoard').innerHTML = STAGES.map(stage => {
+    let list = db.customers.filter(c => c.stage === stage);
+    if (pipeF === 'red') list = list.filter(c => alertOf(c) === 'red');
+    else if (pipeF !== 'all') list = list.filter(c => c.type === pipeF);
+
+    const cards = list.map(c => {
+      const al = alertOf(c);
+      return `<div class="pipe-card alert-${al}" onclick="openDetail('${c.id}')">
+        <div class="pipe-card-name">${esc(c.name)}</div>
+        ${c.company ? `<div class="pipe-card-co">${esc(c.company)}</div>` : ''}
+        <div class="pipe-card-meta">
+          ${c.type || ''}${c.type && c.lastContactAt ? ' · ' : ''}${c.lastContactAt ? agoText(c.lastContactAt) : ''}
+          ${c.expectedCloseMonth ? '<br>預計 ' + fmtMonth(c.expectedCloseMonth) : ''}
+          ${c.budget ? '<br>' + c.budget + ' 萬' : ''}
+        </div>
+      </div>`;
+    }).join('') || `<div style="font-size:12px;color:var(--text-sub);padding:6px 2px">無</div>`;
+
+    return `<div class="pipe-col">
+      <div class="pipe-col-hd">
+        <div class="pipe-col-dot" style="background:${PIPE_COLORS[stage]}"></div>
+        <span class="pipe-col-name" style="color:${PIPE_COLORS[stage]}">${stage}</span>
+        <span class="pipe-count">${list.length}</span>
+      </div>
+      ${cards}
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════
+// EXPORT / IMPORT
+// ════════════════════════════════════════
+function exportData() {
+  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `kia_crm_${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('備份已匯出');
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if (!Array.isArray(imported.customers)) throw new Error();
+      if (!confirm(`匯入後將覆蓋現有資料（共 ${imported.customers.length} 筆客戶）。確定繼續？`)) return;
+      db = imported;
+      save();
+      refreshAll();
+      toast(`已匯入 ${imported.customers.length} 筆客戶`);
+    } catch {
+      toast('匯入失敗：檔案格式錯誤');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function confirmClear() {
+  if (!confirm('確定要清除所有資料嗎？建議先匯出備份。')) return;
+  if (!confirm('最後確認：所有客戶資料都將被刪除，無法復原。')) return;
+  db = { customers: [], settings: { redLightDays: RED_DAYS } };
+  save();
+  refreshAll();
+  toast('已清除全部資料');
+}
+
+// ════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════
+function pills(containerId, name, options, selected) {
+  document.getElementById(containerId).innerHTML = options.map(o => `
+    <label>
+      <input type="radio" class="pill-input" name="${name}" value="${o}" ${o === selected ? 'checked' : ''}>
+      <span class="pill-label">${o}</span>
+    </label>`).join('');
+}
+
+function checks(containerId, name, options, selected) {
+  document.getElementById(containerId).innerHTML = options.map(o => `
+    <label>
+      <input type="checkbox" class="pill-input" name="${name}" value="${o}" ${(selected||[]).includes(o) ? 'checked' : ''}>
+      <span class="pill-label">${o}</span>
+    </label>`).join('');
+}
+
+function checkedVal(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : null;
+}
+
+function checkedVals(name) {
+  return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(e => e.value);
+}
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let _toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+function refreshAll() {
+  if (activePage === 'home') renderHome();
+  if (activePage === 'customers') renderCustList();
+  if (activePage === 'pipeline') renderPipeline();
+  // always refresh home stats silently
+  if (activePage !== 'home') renderHome();
+}
+
+// ════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════
+(function init() {
+  load();
+
+  const d = new Date();
+  const days = ['日','一','二','三','四','五','六'];
+  document.getElementById('headerDate').textContent =
+    `${d.getMonth() + 1} 月 ${d.getDate()} 日（週${days[d.getDay()]}）`;
+
+  renderHome();
+
+  // Prevent iOS scroll bounce breaking layout
+  document.body.addEventListener('touchmove', e => {
+    if (e.target.closest('.sheet, .pipeline-scroll, .filter-row, .search-wrap')) return;
+    // allow
+  }, { passive: true });
+})();
+</script>
+</body>
+</html>
