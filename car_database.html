@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚗 汽車業務資料庫</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f7f6f3;
+    --bg3: #efeeeb;
+    --border: #e0deda;
+    --text: #37352f;
+    --text2: #6b6b6b;
+    --text3: #9b9a97;
+    --accent: #2eaadc;
+    --accent-bg: #e8f4f8;
+    --green: #0f7b6c;
+    --green-bg: #d3f1ec;
+    --red: #e03e3e;
+    --red-bg: #fddede;
+    --yellow: #d9730d;
+    --yellow-bg: #faebdd;
+    --purple: #6940a5;
+    --purple-bg: #e8deee;
+    --sidebar-w: 240px;
+    --radius: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg2); color: var(--text); min-height: 100vh; display: flex; }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    width: var(--sidebar-w); min-height: 100vh; background: var(--bg3);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+    padding: 12px 0; position: fixed; top: 0; left: 0; z-index: 100;
+  }
+  .logo { padding: 8px 16px 16px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .logo span { font-size: 22px; }
+  .nav-section { padding: 4px 8px; }
+  .nav-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; padding: 4px 8px; margin-top: 8px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--radius);
+    cursor: pointer; font-size: 14px; color: var(--text2); transition: background .1s;
+  }
+  .nav-item:hover, .nav-item.active { background: var(--border); color: var(--text); }
+  .nav-item .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-stats { margin-top: auto; padding: 12px 16px; border-top: 1px solid var(--border); }
+  .sidebar-stats p { font-size: 12px; color: var(--text3); margin-bottom: 4px; }
+  .sidebar-stats strong { color: var(--text); }
+
+  /* ── Main ── */
+  #main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar {
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    padding: 12px 28px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 90;
+  }
+  .topbar h1 { font-size: 18px; font-weight: 700; flex: 1; }
+  .search-wrap { position: relative; }
+  .search-wrap input {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 12px 6px 32px;
+    font-size: 13px; background: var(--bg2); color: var(--text); width: 220px; outline: none;
+    transition: border-color .15s, width .2s;
+  }
+  .search-wrap input:focus { border-color: var(--accent); background: var(--bg); width: 280px; }
+  .search-wrap .ico { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; }
+  .btn {
+    border: none; border-radius: var(--radius); padding: 7px 14px; font-size: 13px;
+    cursor: pointer; font-weight: 500; transition: opacity .15s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-primary { background: var(--text); color: #fff; }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* ── Content ── */
+  #content { padding: 24px 28px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── Dashboard ── */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 18px 20px; box-shadow: var(--shadow);
+  }
+  .stat-card .label { font-size: 12px; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .stat-card .val { font-size: 28px; font-weight: 700; }
+  .stat-card .sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
+  .stat-card.green .val { color: var(--green); }
+  .stat-card.red .val { color: var(--red); }
+  .stat-card.yellow .val { color: var(--yellow); }
+  .stat-card.blue .val { color: var(--accent); }
+
+  .section-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text2); }
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+  .chart-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 18px; box-shadow: var(--shadow); }
+  .brand-bars { display: flex; flex-direction: column; gap: 10px; }
+  .bar-item .bar-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+  .bar-track { background: var(--bg2); border-radius: 4px; height: 8px; overflow: hidden; }
+  .bar-fill { height: 8px; border-radius: 4px; background: var(--accent); transition: width .4s; }
+
+  /* ── Filter bar ── */
+  .filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-bar select, .filter-bar input[type=range] {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 5px 10px;
+    font-size: 13px; background: var(--bg); color: var(--text); outline: none; cursor: pointer;
+  }
+  .filter-chip {
+    background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent);
+    border-radius: 20px; padding: 3px 10px; font-size: 12px; cursor: pointer;
+  }
+  .filter-chip.off { background: var(--bg2); color: var(--text3); border-color: var(--border); }
+  .view-toggle { display: flex; gap: 4px; margin-left: auto; }
+  .view-btn { border: 1px solid var(--border); background: var(--bg); border-radius: var(--radius); padding: 5px 10px; cursor: pointer; font-size: 13px; color: var(--text2); }
+  .view-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+  /* ── Table View ── */
+  .table-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    background: var(--bg2); padding: 10px 12px; text-align: left; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .06em; color: var(--text3);
+    border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  thead th:hover { color: var(--text); }
+  thead th .sort-ico { margin-left: 4px; opacity: .4; }
+  thead th.sorted .sort-ico { opacity: 1; color: var(--accent); }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg2); }
+  tbody td { padding: 10px 12px; }
+  .car-name { font-weight: 600; color: var(--text); }
+  .car-sub { font-size: 11px; color: var(--text3); }
+
+  /* ── Status tags ── */
+  .tag {
+    display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: 11px;
+    font-weight: 600; letter-spacing: .03em;
+  }
+  .tag-available { background: var(--green-bg); color: var(--green); }
+  .tag-sold { background: var(--red-bg); color: var(--red); }
+  .tag-reserved { background: var(--yellow-bg); color: var(--yellow); }
+  .tag-maintenance { background: var(--purple-bg); color: var(--purple); }
+  .tag-new { background: var(--accent-bg); color: var(--accent); }
+  .tag-used { background: var(--bg3); color: var(--text2); }
+
+  .action-btns { display: flex; gap: 4px; }
+
+  /* ── Card View ── */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .car-card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; box-shadow: var(--shadow); cursor: pointer; transition: box-shadow .15s, transform .15s;
+  }
+  .car-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-1px); }
+  .car-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .car-card h3 { font-size: 15px; font-weight: 700; }
+  .car-card .model { font-size: 12px; color: var(--text3); margin-bottom: 2px; }
+  .car-card .price { font-size: 20px; font-weight: 700; color: var(--green); margin: 8px 0; }
+  .car-card .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+  .car-card .meta-item { font-size: 11px; color: var(--text3); }
+  .car-card .meta-item strong { display: block; color: var(--text); font-size: 12px; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200;
+    display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px);
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--bg); border-radius: 10px; width: 600px; max-width: 96vw; max-height: 90vh;
+    overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.18); transform: translateY(16px);
+    transition: transform .2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-header { padding: 20px 24px 0; display: flex; justify-content: space-between; align-items: center; }
+  .modal-header h2 { font-size: 17px; font-weight: 700; }
+  .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text3); line-height: 1; }
+  .modal-body { padding: 16px 24px 24px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group label { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; }
+  .form-group input, .form-group select, .form-group textarea {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px;
+    font-size: 13px; font-family: inherit; color: var(--text); background: var(--bg); outline: none;
+    transition: border-color .15s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+  .form-group textarea { resize: vertical; min-height: 70px; }
+  .modal-footer { padding: 0 24px 20px; display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* ── Detail Modal ── */
+  .detail-hero { background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 8px; padding: 20px; margin-bottom: 18px; color: #fff; }
+  .detail-hero h2 { font-size: 22px; font-weight: 700; }
+  .detail-hero .dh-sub { opacity: .7; font-size: 14px; margin-bottom: 12px; }
+  .detail-hero .dh-price { font-size: 30px; font-weight: 700; color: #4ecdc4; }
+  .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .detail-item { background: var(--bg2); border-radius: var(--radius); padding: 10px 12px; }
+  .detail-item .di-label { font-size: 11px; color: var(--text3); text-transform: uppercase; margin-bottom: 3px; }
+  .detail-item .di-val { font-size: 14px; font-weight: 600; }
+  .notes-box { background: var(--bg2); border-radius: var(--radius); padding: 12px; font-size: 13px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; }
+
+  /* ── Customer DB ── */
+  .customer-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; box-shadow: var(--shadow); margin-bottom: 10px; display: flex; align-items: center; gap: 14px; }
+  .avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 17px; font-weight: 700; flex-shrink: 0; }
+  .cust-info { flex: 1; }
+  .cust-info strong { font-size: 14px; }
+  .cust-info p { font-size: 12px; color: var(--text3); }
+  .cust-meta { text-align: right; font-size: 12px; color: var(--text3); }
+  .cust-meta strong { display: block; font-size: 14px; color: var(--text); }
+
+  /* ── Notification ── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--text); color: #fff;
+    padding: 12px 18px; border-radius: 8px; font-size: 13px; z-index: 999;
+    transform: translateY(60px); opacity: 0; transition: all .25s; box-shadow: var(--shadow);
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    #sidebar { width: 0; overflow: hidden; }
+    #main { margin-left: 0; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .chart-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
+    .detail-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ── Empty State ── */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
+  .empty-state .ico { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav id="sidebar">
+  <div class="logo"><span>🚗</span> 汽車業務系統</div>
+  <div class="nav-section">
+    <div class="nav-label">主選單</div>
+    <div class="nav-item active" onclick="goto('dashboard')"><span class="ico">📊</span> 儀表板</div>
+    <div class="nav-item" onclick="goto('inventory')"><span class="ico">🗄️</span> 車輛庫存</div>
+    <div class="nav-item" onclick="goto('customers')"><span class="ico">👥</span> 客戶管理</div>
+    <div class="nav-item" onclick="goto('reports')"><span class="ico">📈</span> 業績報表</div>
+  </div>
+  <div class="sidebar-stats">
+    <p>今日庫存</p>
+    <strong id="sb-total">—</strong>
+    <p style="margin-top:8px">可售車輛</p>
+    <strong id="sb-avail">—</strong>
+  </div>
+</nav>
+
+<!-- Main -->
+<div id="main">
+  <div class="topbar">
+    <h1 id="page-title">📊 儀表板</h1>
+    <div class="search-wrap">
+      <span class="ico">🔍</span>
+      <input type="text" id="globalSearch" placeholder="搜尋車輛、客戶…" oninput="globalSearchFn()">
+    </div>
+    <button class="btn btn-primary" id="topbar-action" onclick="openAddCar()">＋ 新增車輛</button>
+  </div>
+
+  <div id="content">
+
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <div class="stat-grid">
+        <div class="stat-card blue"><div class="label">總庫存</div><div class="val" id="st-total">0</div><div class="sub">輛車輛</div></div>
+        <div class="stat-card green"><div class="label">可售</div><div class="val" id="st-avail">0</div><div class="sub">輛可售</div></div>
+        <div class="stat-card red"><div class="label">本月成交</div><div class="val" id="st-sold">0</div><div class="sub">輛已售出</div></div>
+        <div class="stat-card yellow"><div class="label">庫存總值</div><div class="val" id="st-val">$0</div><div class="sub">萬元</div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="section-title">品牌分佈</div>
+          <div class="brand-bars" id="brand-bars"></div>
+        </div>
+        <div class="chart-card">
+          <div class="section-title">車況統計</div>
+          <div class="brand-bars" id="status-bars"></div>
+        </div>
+      </div>
+      <div class="section-title">最新入庫</div>
+      <div class="table-wrap" id="recent-table">
+        <table>
+          <thead><tr>
+            <th>車輛</th><th>品牌</th><th>年份</th><th>狀態</th><th>售價</th>
+          </tr></thead>
+          <tbody id="recent-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Inventory -->
+    <div class="page" id="page-inventory">
+      <div class="filter-bar">
+        <select id="f-brand" onchange="renderInventory()"><option value="">所有品牌</option></select>
+        <select id="f-status" onchange="renderInventory()">
+          <option value="">所有狀態</option>
+          <option value="可售">可售</option>
+          <option value="已售">已售</option>
+          <option value="保留中">保留中</option>
+          <option value="維修中">維修中</option>
+        </select>
+        <select id="f-condition" onchange="renderInventory()">
+          <option value="">新車/中古</option>
+          <option value="新車">新車</option>
+          <option value="中古車">中古車</option>
+        </select>
+        <select id="f-year" onchange="renderInventory()"><option value="">所有年份</option></select>
+        <div class="view-toggle">
+          <button class="view-btn active" id="vb-table" onclick="setView('table')">☰ 列表</button>
+          <button class="view-btn" id="vb-card" onclick="setView('card')">⊞ 卡片</button>
+        </div>
+      </div>
+      <div id="inv-table-wrap" class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortBy('brand')">品牌 <span class="sort-ico">↕</span></th>
+              <th onclick="sortBy('model')">型號 <span class="sort-ico">↕</span></th>
+              <th onclick="sortBy('year')">年份 <span class="sort-ico">↕</span></th>
+              <th onclick="sortBy('color')">顏色 <span class="sort-ico">↕</span></th>
+              <th onclick="sortBy('mileage')">里程 <span class="sort-ico">↕</span></th>
+              <th onclick="sortBy('price')">售價 <span class="sort-ico">↕</span></th>
+              <th onclick="sortBy('condition')">車況 <span class="sort-ico">↕</span></th>
+              <th onclick="sortBy('status')">狀態 <span class="sort-ico">↕</span></th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="inv-tbody"></tbody>
+        </table>
+      </div>
+      <div id="inv-card-wrap" class="card-grid" style="display:none"></div>
+      <div id="inv-empty" class="empty-state" style="display:none">
+        <div class="ico">🚗</div><p>目前沒有符合條件的車輛</p>
+      </div>
+    </div>
+
+    <!-- Customers -->
+    <div class="page" id="page-customers">
+      <div class="filter-bar">
+        <button class="btn btn-ghost" onclick="openAddCustomer()">＋ 新增客戶</button>
+      </div>
+      <div id="cust-list"></div>
+    </div>
+
+    <!-- Reports -->
+    <div class="page" id="page-reports">
+      <div class="stat-grid" style="margin-bottom:20px">
+        <div class="stat-card green"><div class="label">總成交金額</div><div class="val" id="r-total-val">—</div><div class="sub">萬元</div></div>
+        <div class="stat-card blue"><div class="label">平均售價</div><div class="val" id="r-avg">—</div><div class="sub">萬元/輛</div></div>
+        <div class="stat-card yellow"><div class="label">庫存天數最長</div><div class="val" id="r-oldest">—</div><div class="sub">天</div></div>
+        <div class="stat-card red"><div class="label">維修中</div><div class="val" id="r-maint">—</div><div class="sub">輛</div></div>
+      </div>
+      <div class="chart-card" style="margin-bottom:16px">
+        <div class="section-title">各品牌庫存總值</div>
+        <div id="brand-value-bars"></div>
+      </div>
+      <div class="chart-card">
+        <div class="section-title">售價分佈</div>
+        <div id="price-dist"></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Add/Edit Car Modal -->
+<div class="modal-overlay" id="car-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="car-modal-title">新增車輛</h2>
+      <button class="modal-close" onclick="closeModal('car-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>品牌 *</label>
+          <input id="f-m-brand" list="brand-list" placeholder="Toyota / BMW…">
+          <datalist id="brand-list">
+            <option>Toyota</option><option>Honda</option><option>BMW</option><option>Benz</option>
+            <option>Audi</option><option>Ford</option><option>Lexus</option><option>Mazda</option>
+            <option>Hyundai</option><option>Kia</option><option>Nissan</option><option>Volvo</option>
+            <option>Porsche</option><option>Tesla</option><option>VW</option>
+          </datalist>
+        </div>
+        <div class="form-group">
+          <label>型號 *</label>
+          <input id="f-m-model" placeholder="Camry / 3-Series…">
+        </div>
+        <div class="form-group">
+          <label>年份</label>
+          <input id="f-m-year" type="number" min="1990" max="2030" placeholder="2024">
+        </div>
+        <div class="form-group">
+          <label>顏色</label>
+          <input id="f-m-color" placeholder="珍珠白、消光黑…">
+        </div>
+        <div class="form-group">
+          <label>里程 (km)</label>
+          <input id="f-m-mileage" type="number" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>引擎排量</label>
+          <input id="f-m-engine" placeholder="2.0T / 3.5L…">
+        </div>
+        <div class="form-group">
+          <label>售價 (萬元) *</label>
+          <input id="f-m-price" type="number" min="0" step="0.1" placeholder="85.0">
+        </div>
+        <div class="form-group">
+          <label>成本 (萬元)</label>
+          <input id="f-m-cost" type="number" min="0" step="0.1" placeholder="78.0">
+        </div>
+        <div class="form-group">
+          <label>車況</label>
+          <select id="f-m-condition">
+            <option value="新車">新車</option>
+            <option value="中古車">中古車</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>狀態</label>
+          <select id="f-m-status">
+            <option value="可售">可售</option>
+            <option value="保留中">保留中</option>
+            <option value="已售">已售</option>
+            <option value="維修中">維修中</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>入庫日期</label>
+          <input id="f-m-date" type="date">
+        </div>
+        <div class="form-group">
+          <label>車牌號碼</label>
+          <input id="f-m-plate" placeholder="ABC-1234">
+        </div>
+        <div class="form-group full">
+          <label>備註</label>
+          <textarea id="f-m-notes" placeholder="車況說明、特殊配備、注意事項…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('car-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveCar()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Car Detail Modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal" style="width:560px">
+    <div class="modal-header">
+      <h2>車輛詳情</h2>
+      <button class="modal-close" onclick="closeModal('detail-modal')">×</button>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+    <div class="modal-footer" id="detail-footer"></div>
+  </div>
+</div>
+
+<!-- Add Customer Modal -->
+<div class="modal-overlay" id="cust-modal">
+  <div class="modal" style="width:480px">
+    <div class="modal-header">
+      <h2 id="cust-modal-title">新增客戶</h2>
+      <button class="modal-close" onclick="closeModal('cust-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>姓名 *</label><input id="c-name" placeholder="王小明"></div>
+        <div class="form-group"><label>電話 *</label><input id="c-phone" placeholder="0912-345-678"></div>
+        <div class="form-group"><label>Email</label><input id="c-email" type="email" placeholder="name@email.com"></div>
+        <div class="form-group"><label>LINE ID</label><input id="c-line" placeholder="lineid"></div>
+        <div class="form-group full"><label>地址</label><input id="c-addr" placeholder="台北市…"></div>
+        <div class="form-group"><label>意向車款</label><input id="c-interest" placeholder="Toyota Camry…"></div>
+        <div class="form-group"><label>預算 (萬)</label><input id="c-budget" type="number" placeholder="80"></div>
+        <div class="form-group full"><label>備註</label><textarea id="c-notes" placeholder="客戶需求、偏好…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('cust-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveCustomer()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────── Data ───────────────
+const CARS_KEY = 'car_db_cars';
+const CUSTS_KEY = 'car_db_custs';
+
+const defaultCars = [
+  { id:1, brand:'Toyota', model:'Camry 2.5', year:2023, color:'珍珠白', mileage:8500, engine:'2.5L', price:89, cost:82, condition:'中古車', status:'可售', plate:'ABC-1234', date:'2024-10-15', notes:'原廠保固至2026年，一手車，附原廠手冊' },
+  { id:2, brand:'BMW', model:'320i', year:2022, color:'黑色', mileage:22000, engine:'2.0T', price:148, cost:135, condition:'中古車', status:'可售', plate:'XYZ-5678', date:'2024-11-01', notes:'選配M套件，天窗，運動化方向盤' },
+  { id:3, brand:'Honda', model:'CR-V 1.5T', year:2024, color:'星燦銀', mileage:0, engine:'1.5T', price:115, cost:108, condition:'新車', status:'保留中', plate:'', date:'2024-12-01', notes:'客戶王先生保留，預計1/15交車' },
+  { id:4, brand:'Lexus', model:'ES 300h', year:2021, color:'鈦晶灰', mileage:45000, engine:'2.5 Hybrid', price:138, cost:122, condition:'中古車', status:'已售', plate:'DEF-9012', date:'2024-09-20', notes:'成交客戶：陳小姐，成交日2024/11/30' },
+  { id:5, brand:'Mazda', model:'CX-5 2.5', year:2023, color:'水晶藍', mileage:15000, engine:'2.5L', price:98, cost:90, condition:'中古車', status:'維修中', plate:'GHI-3456', date:'2024-10-05', notes:'更換煞車來令片，預計12/20完工' },
+  { id:6, brand:'Benz', model:'C200', year:2023, color:'曜石黑', mileage:5000, engine:'1.5T', price:185, cost:172, condition:'中古車', status:'可售', plate:'JKL-7890', date:'2024-11-15', notes:'選配AMG套件、Burmester音響' },
+  { id:7, brand:'Tesla', model:'Model 3', year:2024, color:'白色', mileage:0, engine:'電動', price:175, cost:165, condition:'新車', status:'可售', plate:'', date:'2024-12-10', notes:'長續航版，全自動駕駛選配' },
+  { id:8, brand:'Audi', model:'A4 40 TFSI', year:2022, color:'冰川白', mileage:30000, engine:'2.0T', price:128, cost:115, condition:'中古車', status:'可售', plate:'MNO-2345', date:'2024-10-28', notes:'S-line外觀，虛擬座艙，抬頭顯示器' },
+];
+
+const defaultCustomers = [
+  { id:1, name:'王大明', phone:'0912-345-678', email:'wang@gmail.com', line:'wangdaming', addr:'台北市信義區', interest:'Toyota Camry', budget:90, notes:'偏好白色，需要大後廂空間', date:'2024-11-20' },
+  { id:2, name:'李美玲', phone:'0923-456-789', email:'li@yahoo.com', line:'limeiling', addr:'新北市板橋區', interest:'Honda CR-V', budget:120, notes:'家庭用車，有3個小孩，注重安全', date:'2024-11-25' },
+  { id:3, name:'陳建志', phone:'0934-567-890', email:'', line:'chencc', addr:'台中市西屯區', interest:'BMW 3-Series', budget:150, notes:'商務用途，偏好深色系', date:'2024-12-01' },
+];
+
+let cars = JSON.parse(localStorage.getItem(CARS_KEY) || 'null') || defaultCars;
+let customers = JSON.parse(localStorage.getItem(CUSTS_KEY) || 'null') || defaultCustomers;
+let editingCarId = null;
+let editingCustId = null;
+let currentView = 'table';
+let sortKey = 'date';
+let sortDir = -1;
+let searchTerm = '';
+
+function save() {
+  localStorage.setItem(CARS_KEY, JSON.stringify(cars));
+  localStorage.setItem(CUSTS_KEY, JSON.stringify(customers));
+}
+
+// ─────────────── Navigation ───────────────
+function goto(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`.nav-item[onclick="goto('${page}')"]`).classList.add('active');
+  const titles = { dashboard:'📊 儀表板', inventory:'🗄️ 車輛庫存', customers:'👥 客戶管理', reports:'📈 業績報表' };
+  document.getElementById('page-title').textContent = titles[page];
+  const actions = { dashboard:'＋ 新增車輛', inventory:'＋ 新增車輛', customers:'＋ 新增客戶', reports:'匯出報表' };
+  const actionFns = { dashboard:'openAddCar()', inventory:'openAddCar()', customers:'openAddCustomer()', reports:'exportCSV()' };
+  document.getElementById('topbar-action').textContent = actions[page];
+  document.getElementById('topbar-action').setAttribute('onclick', actionFns[page]);
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'inventory') { populateFilters(); renderInventory(); }
+  if (page === 'customers') renderCustomers();
+  if (page === 'reports') renderReports();
+}
+
+// ─────────────── Dashboard ───────────────
+function renderDashboard() {
+  const avail = cars.filter(c => c.status === '可售');
+  const sold = cars.filter(c => c.status === '已售');
+  const totalVal = cars.filter(c => c.status !== '已售').reduce((s, c) => s + (c.price || 0), 0);
+  document.getElementById('st-total').textContent = cars.length;
+  document.getElementById('st-avail').textContent = avail.length;
+  document.getElementById('st-sold').textContent = sold.length;
+  document.getElementById('st-val').textContent = '$' + totalVal.toFixed(0);
+  document.getElementById('sb-total').textContent = cars.length + ' 輛';
+  document.getElementById('sb-avail').textContent = avail.length + ' 輛';
+
+  // Brand bars
+  const brandCount = {};
+  cars.forEach(c => { brandCount[c.brand] = (brandCount[c.brand] || 0) + 1; });
+  const maxB = Math.max(...Object.values(brandCount));
+  const brandEl = document.getElementById('brand-bars');
+  brandEl.innerHTML = Object.entries(brandCount).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([b,n]) =>
+    `<div class="bar-item"><div class="bar-label"><span>${b}</span><span>${n} 輛</span></div>
+    <div class="bar-track"><div class="bar-fill" style="width:${(n/maxB*100).toFixed(0)}%"></div></div></div>`
+  ).join('');
+
+  // Status bars
+  const statusColors = {'可售':'#0f7b6c','已售':'#e03e3e','保留中':'#d9730d','維修中':'#6940a5'};
+  const statusCount = {};
+  cars.forEach(c => { statusCount[c.status] = (statusCount[c.status] || 0) + 1; });
+  const maxS = Math.max(...Object.values(statusCount));
+  document.getElementById('status-bars').innerHTML = Object.entries(statusCount).map(([s,n]) =>
+    `<div class="bar-item"><div class="bar-label"><span>${s}</span><span>${n} 輛</span></div>
+    <div class="bar-track"><div class="bar-fill" style="width:${(n/maxS*100).toFixed(0)}%;background:${statusColors[s]||'#888'}"></div></div></div>`
+  ).join('');
+
+  // Recent table
+  const recent = [...cars].sort((a,b) => (b.date||'').localeCompare(a.date||'')).slice(0,5);
+  document.getElementById('recent-tbody').innerHTML = recent.map(c =>
+    `<tr onclick="openDetail(${c.id})" style="cursor:pointer">
+      <td><div class="car-name">${c.brand} ${c.model}</div></td>
+      <td>${c.brand}</td><td>${c.year||'—'}</td>
+      <td><span class="tag tag-${statusClass(c.status)}">${c.status}</span></td>
+      <td><strong>${c.price} 萬</strong></td>
+    </tr>`
+  ).join('');
+}
+
+// ─────────────── Inventory ───────────────
+function populateFilters() {
+  const brands = [...new Set(cars.map(c => c.brand))].sort();
+  const years = [...new Set(cars.map(c => c.year).filter(Boolean))].sort((a,b)=>b-a);
+  const fb = document.getElementById('f-brand');
+  const fy = document.getElementById('f-year');
+  const curB = fb.value, curY = fy.value;
+  fb.innerHTML = '<option value="">所有品牌</option>' + brands.map(b => `<option value="${b}">${b}</option>`).join('');
+  fy.innerHTML = '<option value="">所有年份</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+  fb.value = curB; fy.value = curY;
+}
+
+function getFilteredCars() {
+  const brand = document.getElementById('f-brand').value;
+  const status = document.getElementById('f-status').value;
+  const condition = document.getElementById('f-condition').value;
+  const year = document.getElementById('f-year').value;
+  return cars.filter(c => {
+    if (brand && c.brand !== brand) return false;
+    if (status && c.status !== status) return false;
+    if (condition && c.condition !== condition) return false;
+    if (year && String(c.year) !== year) return false;
+    if (searchTerm) {
+      const t = searchTerm.toLowerCase();
+      return (c.brand+c.model+c.color+c.plate+c.notes).toLowerCase().includes(t);
+    }
+    return true;
+  }).sort((a,b) => {
+    const av = a[sortKey] ?? '', bv = b[sortKey] ?? '';
+    return sortDir * (av > bv ? 1 : av < bv ? -1 : 0);
+  });
+}
+
+function renderInventory() {
+  const filtered = getFilteredCars();
+  const tbody = document.getElementById('inv-tbody');
+  const cardWrap = document.getElementById('inv-card-wrap');
+  const empty = document.getElementById('inv-empty');
+  const tableWrap = document.getElementById('inv-table-wrap');
+
+  if (filtered.length === 0) {
+    empty.style.display = 'block';
+    tableWrap.style.display = 'none';
+    cardWrap.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+
+  if (currentView === 'table') {
+    tableWrap.style.display = 'block'; cardWrap.style.display = 'none';
+    tbody.innerHTML = filtered.map(c => `
+      <tr>
+        <td><div class="car-name">${c.brand}</div></td>
+        <td><div class="car-name">${c.model}</div><div class="car-sub">${c.plate||'無車牌'}</div></td>
+        <td>${c.year||'—'}</td>
+        <td>${c.color||'—'}</td>
+        <td>${c.mileage != null ? Number(c.mileage).toLocaleString() + ' km' : '—'}</td>
+        <td><strong>${c.price} 萬</strong></td>
+        <td><span class="tag tag-${c.condition === '新車' ? 'new' : 'used'}">${c.condition||'—'}</span></td>
+        <td><span class="tag tag-${statusClass(c.status)}">${c.status}</span></td>
+        <td>
+          <div class="action-btns">
+            <button class="btn btn-ghost btn-sm" onclick="openDetail(${c.id})">詳情</button>
+            <button class="btn btn-ghost btn-sm" onclick="openEdit(${c.id})">編輯</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteCar(${c.id})">刪除</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  } else {
+    tableWrap.style.display = 'none'; cardWrap.style.display = 'grid';
+    cardWrap.innerHTML = filtered.map(c => `
+      <div class="car-card" onclick="openDetail(${c.id})">
+        <div class="car-card-top">
+          <div>
+            <div class="model">${c.year||''} · ${c.condition||''}</div>
+            <h3>${c.brand} ${c.model}</h3>
+          </div>
+          <span class="tag tag-${statusClass(c.status)}">${c.status}</span>
+        </div>
+        <div class="price">$ ${c.price} 萬</div>
+        <div class="meta">
+          <div class="meta-item"><strong>${c.color||'—'}</strong>顏色</div>
+          <div class="meta-item"><strong>${c.mileage != null ? Number(c.mileage).toLocaleString() : '—'} km</strong>里程</div>
+          <div class="meta-item"><strong>${c.engine||'—'}</strong>引擎</div>
+          <div class="meta-item"><strong>${c.plate||'—'}</strong>車牌</div>
+        </div>
+      </div>`).join('');
+  }
+}
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('vb-table').classList.toggle('active', v === 'table');
+  document.getElementById('vb-card').classList.toggle('active', v === 'card');
+  renderInventory();
+}
+
+function sortBy(key) {
+  if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
+  document.querySelectorAll('thead th .sort-ico').forEach(e => e.parentElement.classList.remove('sorted'));
+  renderInventory();
+}
+
+function statusClass(s) {
+  return { '可售':'available', '已售':'sold', '保留中':'reserved', '維修中':'maintenance' }[s] || 'available';
+}
+
+// ─────────────── Car CRUD ───────────────
+function openAddCar() {
+  editingCarId = null;
+  document.getElementById('car-modal-title').textContent = '新增車輛';
+  ['brand','model','year','color','mileage','engine','price','cost','plate','notes'].forEach(f => {
+    document.getElementById('f-m-' + f).value = '';
+  });
+  document.getElementById('f-m-condition').value = '新車';
+  document.getElementById('f-m-status').value = '可售';
+  document.getElementById('f-m-date').value = new Date().toISOString().slice(0,10);
+  openModal('car-modal');
+}
+
+function openEdit(id) {
+  const c = cars.find(x => x.id === id);
+  if (!c) return;
+  editingCarId = id;
+  document.getElementById('car-modal-title').textContent = '編輯車輛';
+  document.getElementById('f-m-brand').value = c.brand || '';
+  document.getElementById('f-m-model').value = c.model || '';
+  document.getElementById('f-m-year').value = c.year || '';
+  document.getElementById('f-m-color').value = c.color || '';
+  document.getElementById('f-m-mileage').value = c.mileage ?? '';
+  document.getElementById('f-m-engine').value = c.engine || '';
+  document.getElementById('f-m-price').value = c.price || '';
+  document.getElementById('f-m-cost').value = c.cost || '';
+  document.getElementById('f-m-condition').value = c.condition || '中古車';
+  document.getElementById('f-m-status').value = c.status || '可售';
+  document.getElementById('f-m-date').value = c.date || '';
+  document.getElementById('f-m-plate').value = c.plate || '';
+  document.getElementById('f-m-notes').value = c.notes || '';
+  openModal('car-modal');
+}
+
+function saveCar() {
+  const brand = document.getElementById('f-m-brand').value.trim();
+  const model = document.getElementById('f-m-model').value.trim();
+  const price = parseFloat(document.getElementById('f-m-price').value);
+  if (!brand || !model || isNaN(price)) { toast('❗ 請填寫品牌、型號、售價'); return; }
+  const data = {
+    brand, model, price,
+    year: parseInt(document.getElementById('f-m-year').value) || null,
+    color: document.getElementById('f-m-color').value.trim(),
+    mileage: parseFloat(document.getElementById('f-m-mileage').value) || 0,
+    engine: document.getElementById('f-m-engine').value.trim(),
+    cost: parseFloat(document.getElementById('f-m-cost').value) || null,
+    condition: document.getElementById('f-m-condition').value,
+    status: document.getElementById('f-m-status').value,
+    date: document.getElementById('f-m-date').value,
+    plate: document.getElementById('f-m-plate').value.trim(),
+    notes: document.getElementById('f-m-notes').value.trim(),
+  };
+  if (editingCarId) {
+    const i = cars.findIndex(c => c.id === editingCarId);
+    cars[i] = { ...cars[i], ...data };
+    toast('✅ 車輛已更新');
+  } else {
+    data.id = Date.now();
+    cars.push(data);
+    toast('✅ 車輛已新增');
+  }
+  save(); closeModal('car-modal');
+  populateFilters(); renderInventory(); renderDashboard();
+}
+
+function deleteCar(id) {
+  if (!confirm('確定要刪除這輛車嗎？')) return;
+  cars = cars.filter(c => c.id !== id);
+  save(); renderInventory(); renderDashboard();
+  toast('🗑️ 車輛已刪除');
+}
+
+function openDetail(id) {
+  const c = cars.find(x => x.id === id);
+  if (!c) return;
+  const profit = c.cost ? (c.price - c.cost).toFixed(1) : '—';
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-hero">
+      <div class="dh-sub">${c.year || ''} · ${c.condition || ''} · ${c.brand}</div>
+      <h2>${c.brand} ${c.model}</h2>
+      <div class="dh-price">$ ${c.price} 萬元</div>
+    </div>
+    <div class="detail-grid" style="margin-bottom:14px">
+      <div class="detail-item"><div class="di-label">顏色</div><div class="di-val">${c.color||'—'}</div></div>
+      <div class="detail-item"><div class="di-label">里程</div><div class="di-val">${c.mileage != null ? Number(c.mileage).toLocaleString() + ' km' : '—'}</div></div>
+      <div class="detail-item"><div class="di-label">引擎</div><div class="di-val">${c.engine||'—'}</div></div>
+      <div class="detail-item"><div class="di-label">車牌</div><div class="di-val">${c.plate||'—'}</div></div>
+      <div class="detail-item"><div class="di-label">入庫日期</div><div class="di-val">${c.date||'—'}</div></div>
+      <div class="detail-item"><div class="di-label">狀態</div><div class="di-val"><span class="tag tag-${statusClass(c.status)}">${c.status}</span></div></div>
+      <div class="detail-item"><div class="di-label">成本</div><div class="di-val">${c.cost ? c.cost + ' 萬' : '—'}</div></div>
+      <div class="detail-item"><div class="di-label">毛利</div><div class="di-val" style="color:${profit > 0 ? 'var(--green)' : 'var(--red)'}">${profit !== '—' ? profit + ' 萬' : '—'}</div></div>
+      <div class="detail-item"><div class="di-label">車況</div><div class="di-val"><span class="tag tag-${c.condition === '新車' ? 'new' : 'used'}">${c.condition||'—'}</span></div></div>
+    </div>
+    ${c.notes ? `<div style="margin-bottom:4px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">備註</div><div class="notes-box">${c.notes}</div>` : ''}
+  `;
+  document.getElementById('detail-footer').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal('detail-modal')">關閉</button>
+    <button class="btn btn-ghost" onclick="closeModal('detail-modal');openEdit(${c.id})">✏️ 編輯</button>
+    <button class="btn btn-primary" onclick="quickStatus(${c.id})">狀態變更</button>
+  `;
+  openModal('detail-modal');
+}
+
+function quickStatus(id) {
+  const c = cars.find(x => x.id === id);
+  if (!c) return;
+  const opts = ['可售','保留中','已售','維修中'];
+  const cur = opts.indexOf(c.status);
+  const next = opts[(cur + 1) % opts.length];
+  if (!confirm(`將狀態改為「${next}」？`)) return;
+  c.status = next;
+  save(); closeModal('detail-modal'); renderInventory(); renderDashboard();
+  toast(`✅ 狀態已更新為「${next}」`);
+}
+
+// ─────────────── Customers ───────────────
+function renderCustomers() {
+  const colors = ['#2eaadc','#0f7b6c','#d9730d','#6940a5','#e03e3e'];
+  document.getElementById('cust-list').innerHTML = customers.length === 0
+    ? '<div class="empty-state"><div class="ico">👥</div><p>尚無客戶資料</p></div>'
+    : customers.map(c => {
+        const initials = c.name ? c.name.slice(0, 1) : '?';
+        const col = colors[c.name.charCodeAt(0) % colors.length];
+        return `<div class="customer-card">
+          <div class="avatar" style="background:${col}">${initials}</div>
+          <div class="cust-info">
+            <strong>${c.name}</strong>
+            <p>${c.phone} ${c.email ? '· ' + c.email : ''}</p>
+            <p style="color:var(--accent)">意向：${c.interest||'—'}　預算：${c.budget ? c.budget + ' 萬' : '—'}</p>
+            ${c.notes ? `<p style="margin-top:4px">${c.notes}</p>` : ''}
+          </div>
+          <div class="cust-meta">
+            <div style="display:flex;gap:4px;justify-content:flex-end;margin-bottom:6px">
+              <button class="btn btn-ghost btn-sm" onclick="openEditCustomer(${c.id})">編輯</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${c.id})">刪除</button>
+            </div>
+            <p>加入日期</p>
+            <strong>${c.date||'—'}</strong>
+          </div>
+        </div>`;
+      }).join('');
+}
+
+function openAddCustomer() {
+  editingCustId = null;
+  document.getElementById('cust-modal-title').textContent = '新增客戶';
+  ['name','phone','email','line','addr','interest','notes'].forEach(f => { document.getElementById('c-' + f).value = ''; });
+  document.getElementById('c-budget').value = '';
+  openModal('cust-modal');
+}
+
+function openEditCustomer(id) {
+  const c = customers.find(x => x.id === id);
+  if (!c) return;
+  editingCustId = id;
+  document.getElementById('cust-modal-title').textContent = '編輯客戶';
+  document.getElementById('c-name').value = c.name || '';
+  document.getElementById('c-phone').value = c.phone || '';
+  document.getElementById('c-email').value = c.email || '';
+  document.getElementById('c-line').value = c.line || '';
+  document.getElementById('c-addr').value = c.addr || '';
+  document.getElementById('c-interest').value = c.interest || '';
+  document.getElementById('c-budget').value = c.budget || '';
+  document.getElementById('c-notes').value = c.notes || '';
+  openModal('cust-modal');
+}
+
+function saveCustomer() {
+  const name = document.getElementById('c-name').value.trim();
+  const phone = document.getElementById('c-phone').value.trim();
+  if (!name || !phone) { toast('❗ 請填寫姓名與電話'); return; }
+  const data = {
+    name, phone,
+    email: document.getElementById('c-email').value.trim(),
+    line: document.getElementById('c-line').value.trim(),
+    addr: document.getElementById('c-addr').value.trim(),
+    interest: document.getElementById('c-interest').value.trim(),
+    budget: parseFloat(document.getElementById('c-budget').value) || null,
+    notes: document.getElementById('c-notes').value.trim(),
+    date: new Date().toISOString().slice(0,10),
+  };
+  if (editingCustId) {
+    const i = customers.findIndex(c => c.id === editingCustId);
+    customers[i] = { ...customers[i], ...data };
+    toast('✅ 客戶已更新');
+  } else {
+    data.id = Date.now();
+    customers.push(data);
+    toast('✅ 客戶已新增');
+  }
+  save(); closeModal('cust-modal'); renderCustomers();
+}
+
+function deleteCustomer(id) {
+  if (!confirm('確定刪除此客戶？')) return;
+  customers = customers.filter(c => c.id !== id);
+  save(); renderCustomers(); toast('🗑️ 客戶已刪除');
+}
+
+// ─────────────── Reports ───────────────
+function renderReports() {
+  const sold = cars.filter(c => c.status === '已售');
+  const totalSoldVal = sold.reduce((s, c) => s + (c.price || 0), 0);
+  const avgPrice = cars.length ? (cars.reduce((s,c)=>s+(c.price||0),0)/cars.length).toFixed(1) : 0;
+  const maint = cars.filter(c => c.status === '維修中').length;
+  const oldest = cars.reduce((max, c) => {
+    if (!c.date) return max;
+    const days = Math.floor((new Date() - new Date(c.date)) / 86400000);
+    return days > max ? days : max;
+  }, 0);
+  document.getElementById('r-total-val').textContent = '$' + totalSoldVal.toFixed(0);
+  document.getElementById('r-avg').textContent = '$' + avgPrice;
+  document.getElementById('r-oldest').textContent = oldest;
+  document.getElementById('r-maint').textContent = maint;
+
+  // Brand value bars
+  const brandVal = {};
+  cars.forEach(c => { if (c.status !== '已售') brandVal[c.brand] = (brandVal[c.brand] || 0) + (c.price || 0); });
+  const maxBV = Math.max(...Object.values(brandVal));
+  document.getElementById('brand-value-bars').innerHTML = Object.entries(brandVal)
+    .sort((a,b)=>b[1]-a[1]).map(([b,v]) =>
+    `<div class="bar-item" style="margin-bottom:10px"><div class="bar-label"><span>${b}</span><span>${v.toFixed(0)} 萬</span></div>
+    <div class="bar-track"><div class="bar-fill" style="width:${(v/maxBV*100).toFixed(0)}%;background:#6940a5"></div></div></div>`
+  ).join('');
+
+  // Price distribution
+  const ranges = [
+    { label:'50萬以下', min:0, max:50 },
+    { label:'50-100萬', min:50, max:100 },
+    { label:'100-150萬', min:100, max:150 },
+    { label:'150-200萬', min:150, max:200 },
+    { label:'200萬以上', min:200, max:Infinity },
+  ];
+  const maxPD = Math.max(...ranges.map(r => cars.filter(c => c.price >= r.min && c.price < r.max).length));
+  document.getElementById('price-dist').innerHTML = ranges.map(r => {
+    const cnt = cars.filter(c => c.price >= r.min && c.price < r.max).length;
+    return `<div class="bar-item" style="margin-bottom:10px"><div class="bar-label"><span>${r.label}</span><span>${cnt} 輛</span></div>
+    <div class="bar-track"><div class="bar-fill" style="width:${maxPD ? (cnt/maxPD*100).toFixed(0) : 0}%;background:#d9730d"></div></div></div>`;
+  }).join('');
+}
+
+// ─────────────── Search ───────────────
+function globalSearchFn() {
+  searchTerm = document.getElementById('globalSearch').value;
+  if (document.getElementById('page-inventory').classList.contains('active')) renderInventory();
+}
+
+// ─────────────── Export ───────────────
+function exportCSV() {
+  const headers = ['品牌','型號','年份','顏色','里程','引擎','售價(萬)','成本(萬)','車況','狀態','車牌','入庫日期','備註'];
+  const rows = cars.map(c => [c.brand,c.model,c.year,c.color,c.mileage,c.engine,c.price,c.cost,c.condition,c.status,c.plate,c.date,c.notes].map(v => `"${v ?? ''}"`).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '汽車庫存_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  toast('📥 CSV 已匯出');
+}
+
+// ─────────────── Modal helpers ───────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+// ─────────────── Toast ───────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ─────────────── Init ───────────────
+renderDashboard();
+</script>
+</body>
+</html>
