@@ -465,6 +465,19 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 .action-btn:active { opacity: 0.75; }
 .action-phone { background: var(--green-bg); color: #3A8060; }
 .action-line  { background: #E8F5E8; color: #00A040; }
+.action-map   { background: #EAF0F5; color: #2A6080; }
+
+/* 下次預約日提示橫幅 */
+.next-date-banner {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
+  border-radius: 10px; padding: 10px 14px;
+  margin-bottom: 12px; font-size: 14px; color: var(--primary-dark);
+}
+.next-date-banner.overdue {
+  background: var(--red-bg); border-color: var(--red); color: var(--red);
+}
 
 /* ── INTERACTION TIMELINE ── */
 .timeline-item {
@@ -882,7 +895,12 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
         </div>
         <div class="fgroup">
           <label class="flabel">介紹人</label>
-          <select class="finput" id="freferrer"><option value="">— 無 —</option></select>
+          <input type="text" class="finput" id="freferrer" list="refList" placeholder="輸入姓名搜尋…" autocomplete="off">
+          <datalist id="refList"></datalist>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">地址</label>
+          <input type="text" class="finput" id="faddress" placeholder="公司或住家地址">
         </div>
         <div class="fgroup">
           <label class="flabel">生活細節</label>
@@ -929,6 +947,10 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
           </button>
         </div>
         <div class="qtags" id="qtags"></div>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">下次預約追蹤日</label>
+        <input type="date" class="finput" id="iaNextDate">
       </div>
       <button class="btn btn-primary btn-block btn-lg" onclick="saveIA()">儲存記錄</button>
       <div style="height:8px"></div>
@@ -1215,6 +1237,12 @@ function daysSince(d) {
 }
 
 function alertOf(c) {
+  if (c.stage === '成交' || c.stage === '失單') return 'none';
+  if (c.nextContactDate) {
+    const diff = Math.floor((new Date(c.nextContactDate + 'T12:00:00') - Date.now()) / 86400000);
+    if (diff < 0) return 'red';
+    if (diff <= 1) return 'yellow';
+  }
   const max = RED_DAYS[c.stage];
   if (!max) return 'none';
   const days = daysSince(c.lastContactAt || c.createdAt);
@@ -1397,6 +1425,21 @@ function openDetail(id) {
     ? `<div class="tag ${al}" style="margin-bottom:12px;font-size:12px">${al === 'red' ? '🔴 逾期未聯絡，今天該追！' : '🟡 即將逾期，提早聯絡'}</div>`
     : '';
 
+  const nextDateBanner = c.nextContactDate ? (() => {
+    const diff = Math.floor((new Date(c.nextContactDate + 'T12:00:00') - Date.now()) / 86400000);
+    const overdue = diff < 0;
+    const label = overdue
+      ? `預約追蹤日 ${c.nextContactDate} 已過期`
+      : diff === 0 ? `今天是預約追蹤日 ${c.nextContactDate}`
+      : `預約追蹤日：${c.nextContactDate}（還有 ${diff} 天）`;
+    return `<div class="next-date-banner${overdue ? ' overdue' : ''}">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      ${label}
+    </div>`;
+  })() : '';
+
   const iaHTML = (c.interactions || []).length
     ? [...(c.interactions)].reverse().map((ia, i, arr) => `
         <div class="timeline-item">
@@ -1422,6 +1465,7 @@ function openDetail(id) {
 
   document.getElementById('detailBody').innerHTML = `
     ${alBadge}
+    ${nextDateBanner}
     <div class="action-row">
       <a href="tel:${c.phone}" class="action-btn action-phone">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1433,6 +1477,12 @@ function openDetail(id) {
         <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
         LINE
       </a>` : ''}
+      ${c.address ? `<button class="action-btn action-map" onclick="openMap(this.dataset.addr)" data-addr="${esc(c.address)}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+        </svg>
+        導航
+      </button>` : ''}
     </div>
 
     <div class="card" style="padding:4px 14px">
@@ -1446,6 +1496,7 @@ function openDetail(id) {
       ${c.paymentMethod ? drow('付款方式', c.paymentMethod) : ''}
       ${c.expectedCloseMonth ? drow('預計成交', fmtMonth(c.expectedCloseMonth)) : ''}
       ${c.referrer ? drow('介紹人', refName(c.referrer)) : ''}
+      ${c.address ? drow('地址', esc(c.address)) : ''}
       ${c.personalNotes ? drow('生活細節', c.personalNotes) : ''}
     </div>
 
@@ -1479,6 +1530,12 @@ function drow(k, v) {
 function refName(id) {
   const c = db.customers.find(x => x.id === id);
   return c ? esc(c.name) : '—';
+}
+
+function openMap(addr) {
+  if (!addr) return;
+  const url = 'https://maps.google.com/?q=' + encodeURIComponent(addr);
+  window.open(url, '_blank');
 }
 
 function markStage(id, stage) {
@@ -1540,6 +1597,7 @@ function openEdit(id) {
   document.getElementById('fbudget').value = c.budget || '';
   document.getElementById('fmonth').value = c.expectedCloseMonth || '';
   document.getElementById('fnotes').value = c.personalNotes || '';
+  document.getElementById('faddress').value = c.address || '';
 
   pills('fg-type', 'ctype', TYPES, c.type || '個體戶');
   pills('fg-stage', 'cstage', STAGES, c.stage || '陌生');
@@ -1554,7 +1612,7 @@ function openEdit(id) {
 }
 
 function clearCustForm() {
-  ['fn','fphone','fpurpose','fco','fline','fveh','fbudget','fmonth','fnotes']
+  ['fn','fphone','fpurpose','fco','fline','fveh','fbudget','fmonth','fnotes','faddress']
     .forEach(id => document.getElementById(id).value = '');
   pills('fg-type', 'ctype', TYPES, '個體戶');
   pills('fg-stage', 'cstage', STAGES, '陌生');
@@ -1565,16 +1623,19 @@ function clearCustForm() {
 }
 
 function fillReferrer(sel) {
-  const s = document.getElementById('freferrer');
-  s.innerHTML = '<option value="">— 無 —</option>';
+  const input = document.getElementById('freferrer');
+  const dl = document.getElementById('refList');
+  dl.innerHTML = '';
+  let selText = '';
   db.customers.forEach(c => {
     if (c.id === editId) return;
+    const label = c.name + (c.company ? ` (${c.company})` : '');
     const o = document.createElement('option');
-    o.value = c.id;
-    o.textContent = c.name + (c.company ? ` (${c.company})` : '');
-    if (c.id === sel) o.selected = true;
-    s.appendChild(o);
+    o.value = label;
+    dl.appendChild(o);
+    if (c.id === sel) selText = label;
   });
+  input.value = selText;
 }
 
 function toStep1(init) {
@@ -1615,10 +1676,18 @@ function saveCust() {
     budget: parseInt(document.getElementById('fbudget').value) || null,
     expectedCloseMonth: document.getElementById('fmonth').value || null,
     personalNotes: document.getElementById('fnotes').value.trim(),
+    address: document.getElementById('faddress').value.trim(),
     decisionMaker: checkedVal('cdecision') || null,
     paymentMethod: checkedVal('cpayment') || null,
     vehicleNeeds: checkedVals('cvehicle'),
-    referrer: document.getElementById('freferrer').value || null,
+    referrer: (() => {
+      const refVal = document.getElementById('freferrer').value.trim();
+      if (!refVal) return null;
+      const match = db.customers.find(c =>
+        (c.name + (c.company ? ` (${c.company})` : '')) === refVal || c.name === refVal
+      );
+      return match ? match.id : null;
+    })(),
   };
 
   // 每次存檔都同步更新 searchIndex，確保全域搜尋正確
@@ -1658,6 +1727,7 @@ function openIA(id) {
   activeIaCid = id;
   document.getElementById('iaDate').value = todayStr();
   document.getElementById('iaContent').value = '';
+  document.getElementById('iaNextDate').value = '';
   pills('fg-method', 'imethod', METHODS, 'LINE');
   document.getElementById('qtags').innerHTML = QTAG_LIST
     .map(t => `<div class="qtag" onclick="appendTag('${t}')">${t}</div>`).join('');
@@ -1679,6 +1749,7 @@ function saveIA() {
   const date = document.getElementById('iaDate').value || todayStr();
   c.interactions.push({ date, method: checkedVal('imethod') || 'LINE', content });
   c.lastContactAt = date;
+  c.nextContactDate = document.getElementById('iaNextDate').value || null;
   save();
   closeOverlay('iaOverlay');
   toast('跟進記錄已儲存');
