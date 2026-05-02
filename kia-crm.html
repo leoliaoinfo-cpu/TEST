@@ -54,6 +54,62 @@ body {
 }
 .top-bar-title { font-size: 17px; font-weight: 700; color: var(--primary); }
 .top-bar-sub { font-size: 12px; color: var(--text-sub); }
+.top-bar-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-sub);
+  transition: all 0.13s;
+}
+.icon-btn:active { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+
+/* ── GLOBAL SEARCH OVERLAY ── */
+#globalSearch {
+  display: none;
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 150;
+  flex-direction: column;
+}
+#globalSearch.open { display: flex; }
+.gs-header {
+  background: var(--card);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: center;
+  box-shadow: var(--shadow);
+}
+.gs-input {
+  flex: 1;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 16px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+.gs-input:focus { border-color: var(--primary); }
+.gs-cancel {
+  background: none; border: none; cursor: pointer;
+  color: var(--primary); font-size: 15px; font-weight: 600;
+  padding: 8px 4px; white-space: nowrap; flex-shrink: 0;
+}
+.gs-body {
+  flex: 1; overflow-y: auto;
+  padding: 12px 14px;
+  -webkit-overflow-scrolling: touch;
+}
+.gs-hint {
+  text-align: center; padding: 48px 24px;
+  color: var(--text-sub); font-size: 14px; line-height: 1.8;
+}
+.gs-count {
+  font-size: 11px; color: var(--text-sub);
+  margin-bottom: 8px; padding-left: 2px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+}
 
 /* ── BOTTOM NAV ── */
 .bottom-nav {
@@ -583,7 +639,14 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
     <div class="top-bar-title">KIA 卡旺業務作戰</div>
     <div class="top-bar-sub" id="headerDate"></div>
   </div>
-  <button class="btn btn-sm btn-secondary" onclick="exportData()" style="flex-shrink:0">匯出</button>
+  <div class="top-bar-actions">
+    <button class="icon-btn" onclick="openGlobalSearch()" title="搜尋客戶">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </button>
+    <button class="btn btn-sm btn-secondary" onclick="exportData()">匯出</button>
+  </div>
 </header>
 
 <!-- BOTTOM NAV -->
@@ -907,6 +970,23 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
   </div>
 </div>
 
+<!-- GLOBAL SEARCH -->
+<div id="globalSearch">
+  <div class="gs-header">
+    <input class="gs-input" id="gsInput" type="search"
+      placeholder="輸入姓名、電話、公司…"
+      oninput="renderGlobalSearch()"
+      autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="gs-cancel" onclick="closeGlobalSearch()">取消</button>
+  </div>
+  <div class="gs-body" id="gsBody">
+    <div class="gs-hint">
+      🔍 輸入關鍵字即時搜尋<br>
+      支援：姓名 · 電話 · 公司名稱
+    </div>
+  </div>
+</div>
+
 <!-- MOVE PICKER (long-press / drag fallback) -->
 <div id="movePicker" onclick="if(event.target===this)closePicker()">
   <div class="move-box">
@@ -926,7 +1006,10 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 // ════════════════════════════════════════
 // CONSTANTS
 // ════════════════════════════════════════
-const SK = 'kia_crm_v1';
+const SK      = 'kia_crm_v1';          // 舊 localStorage key（僅用於遷移）
+const IDB_NAME = 'kia_crm_idb';        // IndexedDB 資料庫名稱
+const IDB_VER  = 1;                     // Schema 版本
+const IDB_STORE = 'store';             // Object Store 名稱
 
 const RED_DAYS = { 陌生: 7, 接觸: 5, 報價: 3, 議價: 1 };
 
@@ -945,21 +1028,174 @@ const PIPE_COLORS = {
 };
 
 // ════════════════════════════════════════
-// DATA
+// 任務一：IndexedDB 輕量封裝
+// 採用單例模式，避免重複開啟連線
+// ════════════════════════════════════════
+const DBHelper = (() => {
+  let _conn = null; // 快取已開啟的連線
+
+  /** 開啟（或取得）資料庫連線，回傳 Promise<IDBDatabase> */
+  function open() {
+    if (_conn) return Promise.resolve(_conn);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, IDB_VER);
+
+      // 首次建立 / 版本升級時建立 Object Store
+      req.onupgradeneeded = e => {
+        e.target.result.createObjectStore(IDB_STORE);
+      };
+      req.onsuccess = e => {
+        _conn = e.target.result;
+        // 連線意外斷開時清除快取，下次自動重連
+        _conn.onclose = () => { _conn = null; };
+        resolve(_conn);
+      };
+      req.onerror = () => reject(req.error);
+      req.onblocked = () => reject(new Error('IDB blocked'));
+    });
+  }
+
+  /** 讀取指定 key 的值，回傳 Promise<any> */
+  function get(key) {
+    return open().then(conn => new Promise((resolve, reject) => {
+      const req = conn.transaction(IDB_STORE, 'readonly')
+                      .objectStore(IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror   = () => reject(req.error);
+    }));
+  }
+
+  /** 寫入 key/value，回傳 Promise<void> */
+  function put(key, value) {
+    return open().then(conn => new Promise((resolve, reject) => {
+      const req = conn.transaction(IDB_STORE, 'readwrite')
+                      .objectStore(IDB_STORE).put(value, key);
+      req.onsuccess = () => resolve();
+      req.onerror   = () => reject(req.error);
+    }));
+  }
+
+  /** 刪除指定 key，回傳 Promise<void> */
+  function del(key) {
+    return open().then(conn => new Promise((resolve, reject) => {
+      const req = conn.transaction(IDB_STORE, 'readwrite')
+                      .objectStore(IDB_STORE).delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror   = () => reject(req.error);
+    }));
+  }
+
+  return { get, put, del };
+})();
+
+// ════════════════════════════════════════
+// DATA 狀態（記憶體中的工作副本）
 // ════════════════════════════════════════
 let db = { customers: [], settings: { redLightDays: RED_DAYS } };
 
-function load() {
+/**
+ * 任務一：load()
+ * 啟動順序：
+ *   1. 嘗試從 IndexedDB 讀取
+ *   2. 若 IDB 無資料但 localStorage 有舊資料 → 無縫轉移
+ *   3. 若 IDB 完全不可用（如隱私模式封鎖）→ 降級至 localStorage
+ */
+async function load() {
   try {
-    const r = localStorage.getItem(SK);
-    if (r) db = JSON.parse(r);
-  } catch(e) {}
+    const idbData = await DBHelper.get('root');
+
+    if (idbData && Array.isArray(idbData.customers)) {
+      // 正常情境：從 IndexedDB 載入
+      db = idbData;
+      return;
+    }
+
+    // IDB 無資料，檢查是否有 localStorage 舊版資料需要遷移
+    const lsRaw = localStorage.getItem(SK);
+    if (lsRaw) {
+      const lsData = JSON.parse(lsRaw);
+      if (lsData && Array.isArray(lsData.customers)) {
+        db = lsData;
+        // 寫入 IndexedDB 完成後，才刪除 localStorage 舊資料（確保不遺失）
+        await DBHelper.put('root', db);
+        localStorage.removeItem(SK);
+        console.info('[KIA CRM] ✅ 資料已從 localStorage 無縫遷移至 IndexedDB');
+      }
+    }
+  } catch (e) {
+    // IDB 不可用（iOS 隱私模式等）→ 降級至 localStorage
+    console.warn('[KIA CRM] IndexedDB 不可用，降級至 localStorage', e);
+    try {
+      const lsRaw = localStorage.getItem(SK);
+      if (lsRaw) db = JSON.parse(lsRaw);
+    } catch (e2) { /* 靜默失敗，使用空資料 */ }
+  }
 }
 
-function save() {
+/**
+ * 任務一：save()
+ * 非同步寫入 IndexedDB；若失敗自動降級至 localStorage。
+ * 呼叫端不需 await，UI 可即時繼續（fire-and-forget）。
+ */
+async function save() {
   try {
-    localStorage.setItem(SK, JSON.stringify(db));
-  } catch(e) { toast('儲存失敗：儲存空間不足'); }
+    await DBHelper.put('root', db);
+  } catch (e) {
+    console.warn('[KIA CRM] IDB 寫入失敗，降級至 localStorage', e);
+    try {
+      localStorage.setItem(SK, JSON.stringify(db));
+    } catch (e2) {
+      toast('儲存失敗：儲存空間不足');
+    }
+  }
+}
+
+/**
+ * 任務二：Schema Migration
+ * 補齊缺少的新欄位，並重建 searchIndex。
+ * 每次啟動執行一次；有變更才呼叫 save()。
+ */
+function migrateData() {
+  let dirty = false; // 只有真正有修改才存回去
+
+  db.customers = db.customers.map(c => {
+    let changed = false;
+
+    // 地址（為日後地圖功能預留）
+    if (c.address === undefined)        { c.address = '';           changed = true; }
+    // 下次預定聯絡日（日曆功能預留）
+    if (c.nextContactDate === undefined) { c.nextContactDate = null; changed = true; }
+    // 重要日期陣列，如生日、合約到期（日曆功能預留）
+    if (c.importantDates === undefined)  { c.importantDates = [];    changed = true; }
+
+    // 重建搜尋索引（每次都更新，確保編輯後同步）
+    const idx = buildSearchIndex(c);
+    if (c.searchIndex !== idx) { c.searchIndex = idx; changed = true; }
+
+    if (changed) dirty = true;
+    return c;
+  });
+
+  // 只在有欄位補充或索引更新時才寫入，避免無謂 I/O
+  if (dirty) save();
+}
+
+/**
+ * 建立單一客戶的全文搜尋索引字串。
+ * 將所有可搜尋欄位合併為小寫字串，並加入無符號電話版本。
+ */
+function buildSearchIndex(c) {
+  return [
+    c.name,
+    c.company,
+    c.phone,
+    (c.phone || '').replace(/[-\s()]/g, ''), // 電話無符號版（方便打後四碼搜尋）
+    c.lineId,
+    c.type,
+    c.purpose,
+    c.personalNotes,
+    c.address
+  ].filter(Boolean).join(' ').toLowerCase();
 }
 
 function uid() {
@@ -1385,6 +1621,9 @@ function saveCust() {
     referrer: document.getElementById('freferrer').value || null,
   };
 
+  // 每次存檔都同步更新 searchIndex，確保全域搜尋正確
+  patch.searchIndex = buildSearchIndex(patch);
+
   if (editId) {
     const idx = db.customers.findIndex(c => c.id === editId);
     if (idx >= 0) db.customers[idx] = { ...db.customers[idx], ...patch };
@@ -1395,12 +1634,15 @@ function saveCust() {
       interactions: [],
       createdAt: todayStr(),
       lastContactAt: todayStr(),
-      lossDetail: null
+      lossDetail: null,
+      address: '',
+      nextContactDate: null,
+      importantDates: []
     });
     toast('已新增客戶 🎉');
   }
 
-  save();
+  save(); // fire-and-forget，UI 不需等待
   closeOverlay('custOverlay');
   refreshAll();
 }
@@ -1820,13 +2062,15 @@ function importData(e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => {
+  // 匯入需 await save() 確保資料確實寫入後才提示成功
+  reader.onload = async ev => {
     try {
       const imported = JSON.parse(ev.target.result);
       if (!Array.isArray(imported.customers)) throw new Error();
       if (!confirm(`匯入後將覆蓋現有資料（共 ${imported.customers.length} 筆客戶）。確定繼續？`)) return;
       db = imported;
-      save();
+      migrateData();         // 補齊新欄位 + 重建 searchIndex
+      await save();          // 確保寫入完成再提示
       refreshAll();
       toast(`已匯入 ${imported.customers.length} 筆客戶`);
     } catch {
@@ -1837,11 +2081,11 @@ function importData(e) {
   e.target.value = '';
 }
 
-function confirmClear() {
+async function confirmClear() {
   if (!confirm('確定要清除所有資料嗎？建議先匯出備份。')) return;
   if (!confirm('最後確認：所有客戶資料都將被刪除，無法復原。')) return;
   db = { customers: [], settings: { redLightDays: RED_DAYS } };
-  save();
+  await save(); // 等待清空寫入完成
   refreshAll();
   toast('已清除全部資料');
 }
@@ -1888,6 +2132,89 @@ function toast(msg) {
   _toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
 
+// ════════════════════════════════════════
+// GLOBAL SEARCH
+// ════════════════════════════════════════
+function openGlobalSearch() {
+  document.getElementById('globalSearch').classList.add('open');
+  // Focus input after animation frame so iOS keyboard opens correctly
+  requestAnimationFrame(() => {
+    const inp = document.getElementById('gsInput');
+    inp.value = '';
+    inp.focus();
+    document.getElementById('gsBody').innerHTML = `
+      <div class="gs-hint">🔍 輸入關鍵字即時搜尋<br>支援：姓名 · 電話 · 公司名稱</div>`;
+  });
+}
+
+function closeGlobalSearch() {
+  document.getElementById('globalSearch').classList.remove('open');
+  document.getElementById('gsInput').blur();
+}
+
+function renderGlobalSearch() {
+  const q = (document.getElementById('gsInput').value || '').trim().toLowerCase();
+  const body = document.getElementById('gsBody');
+
+  if (!q) {
+    body.innerHTML = `<div class="gs-hint">🔍 輸入關鍵字即時搜尋<br>支援：姓名 · 電話 · 公司名稱</div>`;
+    return;
+  }
+
+  // 電話搜尋時去除符號，確保「0912345678」與「0912-345-678」都能命中
+  const qN = q.replace(/[-\s()]/g, '');
+
+  const results = db.customers.filter(c => {
+    // 優先使用預建 searchIndex（O(1) 字串包含，3000 筆仍流暢）
+    if (c.searchIndex) return c.searchIndex.includes(q) || c.searchIndex.includes(qN);
+    // 降級：舊資料尚未建立索引時逐欄比對
+    return (c.name    || '').toLowerCase().includes(q) ||
+           (c.phone   || '').replace(/[-\s()]/g, '').includes(qN) ||
+           (c.company || '').toLowerCase().includes(q);
+  }).sort((a, b) =>
+    (b.lastContactAt || b.createdAt || '').localeCompare(a.lastContactAt || a.createdAt || '')
+  );
+
+  if (results.length === 0) {
+    body.innerHTML = `<div class="gs-hint">找不到「${esc(q)}」<br><small style="font-size:12px">試試看電話後四碼或公司簡稱</small></div>`;
+    return;
+  }
+
+  body.innerHTML = `
+    <div class="gs-count">找到 ${results.length} 筆</div>
+    ${results.map(c => {
+      const al = alertOf(c);
+      // Highlight matched text
+      const hi = (str) => {
+        if (!str) return '';
+        const idx = str.toLowerCase().indexOf(q);
+        if (idx === -1) return esc(str);
+        return esc(str.slice(0, idx))
+          + `<mark style="background:#FFF0A0;border-radius:2px;padding:0 1px">${esc(str.slice(idx, idx + q.length))}</mark>`
+          + esc(str.slice(idx + q.length));
+      };
+      return `<div class="cust-card alert-${al}" onclick="gsOpenDetail('${c.id}')">
+        <div class="cust-name-row">
+          ${al !== 'none' ? `<svg width="8" height="8" viewBox="0 0 8 8" style="flex-shrink:0"><circle cx="4" cy="4" r="4" fill="var(--${al})"/></svg>` : ''}
+          <span class="cust-name">${hi(c.name)}</span>
+          ${c.company ? `<span class="cust-company">${hi(c.company)}</span>` : ''}
+        </div>
+        <div class="cust-tags">
+          <span class="tag s-${c.stage}">${c.stage}</span>
+          ${c.type ? `<span class="tag">${c.type}</span>` : ''}
+          <span class="tag" style="font-family:monospace">${hi(c.phone)}</span>
+          ${c.lastContactAt ? `<span class="tag">📞 ${agoText(c.lastContactAt)}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+function gsOpenDetail(id) {
+  closeGlobalSearch();
+  // Small delay so overlay closes before sheet opens
+  setTimeout(() => openDetail(id), 80);
+}
+
 function refreshAll() {
   if (activePage === 'home') renderHome();
   if (activePage === 'customers') renderCustList();
@@ -1897,21 +2224,27 @@ function refreshAll() {
 }
 
 // ════════════════════════════════════════
-// INIT
+// INIT（任務一 + 二：async 啟動流程）
 // ════════════════════════════════════════
-(function init() {
-  load();
-
+(async function init() {
+  // 先設日期，讓頂部在載入期間就顯示正確資訊
   const d = new Date();
-  const days = ['日','一','二','三','四','五','六'];
+  const dayNames = ['日','一','二','三','四','五','六'];
   document.getElementById('headerDate').textContent =
-    `${d.getMonth() + 1} 月 ${d.getDate()} 日（週${days[d.getDay()]}）`;
+    `${d.getMonth() + 1} 月 ${d.getDate()} 日（週${dayNames[d.getDay()]}）`;
 
+  // ① 必須 await 資料完全載入（含 localStorage → IDB 遷移）
+  await load();
+
+  // ② 補齊新欄位 + 重建 searchIndex（有異動才會觸發 save）
+  migrateData();
+
+  // ③ 資料就緒後才渲染 UI，確保畫面不會閃現空白
   renderHome();
   initDragDrop();
   initLongPress();
 
-  // Prevent iOS scroll bounce breaking layout
+  // 防止 iOS Safari 的 bounce 捲動干擾佈局
   document.body.addEventListener('touchmove', e => {
     if (e.target.closest('.sheet, .pipeline-scroll, .filter-row, .search-wrap')) return;
   }, { passive: true });
