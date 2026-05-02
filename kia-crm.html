@@ -634,6 +634,65 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 }
 .comp-row:last-child { border-bottom: none; }
 
+/* ── UPCOMING EVENTS ── */
+.event-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer;
+}
+.event-card:active { box-shadow: var(--shadow-lg); }
+.event-badge {
+  width: 44px; height: 44px; border-radius: 10px;
+  background: var(--primary-light);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.event-badge.urgent { background: var(--red-bg); }
+.event-badge-days { font-size: 16px; font-weight: 700; color: var(--primary); line-height: 1; }
+.event-badge.urgent .event-badge-days { color: var(--red); }
+.event-badge-lbl { font-size: 9px; color: var(--text-sub); }
+.event-info { flex: 1; min-width: 0; }
+.event-title { font-size: 14px; font-weight: 600; }
+.event-sub { font-size: 12px; color: var(--text-sub); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── SETTINGS QUICK TAGS ── */
+.qtag-mgr-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.qtag-mgr-item:last-child { border-bottom: none; }
+.qtag-mgr-label { flex: 1; font-size: 14px; }
+.qtag-del {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--red-bg); color: var(--red);
+  border: none; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; line-height: 1;
+}
+.qtag-del:active { opacity: 0.7; }
+
+/* ── IMPORTANT DATES FORM ── */
+.idate-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.idate-item:last-child { border-bottom: none; }
+.idate-title { font-size: 14px; flex: 1; }
+.idate-val { font-size: 13px; color: var(--text-sub); flex-shrink: 0; }
+.idate-del {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--red-bg); color: var(--red);
+  border: none; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+
 /* ── RESPONSIVE ── */
 @media (min-width: 600px) {
   body { max-width: 480px; margin: 0 auto; }
@@ -699,6 +758,8 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
   <div id="homeChart"></div>
   <div class="section-label" id="redLbl">今天該追的客戶</div>
   <div id="redList"></div>
+  <div class="section-label" id="upcomingEventsLbl" style="margin-top:18px;display:none">近期重要事件（14天內）</div>
+  <div id="upcomingEvents"></div>
   <div class="section-label" style="margin-top:18px">最近聯絡</div>
   <div id="recentList"></div>
 </div>
@@ -787,6 +848,19 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
         <div class="set-title" style="color:var(--red)">清除所有資料</div>
         <div class="set-sub">此操作無法復原，請先備份</div>
       </div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:16px 16px 18px">
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">快捷標籤管理</div>
+    <div style="font-size:12px;color:var(--text-sub);margin-bottom:12px">新增跟進記錄時可一鍵插入的常用短語</div>
+    <div id="quickTagsList"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <input type="text" class="finput" id="newTagInput"
+        placeholder="新增標籤（如：[下週跟進]）"
+        style="font-size:14px;height:44px"
+        onkeydown="if(event.key==='Enter')addQuickTag()">
+      <button class="btn btn-primary" style="flex-shrink:0;height:44px;padding:0 16px" onclick="addQuickTag()">新增</button>
     </div>
   </div>
 
@@ -903,6 +977,19 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
           <input type="text" class="finput" id="faddress" placeholder="公司或住家地址">
         </div>
         <div class="fgroup">
+          <label class="flabel">重要日期</label>
+          <div id="importantDatesList" style="margin-bottom:8px"></div>
+          <div style="display:flex;gap:7px;align-items:center">
+            <input type="text" class="finput" id="newDateTitle"
+              placeholder="名稱（生日、保險到期…）"
+              style="flex:1;font-size:14px;height:40px;padding:8px 12px">
+            <input type="text" class="finput" id="newDateVal"
+              placeholder="MM-DD 或 YYYY-MM-DD"
+              style="width:140px;font-size:14px;height:40px;padding:8px 12px">
+            <button class="btn btn-secondary" style="flex-shrink:0;height:40px;padding:0 13px;font-size:18px;line-height:1" onclick="addImportantDate()">+</button>
+          </div>
+        </div>
+        <div class="fgroup">
           <label class="flabel">生活細節</label>
           <textarea class="finput" id="fnotes" placeholder="家庭、寵物、興趣、忌諱…" rows="2"></textarea>
         </div>
@@ -1004,7 +1091,8 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
   <div class="gs-body" id="gsBody">
     <div class="gs-hint">
       🔍 輸入關鍵字即時搜尋<br>
-      支援：姓名 · 電話 · 公司名稱
+      支援：姓名 · 電話 · 公司 · 地址<br>
+      <small style="font-size:12px;color:var(--text-sub)">空白鍵分隔可多字同時搜尋</small>
     </div>
   </div>
 </div>
@@ -1042,7 +1130,7 @@ const DECISIONS=['本人','配偶','父母','老闆','兒女','合夥人'];
 const PAYMENTS = ['現金','貸款','租賃','未定'];
 const METHODS  = ['LINE','電話','見面','試乘'];
 const LOSS_RSN = ['價格','配備','交期','對手促銷','客戶轉變','其他'];
-const QTAG_LIST= ['[急件]','[已試乘]','[等老婆同意]','[比價中]','[等貸款]','[已報價]','[下週再談]','[很有意願]'];
+const DEFAULT_QTAGS = ['[急件]','[已試乘]','[等老婆同意]','[比價中]','[等貸款]','[已報價]','[下週再談]','[很有意願]'];
 
 const PIPE_COLORS = {
   陌生:'#8A9BAB', 接觸:'#7BA88C', 報價:'#9B8AB0',
@@ -1179,6 +1267,13 @@ async function save() {
  */
 function migrateData() {
   let dirty = false; // 只有真正有修改才存回去
+
+  // 補齊 settings 物件與 quickTags 陣列
+  if (!db.settings) { db.settings = {}; dirty = true; }
+  if (!Array.isArray(db.settings.quickTags)) {
+    db.settings.quickTags = [...DEFAULT_QTAGS];
+    dirty = true;
+  }
 
   db.customers = db.customers.map(c => {
     let changed = false;
@@ -1374,20 +1469,22 @@ document.getElementById('stageFilter').addEventListener('click', e => {
 });
 
 function renderCustList() {
-  const q = (document.getElementById('searchInput').value || '').toLowerCase();
+  const raw = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  const keywords = raw ? raw.split(/\s+/).filter(Boolean) : [];
   let list = db.customers.filter(c => {
     if (stageF && c.stage !== stageF) return false;
-    if (q) return (c.name||'').toLowerCase().includes(q)
-                || (c.company||'').toLowerCase().includes(q)
-                || (c.phone||'').includes(q);
-    return true;
+    if (keywords.length === 0) return true;
+    const hay = [c.name, c.company, c.phone, c.purpose, c.address, c.personalNotes]
+      .filter(Boolean).join(' ').toLowerCase();
+    return keywords.every(kw => hay.includes(kw));
   }).sort((a, b) =>
     (b.lastContactAt || b.createdAt || '').localeCompare(a.lastContactAt || a.createdAt || ''));
 
   document.getElementById('custList').innerHTML = list.length
     ? list.map(custCardHTML).join('')
-    : `<div class="empty"><div class="empty-icon">${q ? '🔍' : '👤'}</div>
-        <p>${q ? '找不到符合的客戶' : '這個階段還沒有客戶'}</p></div>`;
+    : `<div class="empty"><div class="empty-icon">${raw ? '🔍' : '👤'}</div>
+        <p>${raw ? '找不到符合「' + esc(raw) + '」的客戶' : '這個階段還沒有客戶'}</p>
+        ${raw && keywords.length > 1 ? '<small>多字搜尋：每個詞皆需符合</small>' : ''}</div>`;
 }
 
 function custCardHTML(c) {
@@ -2214,7 +2311,7 @@ function openGlobalSearch() {
     inp.value = '';
     inp.focus();
     document.getElementById('gsBody').innerHTML = `
-      <div class="gs-hint">🔍 輸入關鍵字即時搜尋<br>支援：姓名 · 電話 · 公司名稱</div>`;
+      <div class="gs-hint">🔍 輸入關鍵字即時搜尋<br>支援：姓名 · 電話 · 公司 · 地址<br><small style="font-size:12px;color:var(--text-sub)">空白鍵分隔可多字同時搜尋</small></div>`;
   });
 }
 
@@ -2224,46 +2321,52 @@ function closeGlobalSearch() {
 }
 
 function renderGlobalSearch() {
-  const q = (document.getElementById('gsInput').value || '').trim().toLowerCase();
+  const raw = (document.getElementById('gsInput').value || '').trim().toLowerCase();
   const body = document.getElementById('gsBody');
 
-  if (!q) {
-    body.innerHTML = `<div class="gs-hint">🔍 輸入關鍵字即時搜尋<br>支援：姓名 · 電話 · 公司名稱</div>`;
+  if (!raw) {
+    body.innerHTML = `<div class="gs-hint">🔍 輸入關鍵字即時搜尋<br>支援：姓名 · 電話 · 公司 · 地址<br><small style="font-size:12px;color:var(--text-sub)">空白鍵分隔可多字同時搜尋</small></div>`;
     return;
   }
 
-  // 電話搜尋時去除符號，確保「0912345678」與「0912-345-678」都能命中
-  const qN = q.replace(/[-\s()]/g, '');
+  const keywords = raw.split(/\s+/).filter(Boolean);
 
   const results = db.customers.filter(c => {
-    // 優先使用預建 searchIndex（O(1) 字串包含，3000 筆仍流暢）
-    if (c.searchIndex) return c.searchIndex.includes(q) || c.searchIndex.includes(qN);
-    // 降級：舊資料尚未建立索引時逐欄比對
-    return (c.name    || '').toLowerCase().includes(q) ||
-           (c.phone   || '').replace(/[-\s()]/g, '').includes(qN) ||
-           (c.company || '').toLowerCase().includes(q);
+    if (c.searchIndex) {
+      // 每個關鍵字都必須命中 searchIndex（多字 AND 邏輯）
+      return keywords.every(kw => {
+        const kwN = kw.replace(/[-\s()]/g, '');
+        return c.searchIndex.includes(kw) || c.searchIndex.includes(kwN);
+      });
+    }
+    // 降級：無 searchIndex 時逐欄比對（仍支援 AND）
+    const hay = [c.name, c.company, c.phone, c.purpose, c.address, c.personalNotes]
+      .filter(Boolean).join(' ').toLowerCase();
+    return keywords.every(kw => hay.includes(kw));
   }).sort((a, b) =>
     (b.lastContactAt || b.createdAt || '').localeCompare(a.lastContactAt || a.createdAt || '')
   );
 
   if (results.length === 0) {
-    body.innerHTML = `<div class="gs-hint">找不到「${esc(q)}」<br><small style="font-size:12px">試試看電話後四碼或公司簡稱</small></div>`;
+    body.innerHTML = `<div class="gs-hint">找不到「${esc(raw)}」<br><small style="font-size:12px">試試看電話後四碼或公司簡稱</small></div>`;
     return;
   }
 
+  // 高亮顯示：針對第一個關鍵字做高亮
+  const q0 = keywords[0];
+  const hi = (str) => {
+    if (!str || !q0) return esc(str || '');
+    const idx = str.toLowerCase().indexOf(q0);
+    if (idx === -1) return esc(str);
+    return esc(str.slice(0, idx))
+      + `<mark style="background:#FFF0A0;border-radius:2px;padding:0 1px">${esc(str.slice(idx, idx + q0.length))}</mark>`
+      + esc(str.slice(idx + q0.length));
+  };
+
   body.innerHTML = `
-    <div class="gs-count">找到 ${results.length} 筆</div>
+    <div class="gs-count">找到 ${results.length} 筆${keywords.length > 1 ? `（${keywords.length} 個條件 AND）` : ''}</div>
     ${results.map(c => {
       const al = alertOf(c);
-      // Highlight matched text
-      const hi = (str) => {
-        if (!str) return '';
-        const idx = str.toLowerCase().indexOf(q);
-        if (idx === -1) return esc(str);
-        return esc(str.slice(0, idx))
-          + `<mark style="background:#FFF0A0;border-radius:2px;padding:0 1px">${esc(str.slice(idx, idx + q.length))}</mark>`
-          + esc(str.slice(idx + q.length));
-      };
       return `<div class="cust-card alert-${al}" onclick="gsOpenDetail('${c.id}')">
         <div class="cust-name-row">
           ${al !== 'none' ? `<svg width="8" height="8" viewBox="0 0 8 8" style="flex-shrink:0"><circle cx="4" cy="4" r="4" fill="var(--${al})"/></svg>` : ''}
