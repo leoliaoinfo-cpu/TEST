@@ -1375,6 +1375,7 @@ function goPage(name) {
   if (name === 'customers') renderCustList();
   if (name === 'pipeline') renderPipeline();
   if (name === 'analysis') renderAnalysis();
+  if (name === 'settings') renderSettings();
 }
 
 function openOverlay(id) {
@@ -1452,6 +1453,9 @@ function renderHome() {
   document.getElementById('recentList').innerHTML = recent.length
     ? recent.map(custCardHTML).join('')
     : `<div class="empty"><div class="empty-icon">👋</div><p>還沒有客戶資料</p><small>點右下角 + 新增第一筆</small></div>`;
+
+  // 獨立計算，不阻塞上方渲染
+  renderUpcomingEvents();
 }
 
 // ════════════════════════════════════════
@@ -1595,6 +1599,9 @@ function openDetail(id) {
       ${c.referrer ? drow('介紹人', refName(c.referrer)) : ''}
       ${c.address ? drow('地址', esc(c.address)) : ''}
       ${c.personalNotes ? drow('生活細節', c.personalNotes) : ''}
+      ${(c.importantDates && c.importantDates.length) ? drow('重要日期',
+          c.importantDates.map(d => `<span style="display:inline-block;margin-bottom:3px">${esc(d.title)}：${esc(d.date)}</span>`).join('<br>')
+        ) : ''}
     </div>
 
     ${lossSection}
@@ -1669,6 +1676,39 @@ function delCust(id) {
 // ADD / EDIT CUSTOMER
 // ════════════════════════════════════════
 let editId = null;
+let formImportantDates = [];  // 表單中暫存的重要日期清單
+
+function renderImportantDatesList() {
+  const el = document.getElementById('importantDatesList');
+  if (!el) return;
+  el.innerHTML = formImportantDates.length
+    ? formImportantDates.map((d, i) => `
+        <div class="idate-item">
+          <span class="idate-title">${esc(d.title)}</span>
+          <span class="idate-val">${esc(d.date)}</span>
+          <button class="idate-del" onclick="removeImportantDate(${i})">×</button>
+        </div>`).join('')
+    : `<p style="font-size:13px;color:var(--text-sub);padding:4px 0 6px">尚未記錄重要日期</p>`;
+}
+
+function addImportantDate() {
+  const title = (document.getElementById('newDateTitle').value || '').trim();
+  const date  = (document.getElementById('newDateVal').value  || '').trim();
+  if (!title || !date) { toast('請填寫名稱與日期'); return; }
+  if (!/^\d{2}-\d{2}$/.test(date) && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    toast('日期格式：MM-DD 或 YYYY-MM-DD');
+    return;
+  }
+  formImportantDates.push({ title, date });
+  document.getElementById('newDateTitle').value = '';
+  document.getElementById('newDateVal').value   = '';
+  renderImportantDatesList();
+}
+
+function removeImportantDate(i) {
+  formImportantDates.splice(i, 1);
+  renderImportantDatesList();
+}
 
 function openAddCustomer() {
   editId = null;
@@ -1695,6 +1735,8 @@ function openEdit(id) {
   document.getElementById('fmonth').value = c.expectedCloseMonth || '';
   document.getElementById('fnotes').value = c.personalNotes || '';
   document.getElementById('faddress').value = c.address || '';
+  formImportantDates = (c.importantDates || []).map(d => ({ ...d }));
+  renderImportantDatesList();
 
   pills('fg-type', 'ctype', TYPES, c.type || '個體戶');
   pills('fg-stage', 'cstage', STAGES, c.stage || '陌生');
@@ -1709,8 +1751,11 @@ function openEdit(id) {
 }
 
 function clearCustForm() {
-  ['fn','fphone','fpurpose','fco','fline','fveh','fbudget','fmonth','fnotes','faddress']
+  ['fn','fphone','fpurpose','fco','fline','fveh','fbudget','fmonth','fnotes','faddress',
+   'newDateTitle','newDateVal']
     .forEach(id => document.getElementById(id).value = '');
+  formImportantDates = [];
+  renderImportantDatesList();
   pills('fg-type', 'ctype', TYPES, '個體戶');
   pills('fg-stage', 'cstage', STAGES, '陌生');
   checks('fg-vehicle', 'cvehicle', VEHICLES, []);
@@ -1785,6 +1830,7 @@ function saveCust() {
       );
       return match ? match.id : null;
     })(),
+    importantDates: formImportantDates.map(d => ({ ...d })),
   };
 
   // 每次存檔都同步更新 searchIndex，確保全域搜尋正確
@@ -1826,8 +1872,9 @@ function openIA(id) {
   document.getElementById('iaContent').value = '';
   document.getElementById('iaNextDate').value = '';
   pills('fg-method', 'imethod', METHODS, 'LINE');
-  document.getElementById('qtags').innerHTML = QTAG_LIST
-    .map(t => `<div class="qtag" onclick="appendTag('${t}')">${t}</div>`).join('');
+  const qtags = (db.settings && db.settings.quickTags) || DEFAULT_QTAGS;
+  document.getElementById('qtags').innerHTML = qtags
+    .map(t => `<div class="qtag" onclick="appendTag('${t.replace(/'/g,"\\'")}')"> ${esc(t)}</div>`).join('');
   openOverlay('iaOverlay');
 }
 
@@ -2211,6 +2258,45 @@ function renderAnalysis() {
 }
 
 // ════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════
+function renderSettings() {
+  const tags = (db.settings && db.settings.quickTags) || DEFAULT_QTAGS;
+  const el = document.getElementById('quickTagsList');
+  if (!el) return;
+  el.innerHTML = tags.length
+    ? tags.map((t, i) => `
+        <div class="qtag-mgr-item">
+          <span class="qtag-mgr-label">${esc(t)}</span>
+          <button class="qtag-del" onclick="deleteQuickTag(${i})" title="刪除">×</button>
+        </div>`).join('')
+    : `<p style="font-size:13px;color:var(--text-sub);padding:6px 0">尚未設定快捷標籤</p>`;
+}
+
+function deleteQuickTag(i) {
+  if (!db.settings) db.settings = {};
+  if (!Array.isArray(db.settings.quickTags)) db.settings.quickTags = [...DEFAULT_QTAGS];
+  db.settings.quickTags.splice(i, 1);
+  save();
+  renderSettings();
+  toast('已刪除標籤');
+}
+
+function addQuickTag() {
+  const inp = document.getElementById('newTagInput');
+  const val = (inp.value || '').trim();
+  if (!val) { toast('請輸入標籤文字'); return; }
+  if (!db.settings) db.settings = {};
+  if (!Array.isArray(db.settings.quickTags)) db.settings.quickTags = [...DEFAULT_QTAGS];
+  if (db.settings.quickTags.includes(val)) { toast('標籤已存在'); return; }
+  db.settings.quickTags.push(val);
+  inp.value = '';
+  save();
+  renderSettings();
+  toast('已新增標籤');
+}
+
+// ════════════════════════════════════════
 // EXPORT / IMPORT
 // ════════════════════════════════════════
 function exportData() {
@@ -2381,6 +2467,66 @@ function renderGlobalSearch() {
         </div>
       </div>`;
     }).join('')}`;
+}
+
+// ════════════════════════════════════════
+// UPCOMING EVENTS（近期重要日期倒數）
+// 獨立函式，不阻塞首頁其他渲染
+// ════════════════════════════════════════
+function renderUpcomingEvents() {
+  const lbl = document.getElementById('upcomingEventsLbl');
+  const el  = document.getElementById('upcomingEvents');
+  if (!lbl || !el) return;
+
+  const now   = Date.now();
+  const today = new Date();
+  const year  = today.getFullYear();
+  const hits  = [];
+
+  db.customers.forEach(c => {
+    (c.importantDates || []).forEach(evt => {
+      if (!evt || !evt.date) return;
+      let diff = null;
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(evt.date)) {
+        // 有年份的完整日期
+        diff = Math.floor((new Date(evt.date + 'T12:00:00') - now) / 86400000);
+      } else if (/^\d{2}-\d{2}$/.test(evt.date)) {
+        // 無年份 (MM-DD)：先試今年，再試明年
+        const thisY = Math.floor((new Date(`${year}-${evt.date}T12:00:00`) - now) / 86400000);
+        const nextY = Math.floor((new Date(`${year + 1}-${evt.date}T12:00:00`) - now) / 86400000);
+        diff = thisY >= 0 ? thisY : nextY;
+      }
+
+      if (diff !== null && diff >= 0 && diff <= 14) {
+        hits.push({ c, evt, diff });
+      }
+    });
+  });
+
+  hits.sort((a, b) => a.diff - b.diff);
+
+  if (hits.length === 0) {
+    lbl.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+
+  lbl.style.display = '';
+  el.innerHTML = hits.map(({ c, evt, diff }) => {
+    const urgent = diff <= 2;
+    const diffLabel = diff === 0 ? '今天' : diff === 1 ? '明天' : `${diff} 天後`;
+    return `<div class="event-card" onclick="openDetail('${c.id}')">
+      <div class="event-badge${urgent ? ' urgent' : ''}">
+        <span class="event-badge-days">${diff === 0 ? '今' : diff}</span>
+        <span class="event-badge-lbl">${diff === 0 ? '' : '天後'}</span>
+      </div>
+      <div class="event-info">
+        <div class="event-title">${esc(c.name)}${c.company ? ' · ' + esc(c.company) : ''}</div>
+        <div class="event-sub">${esc(evt.title)}　${diffLabel}（${esc(evt.date)}）</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function gsOpenDetail(id) {
