@@ -817,6 +817,43 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 }
 .cal-event-red  { background: var(--red);    color: #fff; }
 .cal-event-gold { background: var(--yellow); color: #3A2E00; }
+
+/* ── LEAD SOURCE CHIPS ── */
+.lead-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.lead-chip {
+  padding: 5px 13px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  background: var(--bg); border: 1.5px solid var(--border);
+  color: var(--text-sub); cursor: pointer; transition: .15s;
+  -webkit-user-select: none; user-select: none;
+}
+.lead-chip.on { background: var(--primary); border-color: var(--primary); color: white; }
+.tag-lead { background: #EEF5F0; color: #4A7A5C; border-radius: 4px; font-size: 11px; padding: 1px 6px; }
+
+/* ── GOOGLE CALENDAR BUTTON ── */
+.gcal-btn {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px;
+  border-radius: 6px; background: #E8F0FE; color: #1967D2;
+  font-size: 11px; font-weight: 600; border: none; cursor: pointer;
+  text-decoration: none; flex-shrink: 0; white-space: nowrap;
+}
+.gcal-btn:hover { background: #D2E3FC; }
+
+/* ── MARKETING ROI TABLE ── */
+.roi-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.roi-table th {
+  font-size: 10px; color: var(--text-sub); font-weight: 700;
+  text-align: left; padding: 4px 6px; border-bottom: 1.5px solid var(--border);
+}
+.roi-table td { padding: 7px 6px; border-top: 1px solid var(--border); vertical-align: middle; }
+.roi-table tr.roi-best td { background: rgba(123,168,140,.1); }
+.roi-best-badge {
+  font-size: 9px; font-weight: 700; background: var(--green); color: white;
+  padding: 1px 4px; border-radius: 3px; margin-left: 4px; vertical-align: middle;
+}
+
+/* ── IMPORTANT DATES (extended) ── */
+.idate-gcal { margin-top: 2px; }
+
 @media (min-width: 600px) {
   body { max-width: 480px; margin: 0 auto; }
   .bottom-nav, .fab { max-width: 480px; }
@@ -967,6 +1004,8 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
     <div class="fchip" data-days="90">近 90 天</div>
   </div>
   <div class="loss-stat-grid" id="analysisSummary"></div>
+  <div class="section-label">行銷管道投報</div>
+  <div class="card" id="analysisLeadROI"></div>
   <div class="section-label">漏斗轉換率（目前管線）</div>
   <div class="card" id="analysisFunnel"></div>
   <div class="section-label">失單原因分布</div>
@@ -1085,6 +1124,10 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
           <label class="flabel">目前階段 <span class="req">*</span></label>
           <div class="pill-group" id="fg-stage"></div>
         </div>
+        <div class="fgroup">
+          <label class="flabel">開發來源</label>
+          <div class="lead-chips" id="leadSourceChips"></div>
+        </div>
         <button class="btn btn-primary btn-block btn-lg" onclick="toStep2()">下一步 →</button>
         <div style="height:8px"></div>
       </div>
@@ -1094,6 +1137,16 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
         <div class="fgroup">
           <label class="flabel">公司名稱</label>
           <input type="text" class="finput" id="fco" placeholder="大明物流有限公司" autocomplete="off">
+        </div>
+        <div style="display:flex;gap:9px">
+          <div class="fgroup" style="flex:1">
+            <label class="flabel">暱稱</label>
+            <input type="text" class="finput" id="fnickname" placeholder="小明">
+          </div>
+          <div class="fgroup" style="flex:1">
+            <label class="flabel">職位</label>
+            <input type="text" class="finput" id="fjobTitle" placeholder="老闆、採購">
+          </div>
         </div>
         <div class="fgroup">
           <label class="flabel">LINE ID / 暱稱</label>
@@ -1135,13 +1188,20 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
         <div class="fgroup">
           <label class="flabel">重要日期</label>
           <div id="importantDatesList" style="margin-bottom:8px"></div>
-          <div style="display:flex;gap:7px;align-items:center">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
             <input type="text" class="finput" id="newDateTitle"
               placeholder="名稱（生日、保險到期…）"
-              style="flex:1;font-size:14px;height:40px;padding:8px 12px">
+              style="flex:1;min-width:120px;font-size:14px;height:40px;padding:8px 10px">
             <input type="date" class="finput" id="newDateVal"
-              style="width:140px;font-size:14px;height:40px;padding:8px 10px">
-            <button class="btn btn-secondary" style="flex-shrink:0;height:40px;padding:0 13px;font-size:18px;line-height:1" onclick="addImportantDate()">+</button>
+              style="width:130px;font-size:14px;height:40px;padding:8px 8px">
+            <input type="time" class="finput" id="newDateTime"
+              style="width:90px;font-size:14px;height:40px;padding:8px 8px">
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+            <input type="text" class="finput" id="newDateNotes"
+              placeholder="備註（可留空）"
+              style="flex:1;font-size:13px;height:38px;padding:8px 10px">
+            <button class="btn btn-secondary" style="flex-shrink:0;height:38px;padding:0 16px;font-size:18px;line-height:1" onclick="addImportantDate()">+</button>
           </div>
         </div>
         <div class="fgroup">
@@ -1192,7 +1252,10 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
       </div>
       <div class="fgroup">
         <label class="flabel">下次預約追蹤日</label>
-        <input type="date" class="finput" id="iaNextDate">
+        <div style="display:flex;gap:8px">
+          <input type="date" class="finput" id="iaNextDate" style="flex:1">
+          <input type="time" class="finput" id="iaNextTime" style="width:100px">
+        </div>
       </div>
       <button class="btn btn-primary btn-block btn-lg" onclick="saveIA()">儲存記錄</button>
       <div style="height:8px"></div>
@@ -1297,6 +1360,7 @@ const RED_DAYS = { 陌生: 7, 接觸: 5, 報價: 3, 議價: 1 };
 const TYPES   = ['個體戶','車隊','物流','工程行','農用','食品冷鏈','其他'];
 const STAGES  = ['陌生','接觸','報價','議價','成交','失單'];
 const VEHICLES= ['一般貨卡','廂型','冷凍廂型','雙排座','其他'];
+const LEAD_SOURCES = ['短影音','FB廣告','轉介紹','陌生拜訪','Google搜尋','現有客戶'];
 const DECISIONS=['本人','配偶','父母','老闆','兒女','合夥人'];
 const PAYMENTS = ['現金','貸款','租賃','未定'];
 const METHODS  = ['LINE','電話','見面','試乘'];
@@ -1449,12 +1513,13 @@ function migrateData() {
   db.customers = db.customers.map(c => {
     let changed = false;
 
-    // 地址（為日後地圖功能預留）
-    if (c.address === undefined)        { c.address = '';           changed = true; }
-    // 下次預定聯絡日（日曆功能預留）
+    if (c.address         === undefined) { c.address         = '';   changed = true; }
     if (c.nextContactDate === undefined) { c.nextContactDate = null; changed = true; }
-    // 重要日期陣列，如生日、合約到期（日曆功能預留）
-    if (c.importantDates === undefined)  { c.importantDates = [];    changed = true; }
+    if (c.importantDates  === undefined) { c.importantDates  = [];   changed = true; }
+    if (c.nickname        === undefined) { c.nickname        = '';   changed = true; }
+    if (c.jobTitle        === undefined) { c.jobTitle        = '';   changed = true; }
+    if (c.leadSource      === undefined) { c.leadSource      = '';   changed = true; }
+    if (c.nextContactTime === undefined) { c.nextContactTime = '';   changed = true; }
 
     // 重建搜尋索引（每次都更新，確保編輯後同步）
     const idx = buildSearchIndex(c);
@@ -1474,15 +1539,11 @@ function migrateData() {
  */
 function buildSearchIndex(c) {
   return [
-    c.name,
-    c.company,
-    c.phone,
-    (c.phone || '').replace(/[-\s()]/g, ''), // 電話無符號版（方便打後四碼搜尋）
-    c.lineId,
-    c.type,
-    c.purpose,
-    c.personalNotes,
-    c.address
+    c.name, c.nickname, c.jobTitle,
+    c.company, c.phone,
+    (c.phone || '').replace(/[-\s()]/g, ''),
+    c.lineId, c.type, c.purpose,
+    c.personalNotes, c.address, c.leadSource
   ].filter(Boolean).join(' ').toLowerCase();
 }
 
@@ -1916,6 +1977,7 @@ function custCardHTML(c) {
     <div class="cust-tags">
       <span class="tag s-${c.stage}">${c.stage}</span>
       ${c.type ? `<span class="tag">${c.type}</span>` : ''}
+      ${c.leadSource ? `<span class="tag-lead">${esc(c.leadSource)}</span>` : ''}
       <span class="tag">📞 ${c.lastContactAt ? agoText(c.lastContactAt) : '未聯絡'}</span>
       ${c.expectedCloseMonth ? `<span class="tag">預計 ${fmtMonth(c.expectedCloseMonth)}</span>` : ''}
       ${c.budget ? `<span class="tag">${c.budget}萬</span>` : ''}
@@ -1933,7 +1995,22 @@ function openDetail(id) {
   const c = db.customers.find(x => x.id === id);
   if (!c) return;
 
-  document.getElementById('detailTitle').textContent = c.name + (c.company ? ` · ${c.company}` : '');
+  // Header: 姓名 (暱稱) · 公司 | 職位
+  const nameParts = [c.name + (c.nickname ? ` (${c.nickname})` : ''), c.company].filter(Boolean).join(' · ');
+  document.getElementById('detailTitle').textContent = nameParts;
+  if (c.jobTitle) {
+    let sub = document.getElementById('detailSubtitle');
+    if (!sub) {
+      sub = document.createElement('div');
+      sub.id = 'detailSubtitle';
+      sub.style.cssText = 'font-size:12px;color:var(--text-sub);padding:0 20px 2px;margin-top:-6px';
+      document.getElementById('detailTitle').insertAdjacentElement('afterend', sub);
+    }
+    sub.textContent = c.jobTitle;
+  } else {
+    const sub = document.getElementById('detailSubtitle');
+    if (sub) sub.remove();
+  }
 
   const al = alertOf(c);
   const alBadge = al !== 'none'
@@ -1943,15 +2020,24 @@ function openDetail(id) {
   const nextDateBanner = c.nextContactDate ? (() => {
     const diff = Math.floor((new Date(c.nextContactDate + 'T12:00:00') - Date.now()) / 86400000);
     const overdue = diff < 0;
+    const timeStr = c.nextContactTime ? ' ' + c.nextContactTime : '';
     const label = overdue
-      ? `預約追蹤日 ${c.nextContactDate} 已過期`
-      : diff === 0 ? `今天是預約追蹤日 ${c.nextContactDate}`
-      : `預約追蹤日：${c.nextContactDate}（還有 ${diff} 天）`;
-    return `<div class="next-date-banner${overdue ? ' overdue' : ''}">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      ? `預約追蹤日 ${c.nextContactDate}${timeStr} 已過期`
+      : diff === 0 ? `今天是預約追蹤日 ${c.nextContactDate}${timeStr}`
+      : `預約追蹤日：${c.nextContactDate}${timeStr}（還有 ${diff} 天）`;
+    const gcalUrl = makeGCalUrl({
+      title: `追蹤：${c.name}`,
+      date: c.nextContactDate,
+      time: c.nextContactTime || '',
+      location: c.address || '',
+      details: [c.purpose, c.personalNotes, c.referrer ? '介紹人：' + refName(c.referrer) : ''].filter(Boolean).join('\n')
+    });
+    return `<div class="next-date-banner${overdue ? ' overdue' : ''}" style="display:flex;align-items:center;gap:8px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0">
         <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
       </svg>
-      ${label}
+      <span style="flex:1">${label}</span>
+      ${gcalUrl ? `<a href="${gcalUrl}" target="_blank" class="gcal-btn" title="加入 Google 日曆">➕ Google</a>` : ''}
     </div>`;
   })() : '';
 
@@ -2002,7 +2088,9 @@ function openDetail(id) {
 
     <div class="card" style="padding:4px 14px">
       ${drow('階段', `<span class="tag s-${c.stage}">${c.stage}</span>`)}
+      ${c.leadSource ? drow('開發來源', `<span class="tag-lead">${esc(c.leadSource)}</span>`) : ''}
       ${drow('類型', c.type)}
+      ${c.jobTitle ? drow('職位', c.jobTitle) : ''}
       ${drow('用途', c.purpose)}
       ${c.vehicleNeeds?.length ? drow('車型需求', c.vehicleNeeds.join('、')) : ''}
       ${c.currentVehicle ? drow('現有車況', c.currentVehicle) : ''}
@@ -2014,7 +2102,23 @@ function openDetail(id) {
       ${c.address ? drow('地址', esc(c.address)) : ''}
       ${c.personalNotes ? drow('生活細節', c.personalNotes) : ''}
       ${(c.importantDates && c.importantDates.length) ? drow('重要日期',
-          c.importantDates.map(d => `<span style="display:inline-block;margin-bottom:3px">${esc(d.title)}：${esc(d.date)}</span>`).join('<br>')
+          c.importantDates.map(d => {
+            const timeStr = d.time ? ' ' + d.time : '';
+            const gcalUrl = makeGCalUrl({
+              title: `${esc(d.title)}：${c.name}`,
+              date: /^\d{4}/.test(d.date) ? d.date : `${new Date().getFullYear()}-${d.date}`,
+              time: d.time || '',
+              location: c.address || '',
+              details: [d.notes, c.purpose, c.referrer ? '介紹人：' + refName(c.referrer) : ''].filter(Boolean).join('\n')
+            });
+            return `<div style="margin-bottom:4px">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span>${esc(d.title)}：${esc(d.date)}${timeStr}</span>
+                ${gcalUrl ? `<a href="${gcalUrl}" target="_blank" class="gcal-btn">➕ Google</a>` : ''}
+              </div>
+              ${d.notes ? `<div style="font-size:11px;color:var(--text-sub);font-style:italic;padding-left:2px">${esc(d.notes)}</div>` : ''}
+            </div>`;
+          }).join('')
         ) : ''}
     </div>
 
@@ -2048,6 +2152,32 @@ function drow(k, v) {
 function refName(id) {
   const c = db.customers.find(x => x.id === id);
   return c ? esc(c.name) : '—';
+}
+
+/** 產生 Google 日曆新增事件網址 */
+function makeGCalUrl({ title, date, time, endTime, location, details }) {
+  const enc = encodeURIComponent;
+  // date: YYYY-MM-DD, time: HH:MM (optional)
+  const d = (date || '').replace(/-/g, '');
+  if (!d) return null;
+  let dates;
+  if (time) {
+    const t = time.replace(':', '') + '00';
+    const end = endTime ? endTime.replace(':', '') + '00' : (() => {
+      const [h, m] = time.split(':').map(Number);
+      const eh = String(h + 1).padStart(2, '0');
+      return `${eh}${String(m).padStart(2, '0')}00`;
+    })();
+    dates = `${d}T${t}/${d}T${end}`;
+  } else {
+    dates = `${d}/${d}`;
+  }
+  let url = `https://calendar.google.com/calendar/render?action=TEMPLATE`;
+  url += `&text=${enc(title)}`;
+  url += `&dates=${dates}`;
+  if (details) url += `&details=${enc(details)}`;
+  if (location) url += `&location=${enc(location)}`;
+  return url;
 }
 
 function openMap(addr) {
@@ -2120,9 +2250,10 @@ function renderImportantDatesList() {
     ? formImportantDates.map((d, i) => `
         <div class="idate-item">
           <span class="idate-title">${esc(d.title)}</span>
-          <span class="idate-val">${esc(d.date)}</span>
+          <span class="idate-val">${esc(d.date)}${d.time ? ' ' + d.time : ''}</span>
           <button class="idate-del" onclick="removeImportantDate(${i})">×</button>
-        </div>`).join('')
+        </div>
+        ${d.notes ? `<div style="font-size:11px;color:var(--text-sub);padding:0 4px 4px;font-style:italic">${esc(d.notes)}</div>` : ''}`).join('')
     : `<p style="font-size:13px;color:var(--text-sub);padding:4px 0 6px">尚未記錄重要日期</p>`;
 }
 
@@ -2130,9 +2261,13 @@ function addImportantDate() {
   const title = (document.getElementById('newDateTitle').value || '').trim();
   const date  = (document.getElementById('newDateVal').value  || '').trim();
   if (!title || !date) { toast('請填寫名稱與日期'); return; }
-  formImportantDates.push({ title, date });
+  const time  = (document.getElementById('newDateTime').value  || '').trim();
+  const notes = (document.getElementById('newDateNotes').value || '').trim();
+  formImportantDates.push({ title, date, time, notes });
   document.getElementById('newDateTitle').value = '';
   document.getElementById('newDateVal').value   = '';
+  document.getElementById('newDateTime').value  = '';
+  document.getElementById('newDateNotes').value = '';
   renderImportantDatesList();
 }
 
@@ -2156,16 +2291,18 @@ function openEdit(id) {
   document.getElementById('custModalTitle').textContent = '編輯客戶';
   clearCustForm();
 
-  document.getElementById('fn').value = c.name || '';
-  document.getElementById('fphone').value = c.phone || '';
-  document.getElementById('fpurpose').value = c.purpose || '';
-  document.getElementById('fco').value = c.company || '';
-  document.getElementById('fline').value = c.lineId || '';
-  document.getElementById('fveh').value = c.currentVehicle || '';
-  document.getElementById('fbudget').value = c.budget || '';
-  document.getElementById('fmonth').value = c.expectedCloseMonth || '';
-  document.getElementById('fnotes').value = c.personalNotes || '';
-  document.getElementById('faddress').value = c.address || '';
+  document.getElementById('fn').value       = c.name     || '';
+  document.getElementById('fphone').value   = c.phone    || '';
+  document.getElementById('fpurpose').value = c.purpose  || '';
+  document.getElementById('fco').value      = c.company  || '';
+  document.getElementById('fnickname').value= c.nickname || '';
+  document.getElementById('fjobTitle').value= c.jobTitle || '';
+  document.getElementById('fline').value    = c.lineId   || '';
+  document.getElementById('fveh').value     = c.currentVehicle || '';
+  document.getElementById('fbudget').value  = c.budget   || '';
+  document.getElementById('fmonth').value   = c.expectedCloseMonth || '';
+  document.getElementById('fnotes').value   = c.personalNotes || '';
+  document.getElementById('faddress').value = c.address  || '';
   formImportantDates = (c.importantDates || []).map(d => ({ ...d }));
   renderImportantDatesList();
 
@@ -2174,6 +2311,11 @@ function openEdit(id) {
   checks('fg-vehicle', 'cvehicle', VEHICLES, c.vehicleNeeds || []);
   pills('fg-decision', 'cdecision', DECISIONS, c.decisionMaker || '本人');
   pills('fg-payment', 'cpayment', PAYMENTS, c.paymentMethod || '未定');
+  renderLeadSourceChips(c.leadSource || '');
+  if (c.leadSource && !LEAD_SOURCES.includes(c.leadSource)) {
+    const custom = document.getElementById('leadSourceCustom');
+    if (custom) custom.value = c.leadSource;
+  }
   fillReferrer(c.referrer);
 
   closeOverlay('detailOverlay');
@@ -2182,9 +2324,9 @@ function openEdit(id) {
 }
 
 function clearCustForm() {
-  ['fn','fphone','fpurpose','fco','fline','fveh','fbudget','fmonth','fnotes','faddress',
-   'newDateTitle','newDateVal']
-    .forEach(id => document.getElementById(id).value = '');
+  ['fn','fphone','fpurpose','fco','fnickname','fjobTitle','fline','fveh',
+   'fbudget','fmonth','fnotes','faddress','newDateTitle','newDateVal','newDateTime','newDateNotes']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   formImportantDates = [];
   renderImportantDatesList();
   pills('fg-type', 'ctype', TYPES, '個體戶');
@@ -2192,7 +2334,23 @@ function clearCustForm() {
   checks('fg-vehicle', 'cvehicle', VEHICLES, []);
   pills('fg-decision', 'cdecision', DECISIONS, '本人');
   pills('fg-payment', 'cpayment', PAYMENTS, '未定');
+  renderLeadSourceChips('');
   fillReferrer(null);
+}
+
+function renderLeadSourceChips(current) {
+  const wrap = document.getElementById('leadSourceChips');
+  if (!wrap) return;
+  wrap.innerHTML = LEAD_SOURCES.map(s =>
+    `<div class="lead-chip${current === s ? ' on' : ''}" data-v="${s}"
+      onclick="this.parentElement.querySelectorAll('.lead-chip').forEach(c=>c.classList.remove('on'));
+               this.classList.toggle('on', !this.classList.contains('on') || '${s}' !== '${current}')"
+    >${s}</div>`
+  ).join('') +
+  `<input type="text" id="leadSourceCustom" class="finput"
+    placeholder="自定義…"
+    style="height:32px;font-size:12px;padding:4px 10px;width:80px"
+    oninput="document.querySelectorAll('#leadSourceChips .lead-chip').forEach(c=>c.classList.remove('on'))">`;
 }
 
 function fillReferrer(sel) {
@@ -2240,6 +2398,14 @@ function saveCust() {
 
   const patch = {
     name, phone,
+    nickname:  document.getElementById('fnickname').value.trim(),
+    jobTitle:  document.getElementById('fjobTitle').value.trim(),
+    leadSource: (() => {
+      const on = document.querySelector('#leadSourceChips .lead-chip.on');
+      if (on) return on.dataset.v;
+      const custom = document.getElementById('leadSourceCustom');
+      return custom ? custom.value.trim() : '';
+    })(),
     type: ctype,
     stage: cstage,
     purpose: document.getElementById('fpurpose').value.trim(),
@@ -2278,8 +2444,8 @@ function saveCust() {
       createdAt: todayStr(),
       lastContactAt: todayStr(),
       lossDetail: null,
-      address: '',
       nextContactDate: null,
+      nextContactTime: '',
       importantDates: []
     });
     toast('已新增客戶 🎉');
@@ -2302,6 +2468,7 @@ function openIA(id) {
   document.getElementById('iaDate').value = todayStr();
   document.getElementById('iaContent').value = '';
   document.getElementById('iaNextDate').value = '';
+  document.getElementById('iaNextTime').value = '';
   pills('fg-method', 'imethod', METHODS, 'LINE');
   const qtags = (db.settings && db.settings.quickTags) || DEFAULT_QTAGS;
   document.getElementById('qtags').innerHTML = qtags
@@ -2325,6 +2492,7 @@ function saveIA() {
   c.interactions.push({ date, method: checkedVal('imethod') || 'LINE', content });
   c.lastContactAt = date;
   c.nextContactDate = document.getElementById('iaNextDate').value || null;
+  c.nextContactTime = document.getElementById('iaNextTime').value || '';
   save();
   closeOverlay('iaOverlay');
   toast('跟進記錄已儲存');
@@ -2610,6 +2778,30 @@ document.getElementById('analysisFilter').addEventListener('click', e => {
   renderAnalysis();
 });
 
+function calcLeadROI(cutoff) {
+  const map = {};
+  db.customers.forEach(c => {
+    const src = c.leadSource || '未分類';
+    const dateRef = c.lastContactAt || c.createdAt || '';
+    if (cutoff && dateRef < cutoff) return;
+    if (!map[src]) map[src] = { total: 0, wins: 0, revenue: 0 };
+    map[src].total++;
+    if (c.stage === '成交') {
+      map[src].wins++;
+      map[src].revenue += c.budget || 0;
+    }
+  });
+  return Object.entries(map)
+    .map(([src, d]) => ({
+      src,
+      total: d.total,
+      wins: d.wins,
+      rate: d.total > 0 ? Math.round(d.wins / d.total * 100) : 0,
+      revenue: d.revenue
+    }))
+    .sort((a, b) => b.rate - a.rate || b.total - a.total);
+}
+
 function calcWinRate(cutoff) {
   let wins = db.customers.filter(c => c.stage === '成交');
   let losses = db.customers.filter(c => c.stage === '失單');
@@ -2663,6 +2855,29 @@ function renderAnalysis() {
       </div>
       <div class="stat-lbl">總體勝率</div>
     </div>`;
+
+  // Lead ROI table
+  const roiData = calcLeadROI(cutoff);
+  const bestRate = roiData.length ? roiData[0].rate : 0;
+  document.getElementById('analysisLeadROI').innerHTML = roiData.length === 0
+    ? '<p style="color:var(--text-sub);font-size:13px">尚無來源標籤資料（新增客戶時選取「開發來源」即可累積）</p>'
+    : `<table class="roi-table">
+        <thead><tr>
+          <th>來源</th><th style="text-align:right">進單</th>
+          <th style="text-align:right">成交</th><th style="text-align:right">轉化率</th>
+          <th style="text-align:right">貢獻</th>
+        </tr></thead>
+        <tbody>
+          ${roiData.map(r => `
+            <tr class="${r.rate === bestRate && bestRate > 0 ? 'roi-best' : ''}">
+              <td>${esc(r.src)}${r.rate === bestRate && bestRate > 0 ? '<span class="roi-best-badge">最高</span>' : ''}</td>
+              <td style="text-align:right;color:var(--text-sub)">${r.total}</td>
+              <td style="text-align:right;color:var(--green);font-weight:700">${r.wins}</td>
+              <td style="text-align:right;font-weight:700;color:${r.rate >= 50 ? 'var(--green)' : r.rate >= 25 ? 'var(--yellow)' : 'var(--text-sub)'}">${r.rate}%</td>
+              <td style="text-align:right;color:var(--text-sub)">${r.revenue > 0 ? r.revenue + '萬' : '—'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
 
   // Funnel (active pipeline, no date filter)
   const funnelData = calcFunnel();
