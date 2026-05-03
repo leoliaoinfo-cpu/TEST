@@ -693,6 +693,62 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
   font-size: 15px;
 }
 
+/* ── WEEKLY STRIP CALENDAR ── */
+.weekly-strip {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.wstrip-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px 4px;
+}
+.wstrip-month-lbl {
+  font-size: 13px; font-weight: 700; color: var(--text-sub); letter-spacing: .4px;
+}
+.wstrip-month-btn {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: 8px; padding: 5px 10px;
+  font-size: 12px; font-weight: 600; color: var(--text-sub);
+  cursor: pointer;
+}
+.wstrip-month-btn input[type="month"] {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; border: none; background: none;
+}
+.wstrip-scroll {
+  overflow-x: auto; padding: 4px 10px 12px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.wstrip-scroll::-webkit-scrollbar { display: none; }
+.wstrip-track { display: flex; gap: 5px; min-width: max-content; }
+.wday {
+  width: 50px; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 7px 4px 6px; border-radius: 10px;
+  background: var(--bg); cursor: pointer;
+  border: 2px solid transparent;
+  transition: background .15s, color .15s;
+  -webkit-user-select: none; user-select: none;
+}
+.wday:active { opacity: .75; }
+.wday.today  { border-color: var(--primary); }
+.wday.selected { background: var(--primary); border-color: var(--primary); }
+.wday.selected .wday-name,
+.wday.selected .wday-num { color: white; }
+.wday-name { font-size: 10px; color: var(--text-sub); margin-bottom: 2px; }
+.wday-num  { font-size: 18px; font-weight: 700; color: var(--text); line-height: 1; }
+.wday-dots { display: flex; gap: 3px; margin-top: 5px; min-height: 7px; align-items: center; }
+.wday-dot  { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.wday-dot.red  { background: var(--red); }
+.wday-dot.gold { background: var(--yellow); }
+.wday.selected .wday-dot.red  { background: #FFB0B0; }
+.wday.selected .wday-dot.gold { background: #FFE0A0; }
+
 /* ── RESPONSIVE ── */
 @media (min-width: 600px) {
   body { max-width: 480px; margin: 0 auto; }
@@ -756,6 +812,26 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 <div class="page active" id="page-home">
   <div class="stats-grid" id="homeStats"></div>
   <div id="homeChart"></div>
+
+  <!-- 戰術微型日曆 -->
+  <div class="weekly-strip">
+    <div class="wstrip-header">
+      <span class="wstrip-month-lbl" id="wstripMonthLbl"></span>
+      <label class="wstrip-month-btn" title="跳至指定月份">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        選月
+        <input type="month" id="wstripMonthPicker" onchange="onWeeklyMonthChange(this.value)">
+      </label>
+    </div>
+    <div class="wstrip-scroll" id="wstripScroll">
+      <div class="wstrip-track" id="wstripTrack"></div>
+    </div>
+  </div>
+
   <div class="section-label" id="redLbl">今天該追的客戶</div>
   <div id="redList"></div>
   <div class="section-label" id="upcomingEventsLbl" style="margin-top:18px;display:none">近期重要事件（14天內）</div>
@@ -1389,16 +1465,133 @@ function closeOverlay(id) {
 }
 
 // ════════════════════════════════════════
+// WEEKLY STRIP CALENDAR
+// ════════════════════════════════════════
+const DAY_NAMES_TW = ['日','一','二','三','四','五','六'];
+
+// 日曆選取狀態（純顯示層，不寫入 IDB）
+let calSelectedDate = todayStr();  // 目前選取日期
+let calViewMonth    = null;        // null = 今天 ±15 天模式；否則為 'YYYY-MM'
+
+/**
+ * buildDateEventMap — O(n) 單次掃描，回傳 Map<dateStr, {red, gold}>
+ * red  = 該日有 nextContactDate 的客戶
+ * gold = 該日有 importantDates 事件的客戶
+ */
+function buildDateEventMap() {
+  const map = {};
+  const year = new Date().getFullYear();
+
+  const mark = (dateStr, type) => {
+    if (!dateStr) return;
+    if (!map[dateStr]) map[dateStr] = { red: false, gold: false };
+    map[dateStr][type] = true;
+  };
+
+  db.customers.forEach(c => {
+    if (c.nextContactDate) mark(c.nextContactDate, 'red');
+    (c.importantDates || []).forEach(evt => {
+      if (!evt || !evt.date) return;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(evt.date)) {
+        mark(evt.date, 'gold');
+      } else if (/^\d{2}-\d{2}$/.test(evt.date)) {
+        mark(`${year}-${evt.date}`, 'gold');
+        mark(`${year + 1}-${evt.date}`, 'gold');
+      }
+    });
+  });
+  return map;
+}
+
+/** renderWeeklyStrip — 用已建好的 eventMap 渲染日曆軌道，不再查詢資料 */
+function renderWeeklyStrip(eventMap) {
+  const todayDate = todayStr();
+  const selDate   = calSelectedDate || todayDate;
+
+  // 產生日期陣列
+  let dates = [];
+  if (calViewMonth) {
+    const [y, m] = calViewMonth.split('-').map(Number);
+    const dim = new Date(y, m, 0).getDate();
+    for (let d = 1; d <= dim; d++) {
+      dates.push(`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+    }
+  } else {
+    const base = new Date(todayDate + 'T12:00:00');
+    for (let i = -15; i <= 15; i++) {
+      const dt = new Date(base);
+      dt.setDate(base.getDate() + i);
+      dates.push(dt.toISOString().slice(0, 10));
+    }
+  }
+
+  // 月份標籤
+  const f = new Date(dates[0] + 'T12:00:00');
+  const l = new Date(dates[dates.length - 1] + 'T12:00:00');
+  document.getElementById('wstripMonthLbl').textContent =
+    f.getMonth() === l.getMonth()
+      ? `${f.getFullYear()} 年 ${f.getMonth() + 1} 月`
+      : `${f.getMonth() + 1} / ${l.getMonth() + 1} 月`;
+  document.getElementById('wstripMonthPicker').value = calViewMonth || todayDate.slice(0, 7);
+
+  // 渲染方塊
+  const track = document.getElementById('wstripTrack');
+  track.innerHTML = dates.map(ds => {
+    const d      = new Date(ds + 'T12:00:00');
+    const isToday = ds === todayDate;
+    const isSel   = ds === selDate;
+    const ev      = eventMap[ds] || {};
+    const cls     = ['wday', isToday ? 'today' : '', isSel ? 'selected' : '']
+                    .filter(Boolean).join(' ');
+    const dots    = (ev.red  ? '<span class="wday-dot red"></span>'  : '')
+                  + (ev.gold ? '<span class="wday-dot gold"></span>' : '');
+    return `<div class="${cls}" onclick="onDayClick('${ds}')">
+      <span class="wday-name">週${DAY_NAMES_TW[d.getDay()]}</span>
+      <span class="wday-num">${d.getDate()}</span>
+      <div class="wday-dots">${dots}</div>
+    </div>`;
+  }).join('');
+
+  // 選取日自動置中滾動
+  requestAnimationFrame(() => {
+    const selEl = track.querySelector('.wday.selected');
+    const scroll = document.getElementById('wstripScroll');
+    if (selEl && scroll) {
+      scroll.scrollLeft = selEl.offsetLeft - scroll.offsetWidth / 2 + selEl.offsetWidth / 2;
+    }
+  });
+}
+
+function onDayClick(dateStr) {
+  calSelectedDate = dateStr;
+  const map = buildDateEventMap();
+  renderWeeklyStrip(map);
+  renderHomeByDate(dateStr, map);
+}
+
+function onWeeklyMonthChange(monthStr) {
+  calViewMonth = monthStr || null;
+  const map = buildDateEventMap();
+  renderWeeklyStrip(map);
+  // 若目前選取日不在新月份，自動跳至該月第一天
+  if (calViewMonth && !(calSelectedDate || '').startsWith(calViewMonth)) {
+    calSelectedDate = calViewMonth + '-01';
+    renderHomeByDate(calSelectedDate, map);
+  }
+}
+
+// ════════════════════════════════════════
 // HOME
 // ════════════════════════════════════════
 function renderHome() {
-  const mo = new Date().toISOString().slice(0, 7);
-  const all = db.customers;
+  const mo     = new Date().toISOString().slice(0, 7);
+  const all    = db.customers;
   const active = all.filter(c => c.stage !== '成交' && c.stage !== '失單');
   const closed = all.filter(c => c.stage === '成交' && (c.lastContactAt || '').startsWith(mo));
   const redOnes = active.filter(c => alertOf(c) === 'red');
   const pipeAmt = active.reduce((s, c) => s + (c.budget || 0), 0);
 
+  // ① 統計看板
   document.getElementById('homeStats').innerHTML = `
     <div class="stat-card">
       <div class="stat-val green">${closed.length}</div>
@@ -1417,9 +1610,9 @@ function renderHome() {
       <div class="stat-lbl">潛在金額</div>
     </div>`;
 
-  // Stage distribution bar chart
+  // ② 階段長條圖
   const activeStages = ['陌生','接觸','報價','議價'];
-  const stageCounts = activeStages.map(s => ({ s, n: all.filter(c => c.stage === s).length }));
+  const stageCounts  = activeStages.map(s => ({ s, n: all.filter(c => c.stage === s).length }));
   const maxN = Math.max(...stageCounts.map(x => x.n), 1);
   document.getElementById('homeChart').innerHTML = `
     <div class="card" style="padding:14px 16px 10px">
@@ -1435,17 +1628,14 @@ function renderHome() {
         </div>`).join('')}
     </div>`;
 
-  document.getElementById('redLbl').textContent = `今天該追的客戶（${redOnes.length}）`;
+  // ③ 建立 O(n) 事件雜湊表，渲染微型日曆（雜湊表同時供日曆與過濾用）
+  const eventMap = buildDateEventMap();
+  renderWeeklyStrip(eventMap);
 
-  if (redOnes.length === 0) {
-    document.getElementById('redList').innerHTML =
-      `<div class="card" style="text-align:center;color:var(--green);font-size:14px;padding:18px">✓ 目前沒有逾期未聯絡的客戶</div>`;
-  } else {
-    document.getElementById('redList').innerHTML =
-      redOnes.sort((a, b) => daysSince(b.lastContactAt) - daysSince(a.lastContactAt))
-             .map(custCardHTML).join('');
-  }
+  // ④ 依目前選取日期渲染「該追 / 重要事件」區塊
+  renderHomeByDate(calSelectedDate, eventMap);
 
+  // ⑤ 最近聯絡（固定顯示，不受日曆過濾）
   const recent = [...all]
     .filter(c => c.lastContactAt)
     .sort((a, b) => b.lastContactAt.localeCompare(a.lastContactAt))
@@ -1453,9 +1643,6 @@ function renderHome() {
   document.getElementById('recentList').innerHTML = recent.length
     ? recent.map(custCardHTML).join('')
     : `<div class="empty"><div class="empty-icon">👋</div><p>還沒有客戶資料</p><small>點右下角 + 新增第一筆</small></div>`;
-
-  // 獨立計算，不阻塞上方渲染
-  renderUpcomingEvents();
 }
 
 // ════════════════════════════════════════
@@ -2467,6 +2654,69 @@ function renderGlobalSearch() {
         </div>
       </div>`;
     }).join('')}`;
+}
+
+// ════════════════════════════════════════
+// HOME DATE FILTER
+// 純顯示層過濾，不修改任何 IDB 資料
+// ════════════════════════════════════════
+function renderHomeByDate(dateStr, eventMap) {
+  const todayDate = todayStr();
+  const isToday   = !dateStr || dateStr === todayDate;
+  const evtLbl    = document.getElementById('upcomingEventsLbl');
+  const evtEl     = document.getElementById('upcomingEvents');
+
+  if (isToday) {
+    // ── 今日：沿用原始紅燈邏輯 ──
+    const active  = db.customers.filter(c => c.stage !== '成交' && c.stage !== '失單');
+    const redOnes = active.filter(c => alertOf(c) === 'red');
+    document.getElementById('redLbl').textContent = `今天該追的客戶（${redOnes.length}）`;
+    document.getElementById('redList').innerHTML = redOnes.length
+      ? redOnes.sort((a, b) => daysSince(b.lastContactAt) - daysSince(a.lastContactAt))
+               .map(custCardHTML).join('')
+      : `<div class="card" style="text-align:center;color:var(--green);font-size:14px;padding:18px">✓ 目前沒有逾期未聯絡的客戶</div>`;
+    renderUpcomingEvents();   // 14 天內事件，獨立渲染
+    return;
+  }
+
+  // ── 非今日：按選取日期過濾 ──
+  const [, mm, dd] = dateStr.split('-');
+  const dateLabel  = `${parseInt(mm)} 月 ${parseInt(dd)} 日`;
+
+  // 追蹤客戶：nextContactDate === 選取日
+  const trackers = db.customers.filter(c => c.nextContactDate === dateStr);
+  document.getElementById('redLbl').textContent = `${dateLabel} 的追蹤客戶（${trackers.length}）`;
+  document.getElementById('redList').innerHTML = trackers.length
+    ? trackers.map(custCardHTML).join('')
+    : `<div class="card" style="text-align:center;color:var(--text-sub);font-size:14px;padding:18px">該日無設定追蹤的客戶</div>`;
+
+  // 重要事件：importantDates 命中選取日
+  const curYear = new Date().getFullYear();
+  const hits = [];
+  db.customers.forEach(c => {
+    (c.importantDates || []).forEach(evt => {
+      if (!evt || !evt.date) return;
+      const fullMatch = /^\d{4}-\d{2}-\d{2}$/.test(evt.date) && evt.date === dateStr;
+      const mmddMatch = /^\d{2}-\d{2}$/.test(evt.date) &&
+        (`${curYear}-${evt.date}` === dateStr || `${curYear + 1}-${evt.date}` === dateStr);
+      if (fullMatch || mmddMatch) hits.push({ c, evt });
+    });
+  });
+
+  evtLbl.style.display = '';
+  evtLbl.textContent = `${dateLabel} 的重要事件（${hits.length}）`;
+  evtEl.innerHTML = hits.length
+    ? hits.map(({ c, evt }) => `<div class="event-card" onclick="openDetail('${c.id}')">
+        <div class="event-badge">
+          <span class="event-badge-days">${parseInt(dd)}</span>
+          <span class="event-badge-lbl">日</span>
+        </div>
+        <div class="event-info">
+          <div class="event-title">${esc(c.name)}${c.company ? ' · ' + esc(c.company) : ''}</div>
+          <div class="event-sub">${esc(evt.title)}（${esc(evt.date)}）</div>
+        </div>
+      </div>`).join('')
+    : `<div class="card" style="text-align:center;color:var(--text-sub);font-size:14px;padding:18px">該日無重要事件</div>`;
 }
 
 // ════════════════════════════════════════
