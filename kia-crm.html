@@ -1064,9 +1064,8 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
             <input type="text" class="finput" id="newDateTitle"
               placeholder="名稱（生日、保險到期…）"
               style="flex:1;font-size:14px;height:40px;padding:8px 12px">
-            <input type="text" class="finput" id="newDateVal"
-              placeholder="MM-DD 或 YYYY-MM-DD"
-              style="width:140px;font-size:14px;height:40px;padding:8px 12px">
+            <input type="date" class="finput" id="newDateVal"
+              style="width:140px;font-size:14px;height:40px;padding:8px 10px">
             <button class="btn btn-secondary" style="flex-shrink:0;height:40px;padding:0 13px;font-size:18px;line-height:1" onclick="addImportantDate()">+</button>
           </div>
         </div>
@@ -1939,10 +1938,6 @@ function addImportantDate() {
   const title = (document.getElementById('newDateTitle').value || '').trim();
   const date  = (document.getElementById('newDateVal').value  || '').trim();
   if (!title || !date) { toast('請填寫名稱與日期'); return; }
-  if (!/^\d{2}-\d{2}$/.test(date) && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    toast('日期格式：MM-DD 或 YYYY-MM-DD');
-    return;
-  }
   formImportantDates.push({ title, date });
   document.getElementById('newDateTitle').value = '';
   document.getElementById('newDateVal').value   = '';
