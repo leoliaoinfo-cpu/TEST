@@ -1236,7 +1236,7 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
         <div class="pill-group" id="fg-method"></div>
       </div>
       <div class="fgroup">
-        <label class="flabel">內容摘要</label>
+        <label class="flabel">內容摘要 <span class="req">*</span></label>
         <div class="input-row">
           <textarea class="finput" id="iaContent" placeholder="聊了什麼、客戶反應、下一步行動…" rows="3"></textarea>
           <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="語音輸入">
@@ -1249,6 +1249,10 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
           </button>
         </div>
         <div class="qtags" id="qtags"></div>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">備註（內部提醒，不對外）</label>
+        <textarea class="finput" id="iaRemark" placeholder="特殊條件、注意事項…" rows="2"></textarea>
       </div>
       <div class="fgroup">
         <label class="flabel">下次預約追蹤日</label>
@@ -1952,12 +1956,21 @@ async function copyContactList() {
     alert(`名單共 ${list.length} 筆，超過 100 筆上限，請縮小篩選範圍後再複製`);
     return;
   }
+
+  // 格式：【姓名 (暱稱) | 職稱】 公司 | 電話 | LINE | 地址
   const text = list.map(c => {
-    let line = c.name;
-    if (c.phone) line += ` - ${c.phone}`;
-    if (c.line) line += ` - LINE: ${c.line}`;
-    return line;
-  }).join('\n');
+    const nameTag = c.nickname ? `${c.name} (${c.nickname})` : c.name;
+    const titleTag = c.jobTitle ? ` | ${c.jobTitle}` : '';
+    const header = `【${nameTag}${titleTag}】`;
+    const parts = [
+      c.company || null,
+      c.phone   || null,
+      c.lineId  ? `LINE: ${c.lineId}` : null,
+      c.address || null,
+    ].filter(Boolean);
+    return header + (parts.length ? ' ' + parts.join(' | ') : '');
+  }).join('\n\n');  // 雙換行方便 LINE 閱讀
+
   try {
     await navigator.clipboard.writeText(text);
     toast(`已複製 ${list.length} 筆聯絡資訊`);
@@ -2026,11 +2039,11 @@ function openDetail(id) {
       : diff === 0 ? `今天是預約追蹤日 ${c.nextContactDate}${timeStr}`
       : `預約追蹤日：${c.nextContactDate}${timeStr}（還有 ${diff} 天）`;
     const gcalUrl = makeGCalUrl({
-      title: `追蹤：${c.name}`,
+      title: `追蹤：${c.name}${c.company ? '・' + c.company : ''}`,
       date: c.nextContactDate,
       time: c.nextContactTime || '',
       location: c.address || '',
-      details: [c.purpose, c.personalNotes, c.referrer ? '介紹人：' + refName(c.referrer) : ''].filter(Boolean).join('\n')
+      details: buildGCalDetails(c)
     });
     return `<div class="next-date-banner${overdue ? ' overdue' : ''}" style="display:flex;align-items:center;gap:8px">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0">
@@ -2051,6 +2064,7 @@ function openDetail(id) {
           <div style="flex:1;padding-top:1px">
             <div class="tl-date">${ia.date}<span class="tl-method">${ia.method}</span></div>
             <div class="tl-content">${esc(ia.content)}</div>
+            ${ia.remark ? `<div style="font-size:12px;color:var(--text-sub);font-style:italic;margin-top:2px">📝 ${esc(ia.remark)}</div>` : ''}
           </div>
         </div>`).join('')
     : `<p style="color:var(--text-sub);font-size:13px">尚無跟進記錄</p>`;
@@ -2105,11 +2119,11 @@ function openDetail(id) {
           c.importantDates.map(d => {
             const timeStr = d.time ? ' ' + d.time : '';
             const gcalUrl = makeGCalUrl({
-              title: `${esc(d.title)}：${c.name}`,
+              title: `${d.title}：${c.name}${c.company ? '・' + c.company : ''}`,
               date: /^\d{4}/.test(d.date) ? d.date : `${new Date().getFullYear()}-${d.date}`,
               time: d.time || '',
               location: c.address || '',
-              details: [d.notes, c.purpose, c.referrer ? '介紹人：' + refName(c.referrer) : ''].filter(Boolean).join('\n')
+              details: buildGCalDetails(c, d.notes)
             });
             return `<div style="margin-bottom:4px">
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
@@ -2152,6 +2166,21 @@ function drow(k, v) {
 function refName(id) {
   const c = db.customers.find(x => x.id === id);
   return c ? esc(c.name) : '—';
+}
+
+/** 彙整客戶資訊為 Google 日曆 description 字串 */
+function buildGCalDetails(c, extraNote) {
+  const lines = [];
+  if (c.jobTitle)    lines.push(`職稱：${c.jobTitle}`);
+  if (c.leadSource)  lines.push(`來源：${c.leadSource}`);
+  if (c.purpose)     lines.push(`需求：${c.purpose}`);
+  if (c.type)        lines.push(`類型：${c.type}`);
+  if (c.budget)      lines.push(`預算：${c.budget} 萬`);
+  if (c.vehicleNeeds?.length) lines.push(`車型：${c.vehicleNeeds.join('、')}`);
+  if (c.referrer)    lines.push(`介紹人：${refName(c.referrer)}`);
+  if (c.personalNotes) lines.push(`備註：${c.personalNotes}`);
+  if (extraNote)     lines.push(`說明：${extraNote}`);
+  return lines.join('\n');
 }
 
 /** 產生 Google 日曆新增事件網址 */
@@ -2465,10 +2494,11 @@ let recording = false;
 
 function openIA(id) {
   activeIaCid = id;
-  document.getElementById('iaDate').value = todayStr();
+  document.getElementById('iaDate').value    = todayStr();
   document.getElementById('iaContent').value = '';
-  document.getElementById('iaNextDate').value = '';
-  document.getElementById('iaNextTime').value = '';
+  document.getElementById('iaRemark').value  = '';
+  const nd = document.getElementById('iaNextDate'); if (nd) nd.value = '';
+  const nt = document.getElementById('iaNextTime'); if (nt) nt.value = '';
   pills('fg-method', 'imethod', METHODS, 'LINE');
   const qtags = (db.settings && db.settings.quickTags) || DEFAULT_QTAGS;
   document.getElementById('qtags').innerHTML = qtags
@@ -2483,20 +2513,36 @@ function appendTag(t) {
 }
 
 function saveIA() {
-  const content = document.getElementById('iaContent').value.trim();
+  const content = (document.getElementById('iaContent')?.value || '').trim();
   if (!content) { toast('請填寫內容摘要'); return; }
   const c = db.customers.find(x => x.id === activeIaCid);
-  if (!c) return;
-  if (!c.interactions) c.interactions = [];
-  const date = document.getElementById('iaDate').value || todayStr();
-  c.interactions.push({ date, method: checkedVal('imethod') || 'LINE', content });
-  c.lastContactAt = date;
-  c.nextContactDate = document.getElementById('iaNextDate').value || null;
-  c.nextContactTime = document.getElementById('iaNextTime').value || '';
+  if (!c) { toast('找不到客戶資料，請重試'); return; }
+  if (!Array.isArray(c.interactions)) c.interactions = [];
+
+  const date            = document.getElementById('iaDate')?.value     || todayStr();
+  const method          = checkedVal('imethod') || 'LINE';
+  const remark          = (document.getElementById('iaRemark')?.value   || '').trim();
+  const nextContactDate = document.getElementById('iaNextDate')?.value  || null;
+  const nextContactTime = document.getElementById('iaNextTime')?.value  || '';
+
+  c.interactions.push({
+    date,
+    method,
+    content,
+    remark: remark || '',
+    nextContactDate: nextContactDate || null,
+    nextContactTime: nextContactTime || ''
+  });
+
+  c.lastContactAt   = date;
+  c.nextContactDate = nextContactDate || null;
+  c.nextContactTime = nextContactTime || '';
+
   save();
   closeOverlay('iaOverlay');
-  toast('跟進記錄已儲存');
-  if (activeCid === activeIaCid && document.getElementById('detailOverlay').classList.contains('open')) {
+  toast('跟進記錄已儲存 ✓');
+  if (activeCid === activeIaCid &&
+      document.getElementById('detailOverlay')?.classList.contains('open')) {
     openDetail(activeCid);
   }
   refreshAll();
