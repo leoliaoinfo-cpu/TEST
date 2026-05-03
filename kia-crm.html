@@ -857,6 +857,9 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
     <div class="fchip" data-v="成交">成交</div>
     <div class="fchip" data-v="失單">失單</div>
   </div>
+  <div id="copyBtnWrap" style="display:none;padding:0 0 8px">
+    <button class="btn btn-secondary" style="width:100%;height:44px;font-size:14px" onclick="copyContactList()">📋 複製目前名單聯絡資訊</button>
+  </div>
   <div id="custList"></div>
 </div>
 
@@ -889,6 +892,8 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
     <div class="fchip" data-days="90">近 90 天</div>
   </div>
   <div class="loss-stat-grid" id="analysisSummary"></div>
+  <div class="section-label">漏斗轉換率（目前管線）</div>
+  <div class="card" id="analysisFunnel"></div>
   <div class="section-label">失單原因分布</div>
   <div class="card" id="analysisReasonChart"></div>
   <div class="section-label">最常輸給（Top 競品）</div>
@@ -904,7 +909,7 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
       <div class="set-icon" style="background:#E8F0F5">📤</div>
       <div class="set-text">
         <div class="set-title">匯出備份</div>
-        <div class="set-sub">下載 JSON 檔案至手機</div>
+        <div class="set-sub">分享或下載 JSON 備份檔</div>
       </div>
     </div>
     <div class="set-row" onclick="document.getElementById('importInput').click()">
@@ -1676,6 +1681,37 @@ function renderCustList() {
     : `<div class="empty"><div class="empty-icon">${raw ? '🔍' : '👤'}</div>
         <p>${raw ? '找不到符合「' + esc(raw) + '」的客戶' : '這個階段還沒有客戶'}</p>
         ${raw && keywords.length > 1 ? '<small>多字搜尋：每個詞皆需符合</small>' : ''}</div>`;
+
+  const copyWrap = document.getElementById('copyBtnWrap');
+  if (copyWrap) copyWrap.style.display = (stageF || keywords.length > 0) && list.length > 0 ? '' : 'none';
+}
+
+async function copyContactList() {
+  const raw = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  const keywords = raw ? raw.split(/\s+/).filter(Boolean) : [];
+  const list = db.customers.filter(c => {
+    if (stageF && c.stage !== stageF) return false;
+    if (keywords.length === 0) return true;
+    const hay = [c.name, c.company, c.phone, c.purpose, c.address, c.personalNotes]
+      .filter(Boolean).join(' ').toLowerCase();
+    return keywords.every(kw => hay.includes(kw));
+  });
+  if (list.length > 100) {
+    alert(`名單共 ${list.length} 筆，超過 100 筆上限，請縮小篩選範圍後再複製`);
+    return;
+  }
+  const text = list.map(c => {
+    let line = c.name;
+    if (c.phone) line += ` - ${c.phone}`;
+    if (c.line) line += ` - LINE: ${c.line}`;
+    return line;
+  }).join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(`已複製 ${list.length} 筆聯絡資訊`);
+  } catch {
+    toast('複製失敗，請手動操作');
+  }
 }
 
 function custCardHTML(c) {
@@ -1829,11 +1865,32 @@ function openMap(addr) {
   window.open(url, '_blank');
 }
 
+function scheduleAftercare(c) {
+  const base = new Date(todayStr());
+  const schedule = [
+    { months: 1,  title: '滿意度確認' },
+    { months: 3,  title: '車況關心' },
+    { months: 6,  title: '定保提醒' },
+    { months: 11, title: '保險續約' },
+  ];
+  if (!Array.isArray(c.importantDates)) c.importantDates = [];
+  schedule.forEach(({ months, title }) => {
+    const d = new Date(base);
+    d.setMonth(d.getMonth() + months);
+    c.importantDates.push({ title, date: d.toISOString().slice(0, 10) });
+  });
+}
+
 function markStage(id, stage) {
   const c = db.customers.find(x => x.id === id);
   if (!c) return;
   c.stage = stage;
   c.lastContactAt = todayStr();
+  if (stage === '成交') {
+    if (confirm('恭喜成交！要自動建立 1-3-6-11 個月售後關懷排程嗎？')) {
+      scheduleAftercare(c);
+    }
+  }
   save();
   closeOverlay('detailOverlay');
   refreshAll();
@@ -2366,6 +2423,26 @@ document.getElementById('analysisFilter').addEventListener('click', e => {
   renderAnalysis();
 });
 
+function calcWinRate(cutoff) {
+  let wins = db.customers.filter(c => c.stage === '成交');
+  let losses = db.customers.filter(c => c.stage === '失單');
+  if (cutoff) {
+    wins   = wins.filter(c   => (c.lastContactAt || '') >= cutoff);
+    losses = losses.filter(c => (c.lossDetail?.date || c.lastContactAt || '') >= cutoff);
+  }
+  const total = wins.length + losses.length;
+  return total === 0 ? null : Math.round(wins.length / total * 100);
+}
+
+function calcFunnel() {
+  const stageOrder = ['陌生', '接觸', '報價', '議價'];
+  const counts = Object.fromEntries(
+    stageOrder.map(s => [s, db.customers.filter(c => c.stage === s).length])
+  );
+  const base = Math.max(...Object.values(counts), 1);
+  return stageOrder.map(s => ({ stage: s, pct: Math.round(counts[s] / base * 100), n: counts[s] }));
+}
+
 function renderAnalysis() {
   const cutoff = analysisDays > 0
     ? new Date(Date.now() - analysisDays * 86400000).toISOString().slice(0, 10)
@@ -2381,6 +2458,7 @@ function renderAnalysis() {
   const avgGap = withGap.length
     ? Math.round(withGap.reduce((s, c) => s + c.lossDetail.gap, 0) / withGap.length)
     : null;
+  const winRate = calcWinRate(cutoff);
   document.getElementById('analysisSummary').innerHTML = `
     <div class="stat-card">
       <div class="stat-val red">${losses.length}</div>
@@ -2391,7 +2469,28 @@ function renderAnalysis() {
         ${avgGap !== null ? avgGap + '萬' : '—'}
       </div>
       <div class="stat-lbl">平均價差</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--green)">
+        ${winRate !== null ? winRate + '%' : '—'}
+      </div>
+      <div class="stat-lbl">總體勝率</div>
     </div>`;
+
+  // Funnel (active pipeline, no date filter)
+  const funnelData = calcFunnel();
+  document.getElementById('analysisFunnel').innerHTML = funnelData.every(f => f.n === 0)
+    ? '<p style="color:var(--text-sub);font-size:13px">目前管線無客戶</p>'
+    : funnelData.map(f => `
+        <div class="bar-row">
+          <span class="bar-lbl" style="width:36px;font-size:11px">${f.stage}</span>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${f.pct === 0 ? '2px' : f.pct + '%'};background:var(--primary)">
+              ${f.n > 0 ? `<span>${f.pct}%</span>` : ''}
+            </div>
+          </div>
+          <span style="font-size:11px;color:var(--text-sub);flex-shrink:0;width:28px;text-align:right">${f.n} 人</span>
+        </div>`).join('');
 
   // Reason bar chart
   const rCounts = Object.fromEntries(LOSS_RSN.map(r => [r, 0]));
@@ -2486,12 +2585,24 @@ function addQuickTag() {
 // ════════════════════════════════════════
 // EXPORT / IMPORT
 // ════════════════════════════════════════
-function exportData() {
-  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+async function exportData() {
+  const json = JSON.stringify(db, null, 2);
+  const fileName = `kia_crm_${todayStr()}.json`;
+  const blob = new Blob([json], { type: 'application/json' });
+  const file = new File([blob], fileName, { type: 'application/json' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'KIA CRM 備份' });
+      toast('備份已分享');
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `kia_crm_${todayStr()}.json`;
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
