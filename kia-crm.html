@@ -749,7 +749,74 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 .wday.selected .wday-dot.red  { background: #FFB0B0; }
 .wday.selected .wday-dot.gold { background: #FFE0A0; }
 
-/* ── RESPONSIVE ── */
+/* ── FULL-SCREEN CALENDAR OVERLAY ── */
+.cal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: var(--bg); flex-direction: column; overflow: hidden;
+}
+.cal-overlay.open { display: flex; }
+.cal-panel {
+  display: flex; flex-direction: column; height: 100%;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.cal-panel-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px 10px;
+  background: var(--card); border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.cal-panel-head-month { flex: 1; text-align: center; font-size: 17px; font-weight: 700; color: var(--text); }
+.cal-nav-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--bg); border: 1.5px solid var(--border);
+  font-size: 22px; line-height: 1; color: var(--text-sub);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  flex-shrink: 0;
+}
+.cal-nav-btn:active { opacity: .7; }
+.cal-close-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--bg); border: 1.5px solid var(--border);
+  font-size: 16px; color: var(--text-sub);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  flex-shrink: 0;
+}
+.cal-weekday-row {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  padding: 6px 2px 4px; background: var(--card);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.cal-weekday-row span {
+  text-align: center; font-size: 11px; font-weight: 600; color: var(--text-sub); padding: 2px 0;
+}
+.cal-weekday-row span:first-child { color: var(--red); }
+.cal-grid {
+  flex: 1; display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 1px; background: var(--border); overflow-y: auto;
+}
+.cal-cell {
+  background: var(--card); padding: 4px 3px 5px;
+  min-height: 72px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px;
+  -webkit-user-select: none; user-select: none;
+}
+.cal-cell:active { background: var(--bg); }
+.cal-cell.other-month { background: #F8F6F3; }
+.cal-cell-num {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.cal-cell.today .cal-cell-num { background: var(--primary); color: white; }
+.cal-cell.other-month .cal-cell-num { opacity: .38; }
+.cal-cell.selected-day .cal-cell-num { outline: 2px solid var(--primary); }
+.cal-event {
+  font-size: 9.5px; font-weight: 600; padding: 1px 3px; border-radius: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.5;
+}
+.cal-event-red  { background: var(--red);    color: #fff; }
+.cal-event-gold { background: var(--yellow); color: #3A2E00; }
 @media (min-width: 600px) {
   body { max-width: 480px; margin: 0 auto; }
   .bottom-nav, .fab { max-width: 480px; }
@@ -817,15 +884,23 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
   <div class="weekly-strip">
     <div class="wstrip-header">
       <span class="wstrip-month-lbl" id="wstripMonthLbl"></span>
-      <label class="wstrip-month-btn" title="跳至指定月份">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
-        </svg>
-        選月
-        <input type="month" id="wstripMonthPicker" onchange="onWeeklyMonthChange(this.value)">
-      </label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <label class="wstrip-month-btn" title="跳至指定月份">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          選月
+          <input type="month" id="wstripMonthPicker" onchange="onWeeklyMonthChange(this.value)">
+        </label>
+        <button class="wstrip-month-btn" onclick="openCalOverlay()" title="全螢幕月曆" style="border:none;background:var(--bg);cursor:pointer">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
+          </svg>
+          展開
+        </button>
+      </div>
     </div>
     <div class="wstrip-scroll" id="wstripScroll">
       <div class="wstrip-track" id="wstripTrack"></div>
@@ -1156,6 +1231,22 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
       </div>
       <div style="height:8px"></div>
     </div>
+  </div>
+</div>
+
+<!-- ════════════ FULL-SCREEN CALENDAR OVERLAY ════════════ -->
+<div class="cal-overlay" id="calOverlay">
+  <div class="cal-panel">
+    <div class="cal-panel-head">
+      <button class="cal-nav-btn" onclick="calGridNav(-1)">‹</button>
+      <span class="cal-panel-head-month" id="calGridMonthLbl"></span>
+      <button class="cal-nav-btn" onclick="calGridNav(1)">›</button>
+      <button class="cal-close-btn" onclick="closeCalOverlay()" title="關閉">✕</button>
+    </div>
+    <div class="cal-weekday-row">
+      <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+    </div>
+    <div id="calGrid" class="cal-grid"></div>
   </div>
 </div>
 
@@ -1582,6 +1673,107 @@ function onWeeklyMonthChange(monthStr) {
     calSelectedDate = calViewMonth + '-01';
     renderHomeByDate(calSelectedDate, map);
   }
+}
+
+// ════════════════════════════════════════
+// FULL-SCREEN CALENDAR OVERLAY
+// ════════════════════════════════════════
+let calOverlayMonth = null; // 'YYYY-MM' 目前大月曆顯示月份
+let calDetailMap    = {};   // 詳細事件 map（開啟/換月時重建）
+
+/** 掃描所有客戶，建立 dateStr → {red:[{id,name}], gold:[{id,name,title}]} */
+function buildDetailMap() {
+  const map  = {};
+  const year = new Date().getFullYear();
+  const mark = (dateStr, type, data) => {
+    if (!dateStr) return;
+    if (!map[dateStr]) map[dateStr] = { red: [], gold: [] };
+    map[dateStr][type].push(data);
+  };
+  db.customers.forEach(c => {
+    if (c.nextContactDate) mark(c.nextContactDate, 'red', { id: c.id, name: c.name });
+    (c.importantDates || []).forEach(evt => {
+      if (!evt?.date) return;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(evt.date)) {
+        mark(evt.date, 'gold', { id: c.id, name: c.name, title: evt.title });
+      } else if (/^\d{2}-\d{2}$/.test(evt.date)) {
+        mark(`${year}-${evt.date}`,     'gold', { id: c.id, name: c.name, title: evt.title });
+        mark(`${year + 1}-${evt.date}`, 'gold', { id: c.id, name: c.name, title: evt.title });
+      }
+    });
+  });
+  return map;
+}
+
+function openCalOverlay() {
+  calOverlayMonth = calViewMonth || todayStr().slice(0, 7);
+  calDetailMap    = buildDetailMap();
+  renderCalGrid();
+  document.getElementById('calOverlay').classList.add('open');
+}
+
+function closeCalOverlay() {
+  document.getElementById('calOverlay').classList.remove('open');
+}
+
+function calGridNav(dir) {
+  const [y, m] = calOverlayMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + dir, 1);
+  calOverlayMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  renderCalGrid();
+}
+
+function renderCalGrid() {
+  const [y, m]    = calOverlayMonth.split('-').map(Number);
+  const todayDate = todayStr();
+  document.getElementById('calGridMonthLbl').textContent = `${y} 年 ${m} 月`;
+
+  const firstDay = new Date(y, m - 1, 1);
+  const startPad = firstDay.getDay(); // 0=Sun
+  const lastDay  = new Date(y, m, 0);
+  const endPad   = 6 - lastDay.getDay();
+  const total    = startPad + lastDay.getDate() + endPad;
+
+  const cells = [];
+  for (let i = 0; i < total; i++) {
+    const d = new Date(y, m - 1, 1 - startPad + i);
+    cells.push(d.toISOString().slice(0, 10));
+  }
+
+  document.getElementById('calGrid').innerHTML = cells.map(ds => {
+    const d          = new Date(ds + 'T12:00:00');
+    const inMonth    = d.getMonth() + 1 === m && d.getFullYear() === y;
+    const isToday    = ds === todayDate;
+    const isSelected = ds === calSelectedDate;
+    const ev         = calDetailMap[ds] || { red: [], gold: [] };
+
+    const redLabels  = ev.red.slice(0, 2).map(r =>
+      `<div class="cal-event cal-event-red">${esc(r.name)}追蹤</div>`).join('');
+    const goldLabels = ev.gold.slice(0, 2).map(g =>
+      `<div class="cal-event cal-event-gold">${esc(g.name.charAt(0))}・${esc(g.title)}</div>`).join('');
+    const moreRed    = ev.red.length  > 2
+      ? `<div class="cal-event cal-event-red">+${ev.red.length  - 2}</div>` : '';
+    const moreGold   = ev.gold.length > 2
+      ? `<div class="cal-event cal-event-gold">+${ev.gold.length - 2}</div>` : '';
+
+    const cls = ['cal-cell',
+      !inMonth ? 'other-month' : '',
+      isToday  ? 'today'       : '',
+      isSelected && inMonth ? 'selected-day' : ''
+    ].filter(Boolean).join(' ');
+
+    return `<div class="${cls}" onclick="onCalDayClick('${ds}')">
+      <div class="cal-cell-num">${d.getDate()}</div>
+      ${redLabels}${moreRed}${goldLabels}${moreGold}
+    </div>`;
+  }).join('');
+}
+
+function onCalDayClick(dateStr) {
+  closeCalOverlay();
+  calSelectedDate = dateStr;
+  calViewMonth    = dateStr.slice(0, 7);
+  goPage('home');
 }
 
 // ════════════════════════════════════════
