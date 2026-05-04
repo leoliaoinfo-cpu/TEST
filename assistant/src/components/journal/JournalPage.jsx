@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useApp, makeWorkRow } from '../../context';
+import { generateId } from '../../utils/crm';
 import { db } from '../../db';
 import { today, addDays, formatDateFull, getLast30Days } from '../../utils/date';
 import dayjs from 'dayjs';
@@ -359,69 +360,110 @@ function WorkColumn({ col, rows, onAdd, onUpdate, onDelete, colorMenuRow, setCol
 
 // ── WorkRow ──────────────────────────────────────────────────────────────────
 function WorkRow({ row, onUpdate, onDelete, showColorMenu, onToggleColorMenu }) {
+  const { saveTimer } = useApp();
+  const [showTimer, setShowTimer] = useState(false);
+  const [timerTime, setTimerTime] = useState('');
   const rowColor = ROW_COLORS[row.color] || null;
 
-  return (
-    <div
-      className="row-item relative"
-      style={rowColor ? { background: rowColor.bg, borderLeft: `3px solid ${rowColor.border}`, paddingLeft: '6px' } : {}}
-    >
-      <input
-        type="checkbox"
-        checked={row.done}
-        onChange={(e) => onUpdate({ done: e.target.checked })}
-        className="w-3.5 h-3.5 accent-accent shrink-0"
-      />
-      <input
-        value={row.name}
-        onChange={(e) => onUpdate({ name: e.target.value })}
-        className="flex-1 input-inline text-xs min-w-0"
-        placeholder="姓名"
-      />
+  async function handleAddTimer() {
+    if (!timerTime) return;
+    await saveTimer({
+      id: generateId('timer'),
+      clientId: null,
+      clientName: row.name,
+      note: `[日誌] ${row.name}`,
+      triggerAt: new Date(timerTime).toISOString(),
+      confirmedAt: null,
+    });
+    setTimerTime('');
+    setShowTimer(false);
+  }
 
-      {/* Color dot */}
-      <div className="relative shrink-0">
-        <button
-          onClick={onToggleColorMenu}
-          className="w-3 h-3 rounded-full border border-bdr/60"
-          style={{ background: rowColor ? rowColor.border : '#e0c098' }}
-          title="標記顏色"
+  return (
+    <div className="relative">
+      <div
+        className="row-item"
+        style={rowColor ? { background: rowColor.bg, borderLeft: `3px solid ${rowColor.border}`, paddingLeft: '6px' } : {}}
+      >
+        <input
+          type="checkbox"
+          checked={row.done}
+          onChange={(e) => onUpdate({ done: e.target.checked })}
+          className="w-3.5 h-3.5 accent-accent shrink-0"
         />
-        {showColorMenu && (
-          <div className="absolute top-5 left-0 bg-s1 border border-bdr rounded-lg shadow-panel p-1.5 z-20 flex gap-1 flex-wrap w-28">
-            {ROW_COLORS.map((c, idx) => (
-              <button
-                key={idx}
-                onClick={() => { onUpdate({ color: idx }); onToggleColorMenu(); }}
-                className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110"
-                style={{
-                  background: c ? c.border : '#e0c098',
-                  borderColor: row.color === idx ? '#2c1a08' : 'transparent',
-                }}
-                title={ROW_COLOR_LABELS[idx]}
-              />
-            ))}
-          </div>
-        )}
+        <input
+          value={row.name}
+          onChange={(e) => onUpdate({ name: e.target.value })}
+          className="flex-1 input-inline text-xs min-w-0"
+          placeholder="姓名"
+        />
+
+        {/* Color dot */}
+        <div className="relative shrink-0">
+          <button
+            onClick={onToggleColorMenu}
+            className="w-3 h-3 rounded-full border border-bdr/60"
+            style={{ background: rowColor ? rowColor.border : '#e0c098' }}
+            title="標記顏色"
+          />
+          {showColorMenu && (
+            <div className="absolute top-5 left-0 bg-s1 border border-bdr rounded-lg shadow-panel p-1.5 z-20 flex gap-1 flex-wrap w-28">
+              {ROW_COLORS.map((c, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => { onUpdate({ color: idx }); onToggleColorMenu(); }}
+                  className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110"
+                  style={{
+                    background: c ? c.border : '#e0c098',
+                    borderColor: row.color === idx ? '#2c1a08' : 'transparent',
+                  }}
+                  title={ROW_COLOR_LABELS[idx]}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Will / Data toggles */}
+        <button
+          onClick={() => onUpdate({ will: !row.will })}
+          className={`text-[10px] px-1 py-0.5 rounded font-medium shrink-0 transition-colors ${row.will ? 'bg-accent/20 text-accent' : 'text-ink-3 hover:bg-s3'}`}
+        >意</button>
+        <button
+          onClick={() => onUpdate({ data: !row.data })}
+          className={`text-[10px] px-1 py-0.5 rounded font-medium shrink-0 transition-colors ${row.data ? 'bg-ok/20 text-ok' : 'text-ink-3 hover:bg-s3'}`}
+        >傳</button>
+        <button
+          onClick={() => onUpdate({ pin: !row.pin })}
+          className={`text-xs shrink-0 transition-opacity ${row.pin ? 'opacity-100' : 'opacity-30 hover:opacity-60'}`}
+          title="釘選"
+        >📌</button>
+        <button
+          onClick={() => setShowTimer(!showTimer)}
+          className={`text-xs shrink-0 transition-opacity ${showTimer ? 'opacity-100' : 'opacity-30 hover:opacity-70'}`}
+          title="設定計時提醒"
+        >⏱</button>
+        <button
+          onClick={onDelete}
+          className="text-danger/50 hover:text-danger text-xs shrink-0"
+        >✕</button>
       </div>
 
-      {/* Will / Data toggles */}
-      <button
-        onClick={() => onUpdate({ will: !row.will })}
-        className={`text-[10px] px-1 py-0.5 rounded font-medium shrink-0 transition-colors ${row.will ? 'bg-accent/20 text-accent' : 'text-ink-3 hover:bg-s3'}`}
-      >意</button>
-      <button
-        onClick={() => onUpdate({ data: !row.data })}
-        className={`text-[10px] px-1 py-0.5 rounded font-medium shrink-0 transition-colors ${row.data ? 'bg-ok/20 text-ok' : 'text-ink-3 hover:bg-s3'}`}
-      >傳</button>
-      <button
-        onClick={() => onUpdate({ pin: !row.pin })}
-        className={`text-xs shrink-0 transition-opacity ${row.pin ? 'opacity-100' : 'opacity-30 hover:opacity-60'}`}
-      >📌</button>
-      <button
-        onClick={onDelete}
-        className="text-danger/50 hover:text-danger text-xs shrink-0"
-      >✕</button>
+      {/* Inline timer picker */}
+      {showTimer && (
+        <div className="flex items-center gap-1.5 px-1 py-1.5 bg-s2 rounded-lg mt-0.5 mb-1">
+          <span className="text-[10px] text-ink-3 shrink-0">提醒：</span>
+          <input
+            type="datetime-local"
+            value={timerTime}
+            min={dayjs().format('YYYY-MM-DDTHH:mm')}
+            onChange={(e) => setTimerTime(e.target.value)}
+            className="flex-1 text-xs py-0.5"
+          />
+          <button onClick={handleAddTimer} className="btn-primary text-[10px] px-2 py-1 shrink-0">設定</button>
+          <button onClick={() => setShowTimer(false)} className="text-ink-3 text-xs shrink-0">✕</button>
+        </div>
+      )}
     </div>
   );
 }

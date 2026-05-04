@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import {
-  getClientStatus, STATUS_COLOR, STATUS_LABEL, CAT_COLORS, FIELD_COLORS, FIELD_COLOR_NAMES, generateId,
+  getClientStatus, STATUS_COLOR, STATUS_LABEL, CAT_COLORS, FIELD_COLORS, generateId,
 } from '../../utils/crm';
 import { today, formatDateFull, addDays, QUICK_DATES } from '../../utils/date';
 import { useApp } from '../../context';
@@ -10,19 +10,23 @@ const INTENT_LABELS = ['未評估', '低', '中', '高', '非常高'];
 const INTENT_COLORS = ['#b88860', '#808020', '#2080a0', '#2a8a50', '#c9670a'];
 
 export default function ClientDetail({ client, cats, stages, onClose, onSave, onDelete }) {
-  const { customFields, saveCustomFields } = useApp();
+  const { customFields, saveTimer, timers } = useApp();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...client });
   const [logInput, setLogInput] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showCustomFieldEditor, setShowCustomFieldEditor] = useState(false);
   const [showAddTimer, setShowAddTimer] = useState(false);
+  const [timerNote, setTimerNote] = useState('');
+  const [timerTime, setTimerTime] = useState('');
 
   const status = getClientStatus(client);
   const cat = cats.find((c) => c.id === client.catId);
   const stage = stages.find((s) => s.id === client.stageId);
   const daysSinceContact = client.lastContact ? dayjs().diff(dayjs(client.lastContact), 'day') : null;
   const daysSinceCreated = dayjs().diff(dayjs(client.createdAt), 'day');
+
+  // Timers belonging to this client
+  const clientTimers = timers.filter((t) => t.clientId === client.id && !t.confirmedAt);
 
   function setField(k, v) { setForm((f) => ({ ...f, [k]: v })); }
 
@@ -61,6 +65,21 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
     await onSave(updated);
   }
 
+  async function handleAddTimer() {
+    if (!timerNote.trim() || !timerTime) return;
+    await saveTimer({
+      id: generateId('timer'),
+      clientId: client.id,
+      clientName: client.name,
+      note: timerNote.trim(),
+      triggerAt: new Date(timerTime).toISOString(),
+      confirmedAt: null,
+    });
+    setTimerNote('');
+    setTimerTime('');
+    setShowAddTimer(false);
+  }
+
   function setNextDate(dateStr) {
     onSave({ ...client, nextDate: dateStr });
   }
@@ -69,13 +88,10 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
     <div className="h-full flex flex-col bg-bg">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-s1 border-b border-bdr sticky top-0 z-10">
-        <div
-          className="w-2 h-8 rounded-full shrink-0"
-          style={{ background: STATUS_COLOR[status] }}
-        />
+        <div className="w-2 h-8 rounded-full shrink-0" style={{ background: STATUS_COLOR[status] }} />
         <div className="flex-1 min-w-0">
           <h2 className="font-bold text-base text-ink truncate">{client.name}</h2>
-          <p className="text-xs text-ink-3">{STATUS_LABEL[status]}</p>
+          <p className="text-xs" style={{ color: STATUS_COLOR[status] }}>{STATUS_LABEL[status]}</p>
         </div>
         <div className="flex gap-1.5">
           {editing ? (
@@ -108,6 +124,7 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
             <p className="text-[10px] text-ink-3">未接次數</p>
           </div>
         </div>
+
         {client.missedCalls >= 5 && (
           <div className="bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-xs text-danger">
             ⚠️ 未接次數達 {client.missedCalls} 次，建議考慮從名單中移除
@@ -138,13 +155,15 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
           ) : (
             <div className="space-y-1.5 text-sm">
               <InfoRow label="電話" value={
-                client.phone ? (
-                  <a href={`tel:${client.phone}`} className="text-accent underline">{client.phone}</a>
-                ) : '—'
+                client.phone
+                  ? <a href={`tel:${client.phone}`} className="text-accent underline">{client.phone}</a>
+                  : '—'
               } />
               <InfoRow label="Email" value={client.email || '—'} />
               <InfoRow label="分類" value={cat ? (
-                <span className="badge" style={{ background: CAT_COLORS[cat.colorIdx % 7] + '20', color: CAT_COLORS[cat.colorIdx % 7] }}>{cat.name}</span>
+                <span className="badge" style={{ background: CAT_COLORS[cat.colorIdx % 7] + '20', color: CAT_COLORS[cat.colorIdx % 7] }}>
+                  {cat.name}
+                </span>
               ) : '—'} />
               <InfoRow label="進度" value={stage?.name || '—'} />
               <InfoRow label="意願度" value={
@@ -152,7 +171,7 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
                   {INTENT_LABELS[client.intentLevel || 0]}
                 </span>
               } />
-              <InfoRow label="備註" value={<span className="text-ink-2">{client.notes || '—'}</span>} />
+              <InfoRow label="備註" value={<span className="text-ink-2 whitespace-pre-wrap">{client.notes || '—'}</span>} />
             </div>
           )}
         </section>
@@ -168,8 +187,12 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
                 </span>
                 {editing ? (
                   <input
+                    type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                     value={form.customFieldValues?.[field.id] || ''}
-                    onChange={(e) => setField('customFieldValues', { ...(form.customFieldValues || {}), [field.id]: e.target.value })}
+                    onChange={(e) => setField('customFieldValues', {
+                      ...(form.customFieldValues || {}),
+                      [field.id]: e.target.value,
+                    })}
                     className="flex-1 text-sm"
                   />
                 ) : (
@@ -192,11 +215,7 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
             />
             <span className="text-xs text-ink-3">快速：</span>
             {QUICK_DATES.map(({ label, days }) => (
-              <button
-                key={label}
-                onClick={() => setNextDate(addDays(today(), days))}
-                className="btn-outline text-xs px-2 py-1"
-              >
+              <button key={label} onClick={() => setNextDate(addDays(today(), days))} className="btn-outline text-xs px-2 py-1">
                 {label}
               </button>
             ))}
@@ -214,9 +233,7 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
             className="w-full resize-none text-sm"
           />
           <div className="flex gap-2 flex-wrap">
-            <button onClick={handleContacted} className="btn-primary text-sm flex-1">
-              ✅ 已聯繫
-            </button>
+            <button onClick={handleContacted} className="btn-primary text-sm flex-1">✅ 已聯繫</button>
             <button onClick={handleMissedCall} className="btn-outline text-sm flex-1">
               📵 未接 ({client.missedCalls || 0})
             </button>
@@ -224,6 +241,45 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
           {client.lastContact && (
             <p className="text-xs text-ink-3">上次聯繫：{formatDateFull(client.lastContact)}</p>
           )}
+        </section>
+
+        {/* Timer section */}
+        <section className="card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-sm text-ink-2">⏰ 計時提醒</h3>
+            <button onClick={() => setShowAddTimer(!showAddTimer)} className="btn-outline text-xs">
+              {showAddTimer ? '取消' : '+ 新增提醒'}
+            </button>
+          </div>
+
+          {showAddTimer && (
+            <div className="space-y-2 bg-s2 rounded-lg p-3">
+              <input
+                value={timerNote}
+                onChange={(e) => setTimerNote(e.target.value)}
+                placeholder="提醒內容"
+                className="w-full text-sm"
+              />
+              <input
+                type="datetime-local"
+                value={timerTime}
+                min={dayjs().format('YYYY-MM-DDTHH:mm')}
+                onChange={(e) => setTimerTime(e.target.value)}
+                className="w-full text-sm"
+              />
+              <button onClick={handleAddTimer} className="btn-primary text-xs w-full">確認新增</button>
+            </div>
+          )}
+
+          {clientTimers.length === 0 && !showAddTimer && (
+            <p className="text-xs text-ink-3">無待確認提醒</p>
+          )}
+          {clientTimers.map((t) => (
+            <div key={t.id} className="flex items-center justify-between text-xs bg-s2 rounded-lg px-3 py-2">
+              <span className="text-ink-2">{t.note}</span>
+              <span className="text-ink-3 shrink-0 ml-2">{dayjs(t.triggerAt).format('MM/DD HH:mm')}</span>
+            </div>
+          ))}
         </section>
 
         {/* Contact log */}
