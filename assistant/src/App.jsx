@@ -4,6 +4,7 @@ import Header from './components/Header';
 import JournalPage from './components/journal/JournalPage';
 import CrmPage from './components/crm/CrmPage';
 import SalaryPage from './components/salary/SalaryPage';
+import CalendarPage from './components/calendar/CalendarPage';
 import SettingsPanel from './components/SettingsPanel';
 import TimerModal from './components/TimerModal';
 
@@ -165,6 +166,7 @@ function AppInner() {
         <div className="anim-fade-in" key={tab}>
           {tab === 'journal' && <JournalPage />}
           {tab === 'crm' && <CrmPage />}
+          {tab === 'calendar' && <CalendarPage />}
           {tab === 'salary' && <SalaryPage />}
         </div>
       </main>
@@ -172,9 +174,10 @@ function AppInner() {
       {/* Mobile bottom navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-s1 border-t border-bdr flex z-30 pb-safe">
         {[
-          { key: 'journal', icon: '📓', label: '工作日誌' },
-          { key: 'crm', icon: '👥', label: '客戶追蹤' },
-          { key: 'salary', icon: '💰', label: '薪資計算' },
+          { key: 'journal', icon: '📓', label: '日誌' },
+          { key: 'crm', icon: '👥', label: '客戶' },
+          { key: 'calendar', icon: '📅', label: '日曆' },
+          { key: 'salary', icon: '💰', label: '薪資' },
         ].map((item) => (
           <button
             key={item.key}
