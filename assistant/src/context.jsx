@@ -132,24 +132,40 @@ export function AppProvider({ children }) {
   // ── Startup load ──────────────────────────────────────────────────────────
   useEffect(() => {
     async function loadAll() {
-      const [clients, cats, stages, customFields, timers] = await Promise.all([
-        db.getAll('clients'),
-        db.getAll('cats'),
-        db.getAll('stages'),
-        db.getAll('customFields'),
-        db.getAll('timers'),
-      ]);
+      try {
+        const [clients, cats, stages, customFields, timers] = await Promise.all([
+          db.getAll('clients'),
+          db.getAll('cats'),
+          db.getAll('stages'),
+          db.getAll('customFields'),
+          db.getAll('timers'),
+        ]);
 
-      const resolvedCats = cats.length > 0 ? cats : DEFAULT_CATS;
-      const resolvedStages = stages.length > 0 ? stages : DEFAULT_STAGES;
+        const resolvedCats = cats.length > 0 ? cats : DEFAULT_CATS;
+        const resolvedStages = stages.length > 0 ? stages : DEFAULT_STAGES;
 
-      if (cats.length === 0) for (const c of DEFAULT_CATS) await db.put('cats', c);
-      if (stages.length === 0) for (const s of DEFAULT_STAGES) await db.put('stages', s);
+        if (cats.length === 0) for (const c of DEFAULT_CATS) await db.put('cats', c).catch(() => {});
+        if (stages.length === 0) for (const s of DEFAULT_STAGES) await db.put('stages', s).catch(() => {});
 
-      dispatch({
-        type: 'LOAD_INIT',
-        payload: { clients, cats: resolvedCats, stages: resolvedStages, customFields, timers },
-      });
+        dispatch({
+          type: 'LOAD_INIT',
+          payload: { clients, cats: resolvedCats, stages: resolvedStages, customFields, timers },
+        });
+      } catch (err) {
+        // IndexedDB 不可用時（file:// 限制、隱私模式等），以空資料繼續執行
+        console.warn('IndexedDB unavailable, running in memory-only mode:', err);
+        dispatch({
+          type: 'LOAD_INIT',
+          payload: {
+            clients: [],
+            cats: DEFAULT_CATS,
+            stages: DEFAULT_STAGES,
+            customFields: [],
+            timers: [],
+            dbUnavailable: true,
+          },
+        });
+      }
     }
     loadAll();
   }, []);
@@ -158,7 +174,7 @@ export function AppProvider({ children }) {
   const debounceSave = useCallback((key, storeName, value) => {
     if (saveDebounceRef.current[key]) clearTimeout(saveDebounceRef.current[key]);
     saveDebounceRef.current[key] = setTimeout(() => {
-      db.put(storeName, value);
+      db.put(storeName, value).catch(() => {});
     }, 600);
   }, []);
 
