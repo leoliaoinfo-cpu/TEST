@@ -1,0 +1,62 @@
+name: Build & Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'assistant/**'
+  workflow_dispatch: # 允許手動觸發
+
+# GitHub Pages 部署所需權限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一時間只允許一個部署任務，但不取消正在進行中的
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  # ── Job 1: 編譯 ────────────────────────────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: assistant/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: assistant
+
+      - name: Build (vite-plugin-singlefile → dist/index.html)
+        run: npm run build
+        working-directory: assistant
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: assistant/dist   # 上傳整個 dist 資料夾
+
+  # ── Job 2: 部署 ────────────────────────────────────────────────────────────
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
