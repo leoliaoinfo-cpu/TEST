@@ -4,6 +4,23 @@ import { localNow } from '../utils/date';
 import { generateId } from '../utils/crm';
 import dayjs from 'dayjs';
 
+const ALERT_STYLE = `
+@keyframes timerPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201,103,10,0.5); }
+  50% { box-shadow: 0 0 0 20px rgba(201,103,10,0); }
+}
+@keyframes bellShake {
+  0%,100% { transform: rotate(0); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(10deg); }
+  60% { transform: rotate(-8deg); }
+  75% { transform: rotate(5deg); }
+}
+.timer-pulse { animation: timerPulse 1.2s ease-out infinite; }
+.bell-shake { animation: bellShake 0.8s ease infinite; }
+`;
+
 export default function TimerModal() {
   const { timers, saveTimer, deleteTimer } = useApp();
   const [showPanel, setShowPanel] = useState(false);
@@ -21,7 +38,7 @@ export default function TimerModal() {
     }
   }, []);
 
-  // Check for newly expired timers every 15s and send browser notification
+  // Check for newly expired timers every 15s — send browser notification + beep
   useEffect(() => {
     function check() {
       const now = dayjs();
@@ -29,8 +46,22 @@ export default function TimerModal() {
         if (!t.confirmedAt && dayjs(t.triggerAt).isBefore(now) && !notifiedIds.has(t.id)) {
           setNotifiedIds((prev) => new Set([...prev, t.id]));
           if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('⏰ 計時提醒', { body: t.note || t.clientName || '提醒時間到！' });
+            new Notification('⏰ 計時提醒到了！', { body: t.note || t.clientName || '請確認提醒' });
           }
+          // Beep via Web Audio API
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            [0, 0.25, 0.5].forEach((delay) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain); gain.connect(ctx.destination);
+              osc.frequency.value = 880;
+              gain.gain.setValueAtTime(0.3, ctx.currentTime + delay);
+              gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.3);
+              osc.start(ctx.currentTime + delay);
+              osc.stop(ctx.currentTime + delay + 0.3);
+            });
+          } catch {}
         }
       });
     }
@@ -39,34 +70,86 @@ export default function TimerModal() {
     return () => clearInterval(intervalRef.current);
   }, [timers, notifiedIds]);
 
-  const confirmTimer = useCallback(async (timer) => {
+  const confirmAll = useCallback(async () => {
+    for (const t of expiredTimers) {
+      await saveTimer({ ...t, confirmedAt: localNow() });
+    }
+  }, [expiredTimers, saveTimer]);
+
+  const confirmOne = useCallback(async (timer) => {
     await saveTimer({ ...timer, confirmedAt: localNow() });
   }, [saveTimer]);
 
-  if (pendingTimers.length === 0) return null;
-
-  const badgeCount = expiredTimers.length || pendingTimers.length;
-  const hasExpired = expiredTimers.length > 0;
-
   return (
     <>
-      {/* Floating bell button */}
-      <button
-        onClick={() => setShowPanel(true)}
-        className={`fixed bottom-24 right-4 md:bottom-6 rounded-full w-12 h-12 text-white shadow-panel z-40 flex items-center justify-center text-xl transition-colors ${
-          hasExpired ? 'bg-danger animate-pulse' : 'bg-accent'
-        }`}
-        title="計時提醒"
-      >
-        🔔
-        <span className={`absolute -top-1 -right-1 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 ${
-          hasExpired ? 'bg-danger' : 'bg-accent'
-        }`}>
-          {badgeCount}
-        </span>
-      </button>
+      <style>{ALERT_STYLE}</style>
 
-      {/* Notification panel */}
+      {/* ── Expired timers — centered blocking alert ── */}
+      {expiredTimers.length > 0 && (
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
+
+          {/* Alert card */}
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div
+              className="bg-s1 rounded-2xl border-2 border-accent w-full max-w-sm p-6 timer-pulse"
+              style={{ boxShadow: '0 8px 40px rgba(201,103,10,0.35)' }}
+            >
+              {/* Icon + title */}
+              <div className="text-center mb-4">
+                <div className="text-6xl mb-2 bell-shake inline-block">⏰</div>
+                <h2 className="text-xl font-bold text-accent">計時提醒到了！</h2>
+              </div>
+
+              {/* Timer list */}
+              <div className="space-y-2 mb-5 max-h-48 overflow-y-auto">
+                {expiredTimers.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between bg-accent/10 rounded-xl px-4 py-3 gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink text-sm leading-tight truncate">{t.note || t.clientName || '提醒'}</p>
+                      <p className="text-xs text-ink-3 mt-0.5">{dayjs(t.triggerAt).format('MM/DD HH:mm')}</p>
+                    </div>
+                    {expiredTimers.length > 1 && (
+                      <button
+                        onClick={() => confirmOne(t)}
+                        className="text-xs text-accent/70 hover:text-accent shrink-0"
+                      >
+                        確認此項
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Confirm button */}
+              <button
+                onClick={confirmAll}
+                className="btn-primary w-full text-base py-3 font-bold"
+                style={{ fontSize: '1rem' }}
+              >
+                ✅ 我知道了
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Floating bell — manage upcoming timers ── */}
+      {pendingTimers.length > 0 && expiredTimers.length === 0 && (
+        <button
+          onClick={() => setShowPanel(true)}
+          className="fixed bottom-24 right-4 md:bottom-6 bg-accent text-white rounded-full w-12 h-12 shadow-panel z-40 flex items-center justify-center text-xl"
+          title="計時提醒"
+        >
+          🔔
+          <span className="absolute -top-1 -right-1 bg-accent text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+            {pendingTimers.length}
+          </span>
+        </button>
+      )}
+
+      {/* ── Upcoming timers panel ── */}
       {showPanel && (
         <>
           <div className="overlay" onClick={() => setShowPanel(false)} />
@@ -77,28 +160,6 @@ export default function TimerModal() {
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-3">
-              {/* Expired timers */}
-              {expiredTimers.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-danger mb-1.5">⚠️ 已到期（{expiredTimers.length}）</p>
-                  <div className="space-y-2">
-                    {expiredTimers.map((t) => (
-                      <div key={t.id} className="flex items-center justify-between bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-ink truncate">{t.note || t.clientName}</p>
-                          <p className="text-xs text-ink-3">{dayjs(t.triggerAt).format('MM/DD HH:mm')}</p>
-                        </div>
-                        <div className="flex gap-1.5 ml-2 shrink-0">
-                          <button onClick={() => confirmTimer(t)} className="btn-primary text-xs py-1 px-2">確認</button>
-                          <button onClick={() => deleteTimer(t.id)} className="text-danger/60 hover:text-danger text-sm">✕</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Upcoming timers */}
               {upcomingTimers.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-ink-3 mb-1.5">即將到期（{upcomingTimers.length}）</p>
@@ -116,7 +177,10 @@ export default function TimerModal() {
                 </div>
               )}
 
-              {/* Add timer form */}
+              {upcomingTimers.length === 0 && (
+                <p className="text-center text-ink-3 text-sm py-4">暫無計時提醒</p>
+              )}
+
               <div className="pt-1">
                 <p className="text-xs font-semibold text-ink-3 mb-1.5">新增提醒</p>
                 <AddTimerForm onAdd={async (t) => { await saveTimer(t); }} />
@@ -150,20 +214,9 @@ function AddTimerForm({ onAdd }) {
 
   return (
     <div className="space-y-1.5">
-      <input
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder="提醒內容"
-        className="w-full text-sm"
-      />
+      <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="提醒內容" className="w-full text-sm" />
       <div className="flex gap-1.5">
-        <input
-          type="datetime-local"
-          value={time}
-          min={minDate}
-          onChange={(e) => setTime(e.target.value)}
-          className="flex-1 text-sm"
-        />
+        <input type="datetime-local" value={time} min={minDate} onChange={(e) => setTime(e.target.value)} className="flex-1 text-sm" />
         <button onClick={handleAdd} className="btn-primary text-xs px-2 shrink-0">加入</button>
       </div>
     </div>
