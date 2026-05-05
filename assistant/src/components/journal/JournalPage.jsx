@@ -447,28 +447,31 @@ function WorkRow({ row, onUpdate, onDelete, showColorMenu, onToggleColorMenu }) 
           )}
         </div>
 
-        {/* Will / Data toggles */}
+        {/* Will / Data / Pin / Timer toggles */}
         <button
           onClick={() => onUpdate({ will: !row.will })}
-          className={`text-[10px] px-1 py-0.5 rounded font-medium shrink-0 transition-colors ${row.will ? 'bg-accent/20 text-accent' : 'text-ink-3 hover:bg-s3'}`}
-        >意</button>
+          className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 transition-colors ${row.will ? 'bg-accent/20 text-accent' : 'text-ink-3/60 hover:bg-s3 hover:text-ink-2'}`}
+          title="有意願"
+        >有意</button>
         <button
           onClick={() => onUpdate({ data: !row.data })}
-          className={`text-[10px] px-1 py-0.5 rounded font-medium shrink-0 transition-colors ${row.data ? 'bg-ok/20 text-ok' : 'text-ink-3 hover:bg-s3'}`}
-        >傳</button>
+          className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 transition-colors ${row.data ? 'bg-ok/20 text-ok' : 'text-ink-3/60 hover:bg-s3 hover:text-ink-2'}`}
+          title="已傳資料"
+        >傳資</button>
         <button
           onClick={() => onUpdate({ pin: !row.pin })}
-          className={`text-xs shrink-0 transition-opacity ${row.pin ? 'opacity-100' : 'opacity-30 hover:opacity-60'}`}
+          className={`text-sm shrink-0 leading-none transition-opacity ${row.pin ? 'opacity-100' : 'opacity-25 hover:opacity-60'}`}
           title="釘選"
         >📌</button>
         <button
           onClick={() => setShowTimer(!showTimer)}
-          className={`text-xs shrink-0 transition-opacity ${showTimer ? 'opacity-100' : 'opacity-30 hover:opacity-70'}`}
+          className={`text-sm shrink-0 leading-none transition-opacity ${showTimer ? 'opacity-100' : 'opacity-25 hover:opacity-60'}`}
           title="設定計時提醒"
         >⏱</button>
         <button
           onClick={onDelete}
-          className="text-danger/50 hover:text-danger text-xs shrink-0"
+          className="text-danger/40 hover:text-danger text-sm shrink-0 leading-none"
+          title="刪除"
         >✕</button>
       </div>
 

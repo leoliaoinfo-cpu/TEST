@@ -7,7 +7,10 @@ export default function Header({ tab, setTab, onSettings }) {
 
   return (
     <header className="hidden md:flex items-center bg-s1 border-b border-bdr px-4 h-14 sticky top-0 z-30 shadow-card">
-      <span className="font-bold text-accent mr-6 text-base tracking-tight">業務助理</span>
+      <div className="mr-6 shrink-0">
+        <span className="font-bold text-accent text-base tracking-tight">業務系統</span>
+        <span className="text-[10px] text-ink-3 ml-1.5">著作權人：廖冠銘</span>
+      </div>
       <nav className="flex gap-1 flex-1">
         {tabs.map((t) => (
           <button
