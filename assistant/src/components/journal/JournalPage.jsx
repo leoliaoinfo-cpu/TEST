@@ -297,16 +297,7 @@ export default function JournalPage() {
 
       {/* Results area */}
       <div className="card p-4 space-y-3">
-        <h3 className="font-semibold text-sm text-ink-2">📞 通話結果</h3>
-        <div className="flex flex-wrap gap-3">
-          <CounterButton label="接通" value={entry.answered || 0} color="ok"
-            onChange={(v) => updateEntry({ answered: v })} />
-          <CounterButton label="拒絕" value={entry.rejected || 0} color="danger"
-            onChange={(v) => updateEntry({ rejected: v })} />
-          <CounterButton label="未接" value={entry.noAnswer || 0} color=""
-            onChange={(v) => updateEntry({ noAnswer: v })} />
-        </div>
-        <hr className="border-bdr" />
+        <h3 className="font-semibold text-sm text-ink-2">📋 今日業績</h3>
         <div className="flex flex-wrap gap-4 items-center">
           <label className="flex items-center gap-2 text-sm text-ink-2">
             成交件數：
@@ -525,19 +516,6 @@ function ProgressBar({ label, value, max, color }) {
           style={{ width: `${pct}%`, background: color }}
         />
       </div>
-    </div>
-  );
-}
-
-// ── CounterButton ────────────────────────────────────────────────────────────
-function CounterButton({ label, value, color, onChange }) {
-  const colorMap = { ok: 'bg-ok/10 text-ok border-ok/30', danger: 'bg-danger/10 text-danger border-danger/30', '': 'bg-s3 text-ink-2 border-bdr' };
-  return (
-    <div className={`flex items-center gap-2 border rounded-lg px-3 py-1.5 ${colorMap[color] || colorMap['']}`}>
-      <span className="text-sm">{label}</span>
-      <button onClick={() => onChange(Math.max(0, value - 1))} className="font-bold text-lg leading-none opacity-60 hover:opacity-100">−</button>
-      <span className="font-bold text-base w-6 text-center">{value}</span>
-      <button onClick={() => onChange(value + 1)} className="font-bold text-lg leading-none opacity-60 hover:opacity-100">+</button>
     </div>
   );
 }

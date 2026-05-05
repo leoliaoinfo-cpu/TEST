@@ -128,6 +128,7 @@ function reducer(state, action) {
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const saveDebounceRef = useRef({});
+  const pendingSavesRef = useRef({});
 
   // ── Startup load ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -170,12 +171,25 @@ export function AppProvider({ children }) {
     loadAll();
   }, []);
 
+  // ── Flush pending saves on page unload ───────────────────────────────────
+  useEffect(() => {
+    function flushPending() {
+      for (const { storeName, value } of Object.values(pendingSavesRef.current)) {
+        db.put(storeName, value).catch(() => {});
+      }
+    }
+    window.addEventListener('beforeunload', flushPending);
+    return () => window.removeEventListener('beforeunload', flushPending);
+  }, []);
+
   // ── Debounced save helper ─────────────────────────────────────────────────
   const debounceSave = useCallback((key, storeName, value) => {
+    pendingSavesRef.current[key] = { storeName, value };
     if (saveDebounceRef.current[key]) clearTimeout(saveDebounceRef.current[key]);
     saveDebounceRef.current[key] = setTimeout(() => {
       db.put(storeName, value).catch(() => {});
-    }, 600);
+      delete pendingSavesRef.current[key];
+    }, 300);
   }, []);
 
   // ── Journal ───────────────────────────────────────────────────────────────
