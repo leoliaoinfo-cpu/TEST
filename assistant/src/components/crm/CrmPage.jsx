@@ -4,7 +4,7 @@ import {
   getClientStatus, clientMatchesFilter, sortClients,
   CAT_COLORS, STATUS_COLOR, STATUS_LABEL, generateId,
 } from '../../utils/crm';
-import { today, formatDate, formatDateFull, addDays, QUICK_DATES } from '../../utils/date';
+import { today, localNow, formatDate, formatDateFull, addDays, QUICK_DATES } from '../../utils/date';
 import ClientDetail from './ClientDetail';
 import dayjs from 'dayjs';
 
@@ -44,13 +44,21 @@ function useVirtualList(items, containerRef, itemHeight = ITEM_HEIGHT) {
 
 export default function CrmPage() {
   const { clients, cats, stages, saveClient, deleteClient } = useApp();
-  const [filter, setFilter] = useState('all');
-  const [sortKey, setSortKey] = useState('createdAt');
+  const [filter, setFilter] = useState(() => {
+    try { return localStorage.getItem('app_prefs_v2_filter') || 'all'; } catch { return 'all'; }
+  });
+  const [sortKey, setSortKey] = useState(() => {
+    try { return localStorage.getItem('app_prefs_v2_sort') || 'createdAt'; } catch { return 'createdAt'; }
+  });
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
   const listRef = useRef(null);
+
+  // Persist filter/sort to localStorage
+  useEffect(() => { try { localStorage.setItem('app_prefs_v2_filter', filter); } catch {} }, [filter]);
+  useEffect(() => { try { localStorage.setItem('app_prefs_v2_sort', sortKey); } catch {} }, [sortKey]);
 
   const filteredSorted = useMemo(() => {
     let list = clients.filter((c) => clientMatchesFilter(c, filter, cats, stages));
@@ -103,13 +111,35 @@ export default function CrmPage() {
     setShowSidebar(false);
   }
 
+  async function handleQuickContacted(client, e) {
+    e.stopPropagation();
+    const t = today();
+    const updated = {
+      ...client,
+      lastContact: t,
+      missedCalls: 0,
+      log: [...(client.log || []), { id: generateId('log'), date: t, text: '已聯繫', type: 'contact' }],
+    };
+    await saveClient(updated);
+  }
+
+  async function handleQuickMissed(client, e) {
+    e.stopPropagation();
+    const updated = {
+      ...client,
+      missedCalls: (client.missedCalls || 0) + 1,
+      log: [...(client.log || []), { id: generateId('log'), date: today(), text: '致電未接', type: 'missed' }],
+    };
+    await saveClient(updated);
+  }
+
   async function handleNewClient(data) {
     const client = {
       id: generateId('client'),
       ...data,
       log: [],
       missedCalls: 0,
-      createdAt: new Date().toISOString(),
+      createdAt: localNow(),
     };
     await saveClient(client);
     setSelectedId(client.id);
@@ -208,6 +238,8 @@ export default function CrmPage() {
                     stages={stages}
                     selected={selectedId === client.id}
                     onClick={() => handleSelect(client.id)}
+                    onContacted={(e) => handleQuickContacted(client, e)}
+                    onMissed={(e) => handleQuickMissed(client, e)}
                   />
                 ))}
               </div>
@@ -267,15 +299,14 @@ function SidebarItem({ label, count, color, active, onClick }) {
 }
 
 // ── ClientRow ─────────────────────────────────────────────────────────────────
-function ClientRow({ client, cats, stages, selected, onClick }) {
+function ClientRow({ client, cats, stages, selected, onClick, onContacted, onMissed }) {
   const status = getClientStatus(client);
   const cat = cats.find((c) => c.id === client.catId);
-  const stage = stages.find((s) => s.id === client.stageId);
 
   return (
     <div
       onClick={onClick}
-      className={`flex items-center gap-3 px-3 py-3 cursor-pointer border-b border-bdr/50 transition-colors relative ${
+      className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-bdr/50 transition-colors relative ${
         selected ? 'bg-accent/8' : 'hover:bg-s2'
       }`}
       style={{ height: ITEM_HEIGHT }}
@@ -306,12 +337,26 @@ function ClientRow({ client, cats, stages, selected, onClick }) {
         </div>
       </div>
 
-      <div className="text-right shrink-0">
+      {/* Quick action buttons */}
+      <div className="flex gap-1 shrink-0">
+        <button
+          onClick={onContacted}
+          className="text-[11px] px-1.5 py-1 rounded-lg bg-ok/10 text-ok hover:bg-ok/20 font-medium transition-colors"
+          title="已聯繫"
+        >✅</button>
+        <button
+          onClick={onMissed}
+          className="text-[11px] px-1.5 py-1 rounded-lg bg-s3 text-ink-3 hover:bg-danger/10 hover:text-danger font-medium transition-colors"
+          title="未接"
+        >📵</button>
+      </div>
+
+      <div className="text-right shrink-0 min-w-[48px]">
         <div className="text-xs font-medium" style={{ color: STATUS_COLOR[status] }}>
           {STATUS_LABEL[status]}
         </div>
         <div className="text-[10px] text-ink-3 mt-0.5">
-          {client.nextDate ? formatDate(client.nextDate) : '未設追蹤'}
+          {client.nextDate ? formatDate(client.nextDate) : '未設'}
         </div>
       </div>
     </div>

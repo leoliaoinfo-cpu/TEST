@@ -3,7 +3,7 @@ import {
 } from 'react';
 import { db } from './db';
 import { generateId } from './utils/crm';
-import { today } from './utils/date';
+import { today, localNow } from './utils/date';
 import dayjs from 'dayjs';
 
 const AppContext = createContext(null);
@@ -194,7 +194,7 @@ export function AppProvider({ children }) {
 
   // ── CRM ───────────────────────────────────────────────────────────────────
   const saveClient = useCallback(async (client) => {
-    const now = new Date().toISOString();
+    const now = localNow(); // GMT+8 本地時間，非 UTC
     const full = { createdAt: now, ...client, updatedAt: now };
     await db.put('clients', full);
     dispatch({ type: 'UPSERT_CLIENT', payload: full });

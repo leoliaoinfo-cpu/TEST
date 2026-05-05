@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import {
   getClientStatus, STATUS_COLOR, STATUS_LABEL, CAT_COLORS, FIELD_COLORS, generateId,
 } from '../../utils/crm';
-import { today, formatDateFull, addDays, QUICK_DATES } from '../../utils/date';
+import { today, formatDateFull, addDays, QUICK_DATES, googleCalendarUrl } from '../../utils/date';
 import { useApp } from '../../context';
 import dayjs from 'dayjs';
 
@@ -72,7 +72,7 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
       clientId: client.id,
       clientName: client.name,
       note: timerNote.trim(),
-      triggerAt: new Date(timerTime).toISOString(),
+      triggerAt: dayjs(timerTime).toISOString(),
       confirmedAt: null,
     });
     setTimerNote('');
@@ -213,6 +213,17 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
               onChange={(e) => setNextDate(e.target.value)}
               className="text-sm"
             />
+            {client.nextDate && (
+              <a
+                href={googleCalendarUrl({ title: `追蹤：${client.name}`, date: client.nextDate, notes: client.notes || '' })}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-outline text-xs px-2 py-1"
+                title="加入 Google 日曆"
+              >
+                📆 加入行事曆
+              </a>
+            )}
             <span className="text-xs text-ink-3">快速：</span>
             {QUICK_DATES.map(({ label, days }) => (
               <button key={label} onClick={() => setNextDate(addDays(today(), days))} className="btn-outline text-xs px-2 py-1">

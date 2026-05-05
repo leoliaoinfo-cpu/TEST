@@ -1,7 +1,9 @@
 import { useState, useRef } from 'react';
 import { db } from '../db';
 import { useApp } from '../context';
+import { today } from '../utils/date';
 import { CAT_COLORS, FIELD_COLORS, FIELD_COLOR_NAMES, generateId } from '../utils/crm';
+import dayjs from 'dayjs';
 
 const HELP_CARDS = [
   { icon: '📓', title: '工作日誌', desc: '每日追蹤開發、提案進度，記錄接通/未接數量，計算成交業績。' },
@@ -29,6 +31,8 @@ export default function SettingsPanel({ onClose }) {
   const [activeSection, setActiveSection] = useState('backup');
   const [status, setStatus] = useState('');
   const [archiveStatus, setArchiveStatus] = useState('');
+  const [pasteText, setPasteText] = useState('');
+  const [pasteStatus, setPasteStatus] = useState('');
   const fileRef = useRef(null);
   const legacyRef = useRef(null);
 
@@ -40,7 +44,7 @@ export default function SettingsPanel({ onClose }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `business-assistant-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `business-assistant-backup-${today()}.json`;
       a.click();
       URL.revokeObjectURL(url);
       setStatus('✅ 備份下載成功');
@@ -81,14 +85,26 @@ export default function SettingsPanel({ onClose }) {
   }
 
   async function handleArchive() {
-    const cutoff = new Date();
-    cutoff.setMonth(cutoff.getMonth() - 3);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const cutoffStr = dayjs().subtract(3, 'month').format('YYYY-MM-DD');
     try {
       const count = await db.archiveJournalBefore(cutoffStr);
       setArchiveStatus(`✅ 已封存 ${count} 筆舊日誌（${cutoffStr} 之前）`);
     } catch (e) {
       setArchiveStatus('❌ 封存失敗：' + e.message);
+    }
+  }
+
+  async function handlePasteImport() {
+    if (!pasteText.trim()) { setPasteStatus('❌ 請先貼上 JSON 資料'); return; }
+    try {
+      const data = JSON.parse(pasteText.trim());
+      if (data._v === 1) await db.importLegacy(data);
+      else await db.importAll(data);
+      await reloadAll();
+      setPasteStatus('✅ 匯入成功，已重新載入資料');
+      setPasteText('');
+    } catch (err) {
+      setPasteStatus('❌ 解析失敗：' + err.message);
     }
   }
 
@@ -133,9 +149,22 @@ export default function SettingsPanel({ onClose }) {
               </div>
               <div className="card p-4 space-y-3">
                 <h3 className="font-semibold text-ink text-sm">舊版資料匯入（v1 格式）</h3>
-                <button onClick={() => legacyRef.current?.click()} className="btn-outline text-sm">匯入舊版 JSON</button>
+                <button onClick={() => legacyRef.current?.click()} className="btn-outline text-sm">匯入舊版 JSON 檔案</button>
                 <input ref={legacyRef} type="file" accept=".json" className="hidden" onChange={handleLegacyImport} />
                 <p className="text-xs text-ink-3">支援格式：{'{ _v:1, crm, jnl, sal }'}</p>
+              </div>
+              <div className="card p-4 space-y-3">
+                <h3 className="font-semibold text-ink text-sm">📋 貼上 JSON 匯入</h3>
+                <p className="text-xs text-ink-3">將備份 JSON 直接貼上到下方，支援 v1 / v2 格式，自動識別。</p>
+                <textarea
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  placeholder='貼上 JSON 資料（Ctrl+V）…'
+                  rows={5}
+                  className="w-full text-xs resize-y font-mono"
+                />
+                <button onClick={handlePasteImport} className="btn-primary text-sm">解析並匯入</button>
+                {pasteStatus && <p className="text-sm text-ink-2 bg-s2 rounded-lg px-3 py-2">{pasteStatus}</p>}
               </div>
             </section>
           )}

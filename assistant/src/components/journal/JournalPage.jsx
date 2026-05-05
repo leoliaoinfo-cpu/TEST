@@ -111,6 +111,11 @@ export default function JournalPage() {
   function updateRow(colKey, id, patch) {
     const rows = (entry?.[colKey] || []).map((r) => r.id === id ? { ...r, ...patch } : r);
     updateRows(colKey, rows);
+    // Cross-day sync: when marking done, write back to source entry
+    if (patch.done === true) {
+      const row = (entry?.[colKey] || []).find((r) => r.id === id);
+      if (row?._sourceDate) syncDoneToSource(row._sourceDate, id);
+    }
   }
 
   function deleteRow(colKey, id) {
@@ -118,12 +123,30 @@ export default function JournalPage() {
     updateRows(colKey, rows);
   }
 
+  async function syncDoneToSource(sourceDate, rowId) {
+    const src = await db.get('journalEntries', sourceDate) || await db.get('archivedJournal', sourceDate);
+    if (!src) return;
+    let changed = false;
+    const updated = { ...src };
+    for (const col of COLUMNS.slice(0, 2)) {
+      if (Array.isArray(updated[col.key])) {
+        updated[col.key] = updated[col.key].map((r) => {
+          if (r.id === rowId && !r.done) { changed = true; return { ...r, done: true }; }
+          return r;
+        });
+      }
+    }
+    if (changed) await db.put('journalEntries', updated);
+  }
+
   function importDebt() {
     if (!entry) return;
-    const allRows = [...(entry.newDev || [])];
-    const existingNames = new Set(allRows.map((r) => r.name));
-    const toAdd = debtItems.filter((r) => !existingNames.has(r.name));
-    const newDev = [...(entry.newDev || []), ...toAdd.map((r) => makeWorkRow(r.name))];
+    const existingIds = new Set((entry.newDev || []).map((r) => r.id));
+    const existingNames = new Set((entry.newDev || []).map((r) => r.name));
+    const yesterday = addDays(date, -1);
+    const toAdd = debtItems.filter((r) => !existingIds.has(r.id) && !existingNames.has(r.name));
+    const imported = toAdd.map((r) => ({ ...makeWorkRow(r.name), id: r.id, _sourceDate: yesterday }));
+    const newDev = [...(entry.newDev || []), ...imported];
     updateEntry({ newDev });
     setDebtItems([]);
     setShowDebt(false);
@@ -372,7 +395,7 @@ function WorkRow({ row, onUpdate, onDelete, showColorMenu, onToggleColorMenu }) 
       clientId: null,
       clientName: row.name,
       note: `[日誌] ${row.name}`,
-      triggerAt: new Date(timerTime).toISOString(),
+      triggerAt: dayjs(timerTime).toISOString(),
       confirmedAt: null,
     });
     setTimerTime('');
