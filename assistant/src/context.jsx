@@ -221,16 +221,25 @@ export function AppProvider({ children }) {
   }, []);
 
   const saveCats = useCallback(async (cats) => {
+    const existing = await db.getAll('cats');
+    const newIds = new Set(cats.map((c) => c.id));
+    for (const c of existing) { if (!newIds.has(c.id)) await db.delete('cats', c.id); }
     for (const c of cats) await db.put('cats', c);
     dispatch({ type: 'SET_CATS', payload: cats });
   }, []);
 
   const saveStages = useCallback(async (stages) => {
+    const existing = await db.getAll('stages');
+    const newIds = new Set(stages.map((s) => s.id));
+    for (const s of existing) { if (!newIds.has(s.id)) await db.delete('stages', s.id); }
     for (const s of stages) await db.put('stages', s);
     dispatch({ type: 'SET_STAGES', payload: stages });
   }, []);
 
   const saveCustomFields = useCallback(async (fields) => {
+    const existing = await db.getAll('customFields');
+    const newIds = new Set(fields.map((f) => f.id));
+    for (const f of existing) { if (!newIds.has(f.id)) await db.delete('customFields', f.id); }
     for (const f of fields) await db.put('customFields', f);
     dispatch({ type: 'SET_CUSTOM_FIELDS', payload: fields });
   }, []);
