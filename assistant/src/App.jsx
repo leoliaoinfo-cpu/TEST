@@ -133,6 +133,17 @@ function AppInner() {
   const { loading, dbUnavailable } = useApp();
   const [tab, setTab] = useState('crm');
   const [showSettings, setShowSettings] = useState(false);
+  const [openClientId, setOpenClientId] = useState(null);
+
+  function handleOpenClient(clientId) {
+    setOpenClientId(clientId);
+    setTab('crm');
+  }
+
+  function handleSetTab(t) {
+    if (t !== 'crm') setOpenClientId(null);
+    setTab(t);
+  }
 
   if (loading) {
     return (
@@ -160,13 +171,13 @@ function AppInner() {
         </div>
       )}
 
-      <Header tab={tab} setTab={setTab} onSettings={() => setShowSettings(true)} />
+      <Header tab={tab} setTab={handleSetTab} onSettings={() => setShowSettings(true)} />
 
       <main className="pb-20 md:pb-0">
         <div className="anim-fade-in" key={tab}>
           {tab === 'journal' && <JournalPage />}
-          {tab === 'crm' && <CrmPage />}
-          {tab === 'calendar' && <CalendarPage />}
+          {tab === 'crm' && <CrmPage openClientId={openClientId} />}
+          {tab === 'calendar' && <CalendarPage onOpenClient={handleOpenClient} />}
           {tab === 'salary' && <SalaryPage />}
         </div>
       </main>
@@ -181,7 +192,7 @@ function AppInner() {
         ].map((item) => (
           <button
             key={item.key}
-            onClick={() => setTab(item.key)}
+            onClick={() => handleSetTab(item.key)}
             className={`flex-1 flex flex-col items-center py-2.5 gap-0.5 transition-colors ${
               tab === item.key ? 'text-accent' : 'text-ink-3'
             }`}

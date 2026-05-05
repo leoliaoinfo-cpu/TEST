@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
-export default function CalendarPage() {
+export default function CalendarPage({ onOpenClient }) {
   const { clients, timers, cats } = useApp();
   const [viewDate, setViewDate] = useState(() => dayjs());
   const [selectedDay, setSelectedDay] = useState(null);
@@ -26,7 +26,7 @@ export default function CalendarPage() {
       if (c.nextDate) {
         const cat = cats.find((ct) => ct.id === c.catId);
         const color = cat ? CAT_COLORS[cat.colorIdx % CAT_COLORS.length] : '#c9670a';
-        add(c.nextDate, { type: 'client', label: c.name, color, sub: cat?.name, client: c });
+        add(c.nextDate, { type: 'client', chipLabel: `追蹤｜${c.name}`, label: c.name, color, sub: cat?.name || '未分類', client: c });
       }
     });
 
@@ -34,7 +34,8 @@ export default function CalendarPage() {
     timers.filter((t) => !t.confirmedAt).forEach((t) => {
       const timeStr = dayjs(t.triggerAt).format('HH:mm');
       add(t.triggerAt, {
-        type: 'timer', label: t.note || t.clientName || '提醒',
+        type: 'timer', chipLabel: `提醒｜${t.note || t.clientName || '提醒'}`,
+        label: t.note || t.clientName || '提醒',
         color: '#9030a0', sub: timeStr,
       });
     });
@@ -128,8 +129,7 @@ export default function CalendarPage() {
                               className="text-[10px] leading-tight px-1.5 py-0.5 rounded font-medium truncate"
                               style={{ background: ev.color + '22', color: ev.color, border: `1px solid ${ev.color}40` }}
                             >
-                              {ev.type === 'timer' && <span className="mr-0.5">⏰</span>}
-                              {ev.label}
+                              {ev.chipLabel}
                             </div>
                           ))}
                           {events.length > 3 && (
@@ -159,7 +159,6 @@ export default function CalendarPage() {
               <div className="px-4 py-8 text-center text-ink-3 text-sm">無行程</div>
             ) : (
               <div className="p-3 space-y-2">
-                {/* Group by type */}
                 {['client', 'timer'].map((type) => {
                   const group = selectedEvents.filter((e) => e.type === type);
                   if (group.length === 0) return null;
@@ -172,22 +171,30 @@ export default function CalendarPage() {
                         {group.map((ev, i) => (
                           <div
                             key={i}
-                            className="flex items-start gap-2 rounded-xl px-3 py-2.5"
+                            className="rounded-xl px-3 py-2.5"
                             style={{ background: ev.color + '14', borderLeft: `3px solid ${ev.color}` }}
                           >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-ink truncate">{ev.label}</p>
-                              {ev.sub && (
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-ink truncate">{ev.label}</p>
                                 <p className="text-xs text-ink-3 mt-0.5">{ev.sub}</p>
-                              )}
-                              {ev.client?.phone && (
-                                <a
-                                  href={`tel:${ev.client.phone}`}
-                                  className="text-xs text-accent underline mt-0.5 block"
-                                  onClick={(e) => e.stopPropagation()}
+                                {ev.client?.phone && (
+                                  <a
+                                    href={`tel:${ev.client.phone}`}
+                                    className="text-xs text-accent underline mt-0.5 block"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {ev.client.phone}
+                                  </a>
+                                )}
+                              </div>
+                              {ev.type === 'client' && onOpenClient && (
+                                <button
+                                  onClick={() => onOpenClient(ev.client.id)}
+                                  className="text-xs text-accent hover:underline shrink-0 mt-0.5 font-medium"
                                 >
-                                  {ev.client.phone}
-                                </a>
+                                  開啟 →
+                                </button>
                               )}
                             </div>
                           </div>

@@ -42,7 +42,7 @@ function useVirtualList(items, containerRef, itemHeight = ITEM_HEIGHT) {
   return { visibleItems, totalHeight, offsetY };
 }
 
-export default function CrmPage() {
+export default function CrmPage({ openClientId }) {
   const { clients, cats, stages, saveClient, deleteClient } = useApp();
   const [filter, setFilter] = useState(() => {
     try { return localStorage.getItem('app_prefs_v2_filter') || 'all'; } catch { return 'all'; }
@@ -55,6 +55,11 @@ export default function CrmPage() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
   const listRef = useRef(null);
+
+  // Auto-open client when navigated from calendar
+  useEffect(() => {
+    if (openClientId) setSelectedId(openClientId);
+  }, [openClientId]);
 
   // Persist filter/sort to localStorage
   useEffect(() => { try { localStorage.setItem('app_prefs_v2_filter', filter); } catch {} }, [filter]);
