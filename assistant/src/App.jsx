@@ -7,6 +7,91 @@ import SalaryPage from './components/salary/SalaryPage';
 import SettingsPanel from './components/SettingsPanel';
 import TimerModal from './components/TimerModal';
 
+const LOCK_KEY = 'app_unlocked_session';
+const CORRECT_PIN = '1998';
+
+// ── Lock Screen ───────────────────────────────────────────────────────────────
+function LockScreen({ onUnlock }) {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState(false);
+  const [shake, setShake] = useState(false);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (pin === CORRECT_PIN) {
+      sessionStorage.setItem(LOCK_KEY, '1');
+      onUnlock();
+    } else {
+      setError(true);
+      setShake(true);
+      setPin('');
+      setTimeout(() => setShake(false), 500);
+    }
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh', background: '#fdf6ee',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: "'Noto Sans TC', system-ui, sans-serif",
+    }}>
+      <style>{`
+        @keyframes lockShake {
+          0%,100%{transform:translateX(0)}
+          20%{transform:translateX(-8px)}
+          40%{transform:translateX(8px)}
+          60%{transform:translateX(-6px)}
+          80%{transform:translateX(6px)}
+        }
+        .lock-shake { animation: lockShake 0.45s ease; }
+      `}</style>
+
+      <div style={{
+        background: '#fff8f0', border: '1px solid #f0d9b8',
+        borderRadius: 20, padding: '40px 32px', width: '100%', maxWidth: 320,
+        boxShadow: '0 8px 32px rgba(180,120,60,0.12)', textAlign: 'center',
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 8 }}>🔐</div>
+        <h2 style={{ color: '#2c1a08', fontSize: 18, fontWeight: 700, margin: '0 0 4px' }}>業務系統</h2>
+        <p style={{ color: '#b88860', fontSize: 13, margin: '0 0 28px' }}>請輸入密碼以繼續</p>
+
+        <form onSubmit={handleSubmit}>
+          <input
+            type="password"
+            inputMode="numeric"
+            value={pin}
+            onChange={(e) => { setPin(e.target.value); setError(false); }}
+            placeholder="••••"
+            autoFocus
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              padding: '12px 16px', fontSize: 22, textAlign: 'center',
+              letterSpacing: 8, border: `2px solid ${error ? '#d03030' : '#f0d9b8'}`,
+              borderRadius: 12, background: '#fef0dc', color: '#2c1a08',
+              outline: 'none', marginBottom: 8,
+            }}
+            className={shake ? 'lock-shake' : ''}
+          />
+          {error && (
+            <p style={{ color: '#d03030', fontSize: 12, margin: '0 0 12px' }}>密碼錯誤，請再試一次</p>
+          )}
+          <button
+            type="submit"
+            style={{
+              width: '100%', padding: '12px', marginTop: 8,
+              background: '#c9670a', color: '#fff', border: 'none',
+              borderRadius: 12, fontSize: 15, fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            解鎖
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Error Boundary — 任何子元件炸掉都能顯示有意義的訊息 ──────────────────────
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -118,6 +203,12 @@ function AppInner() {
 }
 
 export default function App() {
+  const [unlocked, setUnlocked] = useState(
+    () => sessionStorage.getItem(LOCK_KEY) === '1'
+  );
+
+  if (!unlocked) return <LockScreen onUnlock={() => setUnlocked(true)} />;
+
   return (
     <ErrorBoundary>
       <AppInner />
