@@ -80,6 +80,26 @@ export default function TimerModal() {
     await saveTimer({ ...timer, confirmedAt: localNow() });
   }, [saveTimer]);
 
+  const snoozeAll = useCallback(async (minutes) => {
+    const newTrigger = dayjs().add(minutes, 'minute').toISOString();
+    for (const t of expiredTimers) {
+      await saveTimer({ ...t, triggerAt: newTrigger });
+    }
+    // Allow re-notification after snooze
+    setNotifiedIds((prev) => {
+      const next = new Set(prev);
+      expiredTimers.forEach((t) => next.delete(t.id));
+      return next;
+    });
+  }, [expiredTimers, saveTimer]);
+
+  const SNOOZE_OPTIONS = [
+    { label: '5分', minutes: 5 },
+    { label: '15分', minutes: 15 },
+    { label: '30分', minutes: 30 },
+    { label: '1小時', minutes: 60 },
+  ];
+
   return (
     <>
       <style>{ALERT_STYLE}</style>
@@ -125,11 +145,26 @@ export default function TimerModal() {
               {/* Confirm button */}
               <button
                 onClick={confirmAll}
-                className="btn-primary w-full text-base py-3 font-bold"
-                style={{ fontSize: '1rem' }}
+                className="btn-primary w-full text-base py-3 font-bold mb-3"
               >
                 ✅ 我知道了
               </button>
+
+              {/* Snooze options */}
+              <div>
+                <p className="text-xs text-ink-3 text-center mb-2">— 或延後提醒 —</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {SNOOZE_OPTIONS.map(({ label, minutes }) => (
+                    <button
+                      key={minutes}
+                      onClick={() => snoozeAll(minutes)}
+                      className="btn-outline text-xs py-2 rounded-xl hover:bg-accent/10 hover:border-accent hover:text-accent transition-colors"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </>
