@@ -3,6 +3,7 @@ import { useApp, makeWorkRow } from '../../context';
 import { generateId } from '../../utils/crm';
 import { db } from '../../db';
 import { today, addDays, formatDateFull, getLast30Days } from '../../utils/date';
+import { ImeInput } from '../ImeInput';
 import dayjs from 'dayjs';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -33,7 +34,7 @@ function countMetric(entries, key) {
 }
 
 export default function JournalPage() {
-  const { loadJournalEntry, saveJournalEntry, journalEntries } = useApp();
+  const { loadJournalEntry, saveJournalEntry, journalEntries, clients } = useApp();
   const [date, setDate] = useState(today());
   const [entry, setEntry] = useState(null);
   const [activePanel, setActivePanel] = useState(null);
@@ -48,26 +49,25 @@ export default function JournalPage() {
     loadJournalEntry(date).then(setEntry);
   }, [date, loadJournalEntry]);
 
-  // Load debt pool (cross-day unfinished items from yesterday)
+  // Load debt pool — scan back 5 days, deduplicate by ID
   useEffect(() => {
     async function loadDebt() {
-      const yesterday = addDays(date, -1);
-      const prev = await db.get('journalEntries', yesterday) ||
-                   await db.get('archivedJournal', yesterday);
-      if (!prev) { setDebtItems([]); return; }
-      const all = [];
-      COLUMNS.slice(0, 2).forEach(({ key, label }) => {
-        (prev[key] || []).forEach((r) => {
-          if (!r.done) all.push({ ...r, _sourceCol: key, _sourceLabel: label });
-        });
-      });
-      // deduplicate by name
       const seen = new Set();
-      const unique = all.filter((r) => {
-        if (seen.has(r.name)) return false;
-        seen.add(r.name); return true;
-      });
-      setDebtItems(unique);
+      const all = [];
+      for (let i = 1; i <= 5; i++) {
+        const d = addDays(date, -i);
+        const prev = await db.get('journalEntries', d) || await db.get('archivedJournal', d);
+        if (!prev) continue;
+        COLUMNS.slice(0, 2).forEach(({ key, label }) => {
+          (prev[key] || []).forEach((r) => {
+            if (!r.done && !seen.has(r.id)) {
+              seen.add(r.id);
+              all.push({ ...r, _sourceCol: key, _sourceLabel: label, _sourceDate: d });
+            }
+          });
+        });
+      }
+      setDebtItems(all);
     }
     loadDebt();
   }, [date]);
@@ -143,14 +143,19 @@ export default function JournalPage() {
     if (!entry) return;
     const existingIds = new Set((entry.newDev || []).map((r) => r.id));
     const existingNames = new Set((entry.newDev || []).map((r) => r.name));
-    const yesterday = addDays(date, -1);
     const toAdd = debtItems.filter((r) => !existingIds.has(r.id) && !existingNames.has(r.name));
-    const imported = toAdd.map((r) => ({ ...makeWorkRow(r.name), id: r.id, _sourceDate: yesterday }));
+    const imported = toAdd.map((r) => ({ ...makeWorkRow(r.name), id: r.id, _sourceDate: r._sourceDate }));
     const newDev = [...(entry.newDev || []), ...imported];
     updateEntry({ newDev });
     setDebtItems([]);
     setShowDebt(false);
   }
+
+  // 今日應聯繫
+  const todayDueCount = useMemo(() => {
+    const t = dayjs();
+    return clients.filter((c) => c.nextDate && !dayjs(c.nextDate).isAfter(t, 'day')).length;
+  }, [clients]);
 
   // Stats
   const stats = useMemo(() => {
@@ -181,9 +186,13 @@ export default function JournalPage() {
         <button onClick={() => setDate(addDays(date, 1))} className="btn-ghost px-3 text-lg">›</button>
         <button onClick={() => setDate(today())} className="btn-outline text-xs px-2 py-1">今天</button>
         <div className="flex-1" />
-        <span className="text-sm text-ink-2">
+        {todayDueCount > 0 && (
+          <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1 rounded-lg font-medium shrink-0">
+            📞 今日應聯繫 {todayDueCount} 人
+          </span>
+        )}
+        <span className="text-sm text-ink-2 shrink-0">
           成交 <strong className="text-accent">{entry.dealCount || 0}</strong> 件
-          　${(entry.dealAmount || 0).toLocaleString('zh-TW')}
         </span>
       </div>
 
@@ -195,7 +204,7 @@ export default function JournalPage() {
         <div className="card border-l-4 border-l-amber-400 p-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-amber-700">
-              ⚠️ 昨日未完成 {debtItems.length} 筆
+              ⚠️ 累積未完工 {debtItems.length} 筆（近5天）
             </span>
             <div className="flex gap-2">
               <button onClick={() => setShowDebt(!showDebt)} className="btn-ghost text-xs">
@@ -208,7 +217,7 @@ export default function JournalPage() {
             <div className="mt-2 space-y-1">
               {debtItems.map((r) => (
                 <div key={r.id} className="text-xs text-ink-2 flex items-center gap-2">
-                  <span className="text-ink-3">[{r._sourceLabel}]</span>
+                  <span className="text-ink-3 shrink-0">{r._sourceDate?.slice(5)} [{r._sourceLabel}]</span>
                   <span>{r.name}</span>
                 </div>
               ))}
@@ -359,10 +368,10 @@ function WorkColumn({ col, rows, onAdd, onUpdate, onDelete, colorMenuRow, setCol
       </div>
 
       <div className="flex gap-1 mt-2">
-        <input
+        <ImeInput
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleAdd()}
           placeholder="輸入姓名 Enter 新增"
           className="flex-1 text-xs py-1"
         />
@@ -405,7 +414,7 @@ function WorkRow({ row, onUpdate, onDelete, showColorMenu, onToggleColorMenu }) 
           onChange={(e) => onUpdate({ done: e.target.checked })}
           className="w-3.5 h-3.5 accent-accent shrink-0"
         />
-        <input
+        <ImeInput
           value={row.name}
           onChange={(e) => onUpdate({ name: e.target.value })}
           className="flex-1 input-inline text-xs min-w-0"

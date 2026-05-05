@@ -3,6 +3,7 @@ import { db } from '../db';
 import { useApp } from '../context';
 import { today } from '../utils/date';
 import { CAT_COLORS, FIELD_COLORS, FIELD_COLOR_NAMES, generateId } from '../utils/crm';
+import { ImeInput } from './ImeInput';
 import dayjs from 'dayjs';
 
 const HELP_CARDS = [
@@ -286,7 +287,7 @@ function ListEditor({ title, items, colors, colorCount, onChange }) {
             </select>
           </div>
 
-          <input
+          <ImeInput
             value={item.name}
             onChange={(e) => updateItem(item.id, { name: e.target.value })}
             className="flex-1 text-sm"
@@ -353,7 +354,7 @@ function CustomFieldEditor({ fields, onChange }) {
                 ))}
               </select>
             </div>
-            <input
+            <ImeInput
               value={field.name}
               onChange={(e) => updateField(field.id, { name: e.target.value })}
               placeholder="欄位名稱"
