@@ -138,39 +138,31 @@ export default function SalaryPage() {
 
           {/* Salary breakdown */}
           <div className="card p-4 space-y-3">
-            <h3 className="font-semibold text-ink">💰 薪資明細</h3>
-
-            {/* Level badge */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-ink">💰 薪資明細</h3>
               <span
-                className="text-sm font-bold px-3 py-1 rounded-full"
+                className="text-xs font-bold px-2.5 py-1 rounded-full"
                 style={{ background: LEVEL_COLORS[salary.level] + '20', color: LEVEL_COLORS[salary.level] }}
               >
                 {LEVEL_LABELS[salary.level]}
-              </span>
-              <span className="text-xs text-ink-3">
-                前3個月累計：${formatMoney(salary.prevTotal)}
               </span>
             </div>
 
             <div className="space-y-2">
               {[
-                { label: '底薪', value: salary.base, note: `前3月累計 $${formatMoney(salary.prevTotal)}` },
-                { label: '入單獎', value: salary.entranceBonus, note: `${salary.caseCount} 件` },
-                { label: '超額獎', value: Math.round(salary.excessBonus), note: '單件超 5 萬 × 10%' },
-                { label: '超超額獎', value: salary.superExcessBonus, note: '總業績 × 1%' },
-                { label: '件數獎金', value: salary.countBonus, note: salary.totalPerf >= 65000 ? '業績達 6.5 萬' : '未達 6.5 萬，不計' },
-                { label: '規劃師加給', value: salary.plannerBonus, note: LEVEL_LABELS[salary.level] },
-                { label: '勞健保扣除', value: -salary.deduction, note: '固定扣項', danger: true },
-              ].map(({ label, value, note, danger }) => (
+                { label: '底薪', value: salary.base },
+                { label: '入單獎', value: salary.entranceBonus },
+                { label: '超額獎', value: Math.round(salary.excessBonus) },
+                { label: '超超額獎', value: salary.superExcessBonus },
+                { label: '件數獎金', value: salary.countBonus },
+                { label: '規劃師加給', value: salary.plannerBonus },
+                { label: '勞健保扣除', value: -salary.deduction, danger: true },
+              ].map(({ label, value, danger }) => (
                 <div key={label} className="flex items-center justify-between text-sm">
                   <span className="text-ink-2">{label}</span>
-                  <div className="text-right">
-                    <span className={`font-medium ${danger ? 'text-danger' : value > 0 ? 'text-ok' : 'text-ink-3'}`}>
-                      {danger ? '−' : '+'} ${formatMoney(Math.abs(value))}
-                    </span>
-                    <span className="text-xs text-ink-3 ml-2">{note}</span>
-                  </div>
+                  <span className={`font-medium ${danger ? 'text-danger' : value > 0 ? 'text-ok' : 'text-ink-3'}`}>
+                    {danger ? '−' : '+'} ${formatMoney(Math.abs(value))}
+                  </span>
                 </div>
               ))}
             </div>
