@@ -50,13 +50,15 @@ export default function JournalPage() {
     loadJournalEntry(date).then(setEntry);
   }, [date, loadJournalEntry]);
 
-  // Load debt pool — scan back 5 days, deduplicate by ID
+  // Load debt pool — always scan back 30 days from TODAY (not viewed date), deduplicate by ID
   useEffect(() => {
     async function loadDebt() {
+      const base = today();
       const seen = new Set();
       const all = [];
-      for (let i = 1; i <= 5; i++) {
-        const d = addDays(date, -i);
+      for (let i = 1; i <= 30; i++) {
+        const d = addDays(base, -i);
+        if (d >= base) continue; // never include today or future
         const prev = await db.get('journalEntries', d) || await db.get('archivedJournal', d);
         if (!prev) continue;
         COLUMNS.slice(0, 2).forEach(({ key, label }) => {
@@ -71,7 +73,7 @@ export default function JournalPage() {
       setDebtItems(all);
     }
     loadDebt();
-  }, [date]);
+  }, []);
 
   // Load trend data for past 30 days
   useEffect(() => {
