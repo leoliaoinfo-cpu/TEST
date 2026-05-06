@@ -26,7 +26,14 @@ export function getClientStatus(client) {
   if (!lastContact && daysSinceCreated >= 180) return 'cold';
   if (daysSinceContact !== null && daysSinceContact >= 365) return 'cold';
   if (daysSinceContact !== null && daysSinceContact >= 180) return 'hot';
-  if (nextDate && !nextDate.isAfter(now, 'day')) return 'warn';
+
+  // 待聯繫：nextDate 已到期，且上次聯繫早於 nextDate（或從未聯繫）
+  // 若已在 nextDate 當天或之後聯繫，視為已處理 → 追蹤中
+  if (nextDate && !nextDate.isAfter(now, 'day')) {
+    const contactedAfterDue = lastContact && !lastContact.isBefore(nextDate, 'day');
+    if (!contactedAfterDue) return 'warn';
+  }
+
   return 'ok';
 }
 
