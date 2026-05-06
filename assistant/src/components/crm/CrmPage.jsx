@@ -16,7 +16,7 @@ const SORT_OPTIONS = [
   { value: 'intent', label: '意願度' },
 ];
 
-const ITEM_HEIGHT = 72; // px for desktop row / card
+const ITEM_HEIGHT = 88; // px for desktop row / card
 
 function useVirtualList(items, containerRef, itemHeight = ITEM_HEIGHT) {
   const [scrollTop, setScrollTop] = useState(0);
@@ -52,13 +52,14 @@ export default function CrmPage({ openClientId }) {
   });
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
+  const [showDetail, setShowDetail] = useState(true);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
   const listRef = useRef(null);
 
   // Auto-open client when navigated from calendar
   useEffect(() => {
-    if (openClientId) setSelectedId(openClientId);
+    if (openClientId) { setSelectedId(openClientId); setShowDetail(true); }
   }, [openClientId]);
 
   // Persist filter/sort to localStorage
@@ -112,7 +113,12 @@ export default function CrmPage({ openClientId }) {
   }).length, [clients]);
 
   function handleSelect(id) {
-    setSelectedId(id);
+    if (id === selectedId) {
+      setShowDetail((v) => !v);
+    } else {
+      setSelectedId(id);
+      setShowDetail(true);
+    }
     setShowSidebar(false);
   }
 
@@ -224,6 +230,15 @@ export default function CrmPage({ openClientId }) {
           </select>
           <button onClick={() => setShowNewForm(true)} className="btn-primary text-sm">+ 新增</button>
           <span className="text-xs text-ink-3 shrink-0">{filteredSorted.length} 筆</span>
+          {selectedClient && (
+            <button
+              onClick={() => setShowDetail((v) => !v)}
+              className="hidden md:flex items-center gap-1 btn-ghost text-xs shrink-0"
+              title={showDetail ? '收起詳情' : '展開詳情'}
+            >
+              {showDetail ? '‹ 收起' : '› 展開'}
+            </button>
+          )}
         </div>
 
         {/* List + Detail side by side on desktop */}
@@ -231,7 +246,7 @@ export default function CrmPage({ openClientId }) {
           {/* Client list */}
           <div
             ref={listRef}
-            className={`overflow-y-auto ${selectedClient ? 'hidden md:block md:w-80 lg:w-96' : 'flex-1'}`}
+            className={`overflow-y-auto ${selectedClient && showDetail ? 'hidden md:block md:w-80 lg:w-96' : 'flex-1'}`}
           >
             <div style={{ height: totalHeight, position: 'relative' }}>
               <div style={{ transform: `translateY(${offsetY}px)` }}>
@@ -257,7 +272,7 @@ export default function CrmPage({ openClientId }) {
           </div>
 
           {/* Client detail */}
-          {selectedClient && (
+          {selectedClient && showDetail && (
             <div className="flex-1 border-l border-bdr overflow-y-auto">
               <ClientDetail
                 client={selectedClient}
@@ -307,11 +322,13 @@ function SidebarItem({ label, count, color, active, onClick }) {
 function ClientRow({ client, cats, stages, selected, onClick, onContacted, onMissed }) {
   const status = getClientStatus(client);
   const cat = cats.find((c) => c.id === client.catId);
+  const stage = stages.find((s) => s.id === client.stageId);
+  const notesSnippet = client.notes?.trim().slice(0, 40) || '';
 
   return (
     <div
       onClick={onClick}
-      className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-bdr/50 transition-colors relative ${
+      className={`flex items-start gap-2 px-3 py-2 cursor-pointer border-b border-bdr/50 transition-colors relative ${
         selected ? 'bg-accent/8' : 'hover:bg-s2'
       }`}
       style={{ height: ITEM_HEIGHT }}
@@ -319,49 +336,60 @@ function ClientRow({ client, cats, stages, selected, onClick, onContacted, onMis
       {/* Status bar */}
       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-r" style={{ background: STATUS_COLOR[status] }} />
 
-      <div className="flex-1 min-w-0 pl-1">
+      <div className="flex-1 min-w-0 pl-1 pt-1">
+        {/* Row 1: name + missed */}
         <div className="flex items-center gap-1.5">
           {client.pinned && <span className="text-xs">📌</span>}
-          <span className="font-medium text-sm text-ink truncate">{client.name}</span>
+          <span className="font-semibold text-sm text-ink truncate">{client.name}</span>
           {client.missedCalls > 0 && (
-            <span className={`text-xs px-1 rounded ${client.missedCalls >= 5 ? 'bg-danger/15 text-danger' : 'bg-s3 text-ink-2'}`}>
+            <span className={`text-[10px] px-1 rounded shrink-0 ${client.missedCalls >= 5 ? 'bg-danger/15 text-danger' : 'bg-s3 text-ink-2'}`}>
               📵{client.missedCalls}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-xs text-ink-3 truncate">{client.phone || '—'}</span>
+        {/* Row 2: phone + tags */}
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+          {client.phone && <span className="text-[11px] text-ink-3">{client.phone}</span>}
           {cat && (
-            <span
-              className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0"
-              style={{ background: CAT_COLORS[cat.colorIdx % CAT_COLORS.length] + '20', color: CAT_COLORS[cat.colorIdx % CAT_COLORS.length] }}
-            >
+            <span className="text-[10px] px-1.5 py-px rounded-full shrink-0"
+              style={{ background: CAT_COLORS[cat.colorIdx % CAT_COLORS.length] + '20', color: CAT_COLORS[cat.colorIdx % CAT_COLORS.length] }}>
               {cat.name}
             </span>
           )}
+          {stage && (
+            <span className="text-[10px] px-1.5 py-px rounded-full shrink-0"
+              style={{ background: CAT_COLORS[stage.colorIdx % CAT_COLORS.length] + '15', color: CAT_COLORS[stage.colorIdx % CAT_COLORS.length] }}>
+              {stage.name}
+            </span>
+          )}
+        </div>
+        {/* Row 3: notes or last contact */}
+        <div className="mt-0.5 text-[10px] text-ink-3 truncate">
+          {notesSnippet
+            ? notesSnippet + (client.notes?.length > 40 ? '…' : '')
+            : client.lastContact ? `最後聯繫：${formatDate(client.lastContact)}` : ''}
         </div>
       </div>
 
-      {/* Quick action buttons */}
-      <div className="flex gap-1 shrink-0">
-        <button
-          onClick={onContacted}
-          className="text-[11px] px-1.5 py-1 rounded-lg bg-ok/10 text-ok hover:bg-ok/20 font-medium transition-colors"
-          title="已聯繫"
-        >✅</button>
-        <button
-          onClick={onMissed}
-          className="text-[11px] px-1.5 py-1 rounded-lg bg-s3 text-ink-3 hover:bg-danger/10 hover:text-danger font-medium transition-colors"
-          title="未接"
-        >📵</button>
-      </div>
-
-      <div className="text-right shrink-0 min-w-[48px]">
+      {/* Right side */}
+      <div className="flex flex-col items-end shrink-0 pt-1 gap-1">
         <div className="text-xs font-medium" style={{ color: STATUS_COLOR[status] }}>
           {STATUS_LABEL[status]}
         </div>
-        <div className="text-[10px] text-ink-3 mt-0.5">
+        <div className="text-[10px] text-ink-3">
           {client.nextDate ? formatDate(client.nextDate) : '未設'}
+        </div>
+        <div className="flex gap-1 mt-auto">
+          <button
+            onClick={onContacted}
+            className="text-[10px] px-1.5 py-0.5 rounded bg-ok/10 text-ok hover:bg-ok/20 font-medium transition-colors"
+            title="已聯繫"
+          >✅</button>
+          <button
+            onClick={onMissed}
+            className="text-[10px] px-1.5 py-0.5 rounded bg-s3 text-ink-3 hover:bg-danger/10 hover:text-danger font-medium transition-colors"
+            title="未接"
+          >📵</button>
         </div>
       </div>
     </div>
