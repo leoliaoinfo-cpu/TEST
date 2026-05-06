@@ -42,6 +42,7 @@ export default function JournalPage() {
   const [trendData, setTrendData] = useState([]);
   const [debtItems, setDebtItems] = useState([]);
   const [showDebt, setShowDebt] = useState(false);
+  const [debtTargets, setDebtTargets] = useState({}); // id -> colKey
   const [colorMenuRow, setColorMenuRow] = useState(null); // { col, id }
 
   // Load entry when date changes
@@ -139,14 +140,47 @@ export default function JournalPage() {
     if (changed) await db.put('journalEntries', updated);
   }
 
+  const DEBT_TARGET_COLS = [
+    { key: 'newDev', label: '新開發' },
+    { key: 'oldDev', label: '舊追蹤' },
+    { key: 'fbProposal', label: 'FB提案' },
+    { key: 'lineProposal', label: 'LINE提案' },
+    { key: 'emailProposal', label: '信件提案' },
+  ];
+
+  function getDebtTarget(item) {
+    return debtTargets[item.id] || item._sourceCol || 'newDev';
+  }
+
+  function importSingleDebt(item) {
+    if (!entry) return;
+    const colKey = getDebtTarget(item);
+    const existing = entry[colKey] || [];
+    if (existing.find((r) => r.id === item.id || r.name === item.name)) {
+      setDebtItems((prev) => prev.filter((r) => r.id !== item.id));
+      return;
+    }
+    updateEntry({ [colKey]: [...existing, { ...makeWorkRow(item.name), id: item.id, _sourceDate: item._sourceDate }] });
+    setDebtItems((prev) => prev.filter((r) => r.id !== item.id));
+  }
+
+  async function deleteDebtItem(item) {
+    // Mark as done in source so it won't reappear
+    await syncDoneToSource(item._sourceDate, item.id);
+    setDebtItems((prev) => prev.filter((r) => r.id !== item.id));
+  }
+
   function importDebt() {
     if (!entry) return;
-    const existingIds = new Set((entry.newDev || []).map((r) => r.id));
-    const existingNames = new Set((entry.newDev || []).map((r) => r.name));
-    const toAdd = debtItems.filter((r) => !existingIds.has(r.id) && !existingNames.has(r.name));
-    const imported = toAdd.map((r) => ({ ...makeWorkRow(r.name), id: r.id, _sourceDate: r._sourceDate }));
-    const newDev = [...(entry.newDev || []), ...imported];
-    updateEntry({ newDev });
+    const patch = {};
+    debtItems.forEach((item) => {
+      const colKey = getDebtTarget(item);
+      if (!patch[colKey]) patch[colKey] = [...(entry[colKey] || [])];
+      if (!patch[colKey].find((r) => r.id === item.id || r.name === item.name)) {
+        patch[colKey].push({ ...makeWorkRow(item.name), id: item.id, _sourceDate: item._sourceDate });
+      }
+    });
+    updateEntry(patch);
     setDebtItems([]);
     setShowDebt(false);
   }
@@ -202,7 +236,7 @@ export default function JournalPage() {
       {/* Debt pool banner */}
       {debtItems.length > 0 && (
         <div className="card border-l-4 border-l-amber-400 p-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-sm font-medium text-amber-700">
               ⚠️ 累積未完工 {debtItems.length} 筆（近5天）
             </span>
@@ -214,11 +248,31 @@ export default function JournalPage() {
             </div>
           </div>
           {showDebt && (
-            <div className="mt-2 space-y-1">
-              {debtItems.map((r) => (
-                <div key={r.id} className="text-xs text-ink-2 flex items-center gap-2">
-                  <span className="text-ink-3 shrink-0">{r._sourceDate?.slice(5)} [{r._sourceLabel}]</span>
-                  <span>{r.name}</span>
+            <div className="mt-2 space-y-1.5">
+              {debtItems.map((item) => (
+                <div key={item.id} className="flex items-center gap-2 py-1 border-b border-bdr/30 last:border-0">
+                  <span className="text-[10px] text-ink-3 shrink-0 w-20">{item._sourceDate?.slice(5)} [{item._sourceLabel}]</span>
+                  <span className="flex-1 text-xs text-ink-2 truncate">{item.name}</span>
+                  <select
+                    value={getDebtTarget(item)}
+                    onChange={(e) => setDebtTargets((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                    className="text-[10px] py-0.5 px-1 shrink-0 max-w-[80px]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {DEBT_TARGET_COLS.map((c) => (
+                      <option key={c.key} value={c.key}>{c.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => importSingleDebt(item)}
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 text-accent hover:bg-accent/25 shrink-0 font-medium"
+                    title="轉入今日"
+                  >轉→</button>
+                  <button
+                    onClick={() => deleteDebtItem(item)}
+                    className="text-danger/40 hover:text-danger text-xs shrink-0 leading-none"
+                    title="刪除（標記完成）"
+                  >✕</button>
                 </div>
               ))}
             </div>
