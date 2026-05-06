@@ -50,17 +50,27 @@ export default function JournalPage() {
     loadJournalEntry(date).then(setEntry);
   }, [date, loadJournalEntry]);
 
-  // Load debt pool — always scan back 30 days from TODAY (not viewed date), deduplicate by ID
+  // Load debt pool — scan ALL historical journal entries for unfinished items before today
   useEffect(() => {
     async function loadDebt() {
       const base = today();
       const seen = new Set();
       const all = [];
-      for (let i = 1; i <= 30; i++) {
-        const d = addDays(base, -i);
-        if (d >= base) continue; // never include today or future
-        const prev = await db.get('journalEntries', d) || await db.get('archivedJournal', d);
-        if (!prev) continue;
+
+      // Gather all stored entries from both stores
+      const [active, archived] = await Promise.all([
+        db.getAll('journalEntries'),
+        db.getAll('archivedJournal'),
+      ]);
+      // Merge: prefer active over archived for same date
+      const byDate = {};
+      [...archived, ...active].forEach((e) => { if (e?.date) byDate[e.date] = e; });
+
+      // Sort descending (most recent first), exclude today and future
+      const dates = Object.keys(byDate).filter((d) => d < base).sort().reverse();
+
+      for (const d of dates) {
+        const prev = byDate[d];
         COLUMNS.slice(0, 2).forEach(({ key, label }) => {
           (prev[key] || []).forEach((r) => {
             if (!r.done && !seen.has(r.id)) {
