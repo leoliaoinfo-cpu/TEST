@@ -43,7 +43,7 @@ function useVirtualList(items, containerRef, itemHeight = ITEM_HEIGHT) {
 }
 
 export default function CrmPage({ openClientId }) {
-  const { clients, cats, stages, saveClient, deleteClient } = useApp();
+  const { clients, cats, stages, saveClient, deleteClient, addToJournalPending } = useApp();
   const [filter, setFilter] = useState(() => {
     try { return localStorage.getItem('app_prefs_v2_filter') || 'all'; } catch { return 'all'; }
   });
@@ -146,6 +146,7 @@ export default function CrmPage({ openClientId }) {
       log: [...(client.log || []), { id: generateId('log'), date: t, text: '已聯繫', type: 'contact' }],
     });
     await saveClient(updated);
+    addToJournalPending(client.name, '已聯繫');
   }
 
   async function handleQuickMissed(client, e) {
@@ -156,6 +157,7 @@ export default function CrmPage({ openClientId }) {
       log: [...(client.log || []), { id: generateId('log'), date: today(), text: '致電未接', type: 'missed' }],
     });
     await saveClient(updated);
+    addToJournalPending(client.name, '未接');
   }
 
   async function handleNewClient(data) {

@@ -43,6 +43,8 @@ export default function JournalPage() {
   const [debtItems, setDebtItems] = useState([]);
   const [showDebt, setShowDebt] = useState(false);
   const [debtTargets, setDebtTargets] = useState({}); // id -> colKey
+  const [pendingTargets, setPendingTargets] = useState({}); // pendingId -> colKey
+  const [showPending, setShowPending] = useState(true);
   const [colorMenuRow, setColorMenuRow] = useState(null); // { col, id }
 
   // Load entry when date changes
@@ -197,6 +199,54 @@ export default function JournalPage() {
     setShowDebt(false);
   }
 
+  // ── Pending journal dispatch (from CRM contacts) ─────────────────────────
+  const pendingJournal = useMemo(() => {
+    if (!entry || date !== today()) return []; // only show on today's view
+    return (entry.pendingJournal || []);
+  }, [entry, date]);
+
+  function getPendingTarget(item) {
+    return pendingTargets[item.id] || 'newDev';
+  }
+
+  function assignPendingItem(item) {
+    if (!entry) return;
+    const colKey = getPendingTarget(item);
+    const rows = entry[colKey] || [];
+    const nameNorm = item.clientName.trim().toLowerCase();
+    const existing = rows.find((r) => r.name.trim().toLowerCase() === nameNorm);
+    let updatedRows;
+    if (existing) {
+      updatedRows = rows.map((r) => r.id === existing.id ? { ...r, done: true } : r);
+    } else {
+      updatedRows = [...rows, { ...makeWorkRow(item.clientName), done: true }];
+    }
+    const remaining = (entry.pendingJournal || []).filter((p) => p.id !== item.id);
+    updateEntry({ [colKey]: updatedRows, pendingJournal: remaining });
+  }
+
+  function dismissPendingItem(item) {
+    const remaining = (entry.pendingJournal || []).filter((p) => p.id !== item.id);
+    updateEntry({ pendingJournal: remaining });
+  }
+
+  function assignAllPending() {
+    if (!entry || pendingJournal.length === 0) return;
+    const patch = { pendingJournal: [] };
+    pendingJournal.forEach((item) => {
+      const colKey = getPendingTarget(item);
+      if (!patch[colKey]) patch[colKey] = [...(entry[colKey] || [])];
+      const nameNorm = item.clientName.trim().toLowerCase();
+      const existing = patch[colKey].find((r) => r.name.trim().toLowerCase() === nameNorm);
+      if (existing) {
+        patch[colKey] = patch[colKey].map((r) => r.id === existing.id ? { ...r, done: true } : r);
+      } else {
+        patch[colKey] = [...patch[colKey], { ...makeWorkRow(item.clientName), done: true }];
+      }
+    });
+    updateEntry(patch);
+  }
+
   // 今日應聯繫
   const todayDueCount = useMemo(() => {
     const t = dayjs();
@@ -284,6 +334,52 @@ export default function JournalPage() {
                     onClick={() => deleteDebtItem(item)}
                     className="text-danger/40 hover:text-danger text-xs shrink-0 leading-none"
                     title="刪除（標記完成）"
+                  >✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pending CRM contacts dispatch banner */}
+      {pendingJournal.length > 0 && (
+        <div className="card border-l-4 border-l-blue-400 p-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-sm font-medium text-blue-700">
+              📋 待分配聯繫記錄 {pendingJournal.length} 筆
+            </span>
+            <div className="flex gap-2">
+              <button onClick={() => setShowPending(!showPending)} className="btn-ghost text-xs">
+                {showPending ? '收起' : '展開'}
+              </button>
+              <button onClick={assignAllPending} className="btn-primary text-xs">一鍵分配</button>
+            </div>
+          </div>
+          {showPending && (
+            <div className="mt-2 space-y-1.5">
+              {pendingJournal.map((item) => (
+                <div key={item.id} className="flex items-center gap-2 py-1 border-b border-bdr/30 last:border-0">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 font-medium ${item.action === '已聯繫' ? 'bg-ok/15 text-ok' : 'bg-danger/10 text-danger'}`}>
+                    {item.action}
+                  </span>
+                  <span className="flex-1 text-xs text-ink-2 truncate">{item.clientName}</span>
+                  <select
+                    value={getPendingTarget(item)}
+                    onChange={(e) => setPendingTargets((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                    className="text-[10px] py-0.5 px-1 shrink-0 max-w-[90px]"
+                  >
+                    {COLUMNS.filter((c) => c.key !== 'findList').map((c) => (
+                      <option key={c.key} value={c.key}>{c.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => assignPendingItem(item)}
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 text-accent hover:bg-accent/25 shrink-0 font-medium"
+                  >加入→</button>
+                  <button
+                    onClick={() => dismissPendingItem(item)}
+                    className="text-danger/40 hover:text-danger text-xs shrink-0"
                   >✕</button>
                 </div>
               ))}

@@ -206,6 +206,31 @@ export function AppProvider({ children }) {
     debounceSave(`journal-${entry.date}`, 'journalEntries', entry);
   }, [debounceSave]);
 
+  // Add a CRM contact action to today's journal pending queue
+  const addToJournalPending = useCallback(async (clientName, action) => {
+    const date = today();
+    let entry = state.journalEntries[date];
+    if (!entry) {
+      entry = await db.get('journalEntries', date) || makeEmptyJournalEntry(date);
+    }
+    // Avoid duplicate: same clientName + action already pending today
+    const already = (entry.pendingJournal || []).some(
+      (p) => p.clientName === clientName && p.action === action
+    );
+    if (already) return;
+    const updated = {
+      ...entry,
+      pendingJournal: [...(entry.pendingJournal || []), {
+        id: generateId('pj'),
+        clientName,
+        action,
+        addedAt: localNow(),
+      }],
+    };
+    dispatch({ type: 'SET_JOURNAL_ENTRY', date, payload: updated });
+    debounceSave(`journal-${date}`, 'journalEntries', updated);
+  }, [state.journalEntries, debounceSave]);
+
   // ── CRM ───────────────────────────────────────────────────────────────────
   const saveClient = useCallback(async (client) => {
     const now = localNow(); // GMT+8 本地時間，非 UTC
@@ -289,6 +314,7 @@ export function AppProvider({ children }) {
     dispatch,
     loadJournalEntry,
     saveJournalEntry,
+    addToJournalPending,
     saveClient,
     deleteClient,
     saveCats,

@@ -11,7 +11,7 @@ const INTENT_LABELS = ['未評估', '低', '中', '高', '非常高'];
 const INTENT_COLORS = ['#b88860', '#808020', '#2080a0', '#2a8a50', '#c9670a'];
 
 export default function ClientDetail({ client, cats, stages, onClose, onSave, onDelete }) {
-  const { customFields, saveTimer, timers } = useApp();
+  const { customFields, saveTimer, timers, addToJournalPending } = useApp();
   const [form, setForm] = useState({ ...client });
   const [logInput, setLogInput] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -68,6 +68,7 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
       log: [...(client.log || []), logEntry],
     });
     await onSave(updated);
+    addToJournalPending(client.name, '已聯繫');
     setLogInput('');
   }
 
@@ -81,6 +82,7 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
       ],
     });
     await onSave(updated);
+    addToJournalPending(client.name, '未接');
   }
 
   async function handleAddTimer() {
