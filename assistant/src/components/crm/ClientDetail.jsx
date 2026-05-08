@@ -28,6 +28,16 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
   // Timers belonging to this client
   const clientTimers = timers.filter((t) => t.clientId === client.id && !t.confirmedAt);
 
+  // Auto-move out of "匯入區" when any contact log is added
+  function withImportPromotion(updated) {
+    const importCat = cats.find((c) => c.name === '匯入區');
+    if (importCat && updated.catId === importCat.id) {
+      const defaultCat = cats.find((c) => c.id !== importCat.id);
+      if (defaultCat) return { ...updated, catId: defaultCat.id };
+    }
+    return updated;
+  }
+
   function setField(k, v) { setForm((f) => ({ ...f, [k]: v })); }
 
   async function handleSave() {
@@ -43,25 +53,25 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
       text: logInput.trim() || '已聯繫',
       type: 'contact',
     };
-    const updated = {
+    const updated = withImportPromotion({
       ...client,
       lastContact: t,
       missedCalls: 0,
       log: [...(client.log || []), logEntry],
-    };
+    });
     await onSave(updated);
     setLogInput('');
   }
 
   async function handleMissedCall() {
-    const updated = {
+    const updated = withImportPromotion({
       ...client,
       missedCalls: (client.missedCalls || 0) + 1,
       log: [
         ...(client.log || []),
         { id: generateId('log'), date: today(), text: '致電未接', type: 'missed' },
       ],
-    };
+    });
     await onSave(updated);
   }
 

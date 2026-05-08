@@ -128,25 +128,33 @@ export default function CrmPage({ openClientId }) {
     setShowSidebar(false);
   }
 
+  function promoteFromImport(client) {
+    if (importCat && client.catId === importCat.id) {
+      const defaultCat = cats.find((c) => c.id !== importCat.id);
+      if (defaultCat) return { ...client, catId: defaultCat.id };
+    }
+    return client;
+  }
+
   async function handleQuickContacted(client, e) {
     e.stopPropagation();
     const t = today();
-    const updated = {
+    const updated = promoteFromImport({
       ...client,
       lastContact: t,
       missedCalls: 0,
       log: [...(client.log || []), { id: generateId('log'), date: t, text: '已聯繫', type: 'contact' }],
-    };
+    });
     await saveClient(updated);
   }
 
   async function handleQuickMissed(client, e) {
     e.stopPropagation();
-    const updated = {
+    const updated = promoteFromImport({
       ...client,
       missedCalls: (client.missedCalls || 0) + 1,
       log: [...(client.log || []), { id: generateId('log'), date: today(), text: '致電未接', type: 'missed' }],
-    };
+    });
     await saveClient(updated);
   }
 
