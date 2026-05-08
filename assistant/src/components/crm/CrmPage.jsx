@@ -115,6 +115,9 @@ export default function CrmPage({ openClientId }) {
 
   const archivedCount = useMemo(() => clients.filter((c) => c.archived).length, [clients]);
 
+  const importCat = useMemo(() => cats.find((c) => c.name === '匯入區'), [cats]);
+  const importCount = useMemo(() => importCat ? clients.filter((c) => !c.archived && c.catId === importCat.id).length : 0, [clients, importCat]);
+
   function handleSelect(id) {
     if (id === selectedId) {
       setShowDetail((v) => !v);
@@ -182,6 +185,7 @@ export default function CrmPage({ openClientId }) {
               { key: 'all', label: '全部', count: clients.filter((c) => !c.archived).length, color: '#7a5030' },
               { key: 'pending', label: '待聯繫', count: pendingCount, color: STATUS_COLOR.warn },
               { key: 'cold', label: '冷掉了', count: coldCount, color: STATUS_COLOR.cold },
+              ...(importCat ? [{ key: `cat:${importCat.id}`, label: '📥 匯入區', count: importCount, color: '#1a60a8' }] : []),
               { key: 'archived', label: '📁 已封存', count: archivedCount, color: '#b0b0b0' },
             ].map((f) => (
               <SidebarItem key={f.key} active={filter === f.key} color={f.color}

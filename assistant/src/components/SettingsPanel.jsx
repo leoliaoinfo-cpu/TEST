@@ -139,8 +139,16 @@ export default function SettingsPanel({ onClose }) {
 
   async function handleImportRaw() {
     if (!preview || preview.length === 0) return;
-    const defaultCatId = cats[0]?.id || '';
     const defaultStageId = stages[0]?.id || '';
+
+    // Find or create "匯入區" category
+    let importCat = cats.find((c) => c.name === '匯入區');
+    if (!importCat) {
+      importCat = { id: generateId('cat'), name: '匯入區', colorIdx: 2, order: cats.length };
+      await saveCats([...cats, importCat]);
+    }
+    const importCatId = importCat.id;
+
     let count = 0;
     for (const r of preview) {
       if (!r.import) continue;
@@ -149,7 +157,7 @@ export default function SettingsPanel({ onClose }) {
         name: r.name,
         phone: r.phone || '',
         notes: r.contact ? `聯絡人：${r.contact}` : '',
-        catId: defaultCatId,
+        catId: importCatId,
         stageId: defaultStageId,
         intentLevel: 0,
         nextDate: addDays(today(), 1),
@@ -160,7 +168,7 @@ export default function SettingsPanel({ onClose }) {
       await saveClient(client);
       count++;
     }
-    setImportStatus(`✅ 已匯入 ${count} 筆客戶`);
+    setImportStatus(`✅ 已匯入 ${count} 筆客戶至「匯入區」`);
     setPreview(null);
     setRawText('');
   }
