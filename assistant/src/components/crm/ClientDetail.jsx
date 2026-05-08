@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   getClientStatus, STATUS_COLOR, STATUS_LABEL, CAT_COLORS, FIELD_COLORS, generateId,
 } from '../../utils/crm';
 import { today, formatDateFull, addDays, QUICK_DATES, googleCalendarUrl } from '../../utils/date';
 import { useApp } from '../../context';
+import { ImeInput } from '../ImeInput';
 import dayjs from 'dayjs';
 
 const INTENT_LABELS = ['未評估', '低', '中', '高', '非常高'];
@@ -11,13 +12,13 @@ const INTENT_COLORS = ['#b88860', '#808020', '#2080a0', '#2a8a50', '#c9670a'];
 
 export default function ClientDetail({ client, cats, stages, onClose, onSave, onDelete }) {
   const { customFields, saveTimer, timers } = useApp();
-  const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...client });
   const [logInput, setLogInput] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAddTimer, setShowAddTimer] = useState(false);
   const [timerNote, setTimerNote] = useState('');
   const [timerTime, setTimerTime] = useState('');
+  const saveTimeout = useRef(null);
 
   const status = getClientStatus(client);
   const cat = cats.find((c) => c.id === client.catId);
@@ -38,11 +39,18 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
     return updated;
   }
 
-  function setField(k, v) { setForm((f) => ({ ...f, [k]: v })); }
+  // Inline field update: update local form immediately, debounce save
+  function setField(k, v) {
+    const updated = { ...form, [k]: v };
+    setForm(updated);
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    saveTimeout.current = setTimeout(() => onSave(updated), 400);
+  }
 
-  async function handleSave() {
-    await onSave(form);
-    setEditing(false);
+  // Immediate save (on blur of text inputs)
+  function flushSave(overrides = {}) {
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    onSave({ ...form, ...overrides });
   }
 
   async function handleContacted() {
@@ -100,20 +108,10 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
       <div className="flex items-center gap-3 px-4 py-3 bg-s1 border-b border-bdr sticky top-0 z-10">
         <div className="w-2 h-8 rounded-full shrink-0" style={{ background: STATUS_COLOR[status] }} />
         <div className="flex-1 min-w-0">
-          <h2 className="font-bold text-base text-ink truncate">{client.name}</h2>
+          <h2 className="font-bold text-base text-ink truncate">{form.name || client.name}</h2>
           <p className="text-xs" style={{ color: STATUS_COLOR[status] }}>{STATUS_LABEL[status]}</p>
         </div>
-        <div className="flex gap-1.5">
-          {editing ? (
-            <>
-              <button onClick={handleSave} className="btn-primary text-xs">儲存</button>
-              <button onClick={() => { setEditing(false); setForm({ ...client }); }} className="btn-outline text-xs">取消</button>
-            </>
-          ) : (
-            <button onClick={() => setEditing(true)} className="btn-outline text-xs">編輯</button>
-          )}
-          <button onClick={onClose} className="md:hidden btn-ghost text-lg px-2">✕</button>
-        </div>
+        <button onClick={onClose} className="md:hidden btn-ghost text-lg px-2">✕</button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -141,49 +139,30 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
           </div>
         )}
 
-        {/* Basic info */}
-        <section className="card p-4 space-y-3">
-          <h3 className="font-semibold text-sm text-ink-2">基本資料</h3>
-          {editing ? (
-            <div className="space-y-2">
-              <input value={form.name || ''} onChange={(e) => setField('name', e.target.value)} placeholder="姓名" className="w-full" />
-              <input value={form.phone || ''} onChange={(e) => setField('phone', e.target.value)} placeholder="電話" className="w-full" />
-              <input value={form.email || ''} onChange={(e) => setField('email', e.target.value)} placeholder="Email" className="w-full" />
-              <div className="grid grid-cols-2 gap-2">
-                <select value={form.catId || ''} onChange={(e) => setField('catId', e.target.value)} className="w-full">
-                  {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <select value={form.stageId || ''} onChange={(e) => setField('stageId', e.target.value)} className="w-full">
-                  {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              <select value={form.intentLevel || 0} onChange={(e) => setField('intentLevel', Number(e.target.value))} className="w-full">
-                {INTENT_LABELS.map((l, i) => <option key={i} value={i}>{l}</option>)}
-              </select>
-              <textarea value={form.notes || ''} onChange={(e) => setField('notes', e.target.value)} placeholder="備註" rows={2} className="w-full resize-none" />
-            </div>
-          ) : (
-            <div className="space-y-1.5 text-sm">
-              <InfoRow label="電話" value={
-                client.phone
-                  ? <a href={`tel:${client.phone}`} className="text-accent underline">{client.phone}</a>
-                  : '—'
-              } />
-              <InfoRow label="Email" value={client.email || '—'} />
-              <InfoRow label="分類" value={cat ? (
-                <span className="badge" style={{ background: CAT_COLORS[cat.colorIdx % 7] + '20', color: CAT_COLORS[cat.colorIdx % 7] }}>
-                  {cat.name}
-                </span>
-              ) : '—'} />
-              <InfoRow label="進度" value={stage?.name || '—'} />
-              <InfoRow label="意願度" value={
-                <span style={{ color: INTENT_COLORS[client.intentLevel || 0] }} className="font-medium">
-                  {INTENT_LABELS[client.intentLevel || 0]}
-                </span>
-              } />
-              <InfoRow label="備註" value={<span className="text-ink-2 whitespace-pre-wrap">{client.notes || '—'}</span>} />
-            </div>
-          )}
+        {/* Basic info — always editable, auto-save on blur/change */}
+        <section className="card p-4 space-y-2">
+          <h3 className="font-semibold text-sm text-ink-2 mb-1">基本資料</h3>
+          <ImeInput value={form.name || ''} onChange={(e) => setField('name', e.target.value)}
+            onBlur={() => flushSave()} placeholder="公司/客戶名稱" className="w-full font-medium" />
+          <ImeInput value={form.phone || ''} onChange={(e) => setField('phone', e.target.value)}
+            onBlur={() => flushSave()} placeholder="電話" className="w-full" />
+          <ImeInput value={form.email || ''} onChange={(e) => setField('email', e.target.value)}
+            onBlur={() => flushSave()} placeholder="Email" className="w-full" />
+          <div className="grid grid-cols-2 gap-2">
+            <select value={form.catId || ''} onChange={(e) => setField('catId', e.target.value)} className="w-full text-sm">
+              <option value="">（未分類）</option>
+              {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <select value={form.stageId || ''} onChange={(e) => setField('stageId', e.target.value)} className="w-full text-sm">
+              <option value="">（未設進度）</option>
+              {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <select value={form.intentLevel || 0} onChange={(e) => setField('intentLevel', Number(e.target.value))} className="w-full text-sm">
+            {INTENT_LABELS.map((l, i) => <option key={i} value={i}>意願度：{l}</option>)}
+          </select>
+          <textarea value={form.notes || ''} onChange={(e) => setField('notes', e.target.value)}
+            onBlur={() => flushSave()} placeholder="備註" rows={2} className="w-full resize-none text-sm" />
         </section>
 
         {/* Custom fields */}
@@ -195,19 +174,16 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
                 <span className="text-xs font-medium w-20 shrink-0" style={{ color: FIELD_COLORS[field.colorIdx || 0] }}>
                   {field.name}
                 </span>
-                {editing ? (
-                  <input
-                    type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                    value={form.customFieldValues?.[field.id] || ''}
-                    onChange={(e) => setField('customFieldValues', {
-                      ...(form.customFieldValues || {}),
-                      [field.id]: e.target.value,
-                    })}
-                    className="flex-1 text-sm"
-                  />
-                ) : (
-                  <span className="text-ink-2">{client.customFieldValues?.[field.id] || '—'}</span>
-                )}
+                <input
+                  type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                  value={form.customFieldValues?.[field.id] || ''}
+                  onChange={(e) => setField('customFieldValues', {
+                    ...(form.customFieldValues || {}),
+                    [field.id]: e.target.value,
+                  })}
+                  onBlur={() => flushSave()}
+                  className="flex-1 text-sm"
+                />
               </div>
             ))}
           </section>

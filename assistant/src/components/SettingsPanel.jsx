@@ -158,7 +158,7 @@ export default function SettingsPanel({ onClose }) {
         phone: r.phone || '',
         notes: r.contact ? `聯絡人：${r.contact}` : '',
         catId: importCatId,
-        stageId: defaultStageId,
+        stageId: '',
         intentLevel: 0,
         nextDate: addDays(today(), 1),
         log: [],
