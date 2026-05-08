@@ -300,7 +300,7 @@ export default function JournalPage() {
         <div className="card border-l-4 border-l-amber-400 p-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-sm font-medium text-amber-700">
-              ⚠️ 累積未完工 {debtItems.length} 筆（近5天）
+              ⚠️ 累積未完工 {debtItems.length} 筆
             </span>
             <div className="flex gap-2">
               <button onClick={() => setShowDebt(!showDebt)} className="btn-ghost text-xs">

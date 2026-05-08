@@ -103,6 +103,7 @@ export default function CrmPage({ openClientId }) {
   }, [clients]);
 
   const pendingCount = useMemo(() => clients.filter((c) => {
+    if (c.archived) return false;
     const nd = c.nextDate ? dayjs(c.nextDate) : null;
     return nd && !nd.isAfter(dayjs(), 'day');
   }).length, [clients]);
@@ -417,7 +418,7 @@ function ClientRow({ client, cats, stages, selected, onClick, onContacted, onMis
 // ── NewClientModal ────────────────────────────────────────────────────────────
 function NewClientModal({ cats, stages, onClose, onCreate }) {
   const [form, setForm] = useState({
-    name: '', phone: '', catId: cats[0]?.id || '', stageId: stages[0]?.id || '',
+    name: '', phone: '', catId: '', stageId: '',
     intentLevel: 0, notes: '', nextDate: addDays(today(), 7),
   });
 
@@ -440,9 +441,11 @@ function NewClientModal({ cats, stages, onClose, onCreate }) {
             <input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="電話" className="w-full" />
             <div className="grid grid-cols-2 gap-2">
               <select value={form.catId} onChange={(e) => set('catId', e.target.value)} className="w-full">
+                <option value="">（未分類）</option>
                 {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <select value={form.stageId} onChange={(e) => set('stageId', e.target.value)} className="w-full">
+                <option value="">（未設進度）</option>
                 {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
