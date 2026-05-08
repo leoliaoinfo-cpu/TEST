@@ -108,9 +108,12 @@ export default function CrmPage({ openClientId }) {
   }).length, [clients]);
 
   const coldCount = useMemo(() => clients.filter((c) => {
+    if (c.archived) return false;
     const s = getClientStatus(c);
     return s === 'cold' || s === 'hot';
   }).length, [clients]);
+
+  const archivedCount = useMemo(() => clients.filter((c) => c.archived).length, [clients]);
 
   function handleSelect(id) {
     if (id === selectedId) {
@@ -176,9 +179,10 @@ export default function CrmPage({ openClientId }) {
           <div>
             <p className="section-title">快速篩選</p>
             {[
-              { key: 'all', label: '全部', count: clients.length, color: '#7a5030' },
+              { key: 'all', label: '全部', count: clients.filter((c) => !c.archived).length, color: '#7a5030' },
               { key: 'pending', label: '待聯繫', count: pendingCount, color: STATUS_COLOR.warn },
               { key: 'cold', label: '冷掉了', count: coldCount, color: STATUS_COLOR.cold },
+              { key: 'archived', label: '📁 已封存', count: archivedCount, color: '#b0b0b0' },
             ].map((f) => (
               <SidebarItem key={f.key} active={filter === f.key} color={f.color}
                 label={f.label} count={f.count} onClick={() => { setFilter(f.key); setShowSidebar(false); }} />

@@ -313,8 +313,27 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
           </section>
         )}
 
-        {/* Danger zone */}
-        <section className="card p-4 border-danger/20">
+        {/* Archive / Danger zone */}
+        <section className="card p-4 space-y-3 border-danger/20">
+          {/* Archive toggle */}
+          {client.archived ? (
+            <button
+              onClick={() => onSave({ ...client, archived: false })}
+              className="text-ok text-sm hover:underline"
+            >
+              ♻️ 恢復追蹤
+            </button>
+          ) : (
+            <button
+              onClick={() => onSave({ ...client, archived: true, nextDate: '' })}
+              className="text-ink-3 text-sm hover:text-ink-2 hover:underline"
+            >
+              📁 封存（不再追蹤）
+            </button>
+          )}
+
+          <div className="border-t border-bdr/40" />
+
           {!showDeleteConfirm ? (
             <button onClick={() => setShowDeleteConfirm(true)} className="text-danger text-sm hover:underline">
               🗑 刪除此客戶

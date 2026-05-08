@@ -42,10 +42,15 @@ export function clientMatchesFilter(client, filter, cats, stages) {
   const lastContact = client.lastContact ? dayjs(client.lastContact) : null;
   const created = dayjs(client.createdAt);
 
+  // Archived clients only show in the 'archived' filter
+  if (filter === 'archived') return !!client.archived;
+  if (client.archived) return false;
+
   if (filter === 'all') return true;
   if (filter === 'pending') {
     const nextDate = client.nextDate ? dayjs(client.nextDate) : null;
-    return nextDate != null && !nextDate.isAfter(now, 'day');
+    const contactedAfterDue = lastContact && nextDate && !lastContact.isBefore(nextDate, 'day');
+    return nextDate != null && !nextDate.isAfter(now, 'day') && !contactedAfterDue;
   }
   if (filter === 'cold') {
     const daysSinceCreated = now.diff(created, 'day');
