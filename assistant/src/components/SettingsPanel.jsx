@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { db } from '../db';
 import { useApp } from '../context';
-import { today } from '../utils/date';
+import { today, addDays } from '../utils/date';
 import { CAT_COLORS, FIELD_COLORS, FIELD_COLOR_NAMES, generateId } from '../utils/crm';
 import { ImeInput } from './ImeInput';
 import dayjs from 'dayjs';
@@ -17,9 +17,10 @@ const HELP_CARDS = [
   { icon: '📦', title: '舊版資料匯入', desc: '支援匯入舊版格式 { _v:1, crm, jnl, sal } 的 JSON 備份。' },
 ];
 
-const SECTION_KEYS = ['backup', 'cats', 'stages', 'fields', 'archive', 'help'];
+const SECTION_KEYS = ['backup', 'import', 'cats', 'stages', 'fields', 'archive', 'help'];
 const SECTION_LABELS = {
   backup: '💾 備份還原',
+  import: '📥 名單匯入',
   cats: '🏷 客戶分類',
   stages: '📶 業務進度',
   fields: '✏️ 自訂欄位',
@@ -27,13 +28,57 @@ const SECTION_LABELS = {
   help: '📖 使用說明',
 };
 
+// ── Raw text parser for old CRM format ───────────────────────────────────────
+function parseRawCrmText(text) {
+  const PHONE_RE = /^0\d{7,10}$/;
+  const SKIP_RE = /^(否|是|開發中|再追蹤|未接通|方案：|續約：|MMRWD|開發:|轉移:|簡訊|業務|公司名稱|連絡人|已加LINE|狀態|報價|廣告|電話|類型|營業|日期|建立)/;
+
+  // Split into blocks by "廖冠銘" marker lines
+  const blocks = text.split(/\n?廖冠銘[\t ]*/);
+  const records = [];
+
+  blocks.forEach((block) => {
+    const lines = block.split('\n').map((l) => l.trim()).filter((l) => l && !SKIP_RE.test(l));
+    if (lines.length === 0) return;
+
+    // Company name: first meaningful line
+    const company = lines[0];
+    if (!company || company.length < 2) return;
+
+    let contact = '';
+    let phone = '';
+
+    // Line after company: if it doesn't look like a phone or status, it's the contact
+    if (lines[1] && !PHONE_RE.test(lines[1]) && !/^\d+$/.test(lines[1])) {
+      // Split by tab in case "陳小姐\t否\t未接通"
+      const parts = lines[1].split(/\t+/);
+      if (parts[0] && !SKIP_RE.test(parts[0]) && parts[0] !== company) {
+        contact = parts[0];
+      }
+    }
+
+    // Find phone: a line that's purely digits starting with 0, length 8-11
+    for (const l of lines.slice(1)) {
+      const clean = l.split(/\s+/)[0]; // take first token
+      if (PHONE_RE.test(clean)) { phone = clean; break; }
+    }
+
+    records.push({ name: company, contact, phone });
+  });
+
+  return records;
+}
+
 export default function SettingsPanel({ onClose }) {
-  const { cats, stages, customFields, saveCats, saveStages, saveCustomFields, reloadAll } = useApp();
+  const { cats, stages, customFields, saveCats, saveStages, saveCustomFields, reloadAll, saveClient } = useApp();
   const [activeSection, setActiveSection] = useState('backup');
   const [status, setStatus] = useState('');
   const [archiveStatus, setArchiveStatus] = useState('');
   const [pasteText, setPasteText] = useState('');
   const [pasteStatus, setPasteStatus] = useState('');
+  const [rawText, setRawText] = useState('');
+  const [preview, setPreview] = useState(null); // parsed records
+  const [importStatus, setImportStatus] = useState('');
   const fileRef = useRef(null);
   const legacyRef = useRef(null);
 
@@ -83,6 +128,45 @@ export default function SettingsPanel({ onClose }) {
       setStatus('❌ 舊版匯入失敗：' + err.message);
     }
     e.target.value = '';
+  }
+
+  // ── Raw text import ──────────────────────────────────────────────────────
+  function handleParseRaw() {
+    const records = parseRawCrmText(rawText).map((r) => ({ ...r, import: true }));
+    setPreview(records);
+    setImportStatus(records.length > 0 ? '' : '❌ 解析不到任何資料，請確認格式');
+  }
+
+  async function handleImportRaw() {
+    if (!preview || preview.length === 0) return;
+    const defaultCatId = cats[0]?.id || '';
+    const defaultStageId = stages[0]?.id || '';
+    let count = 0;
+    for (const r of preview) {
+      if (!r.import) continue;
+      const client = {
+        id: generateId('client'),
+        name: r.name,
+        phone: r.phone || '',
+        notes: r.contact ? `聯絡人：${r.contact}` : '',
+        catId: defaultCatId,
+        stageId: defaultStageId,
+        intentLevel: 0,
+        nextDate: addDays(today(), 1),
+        log: [],
+        missedCalls: 0,
+        createdAt: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+      };
+      await saveClient(client);
+      count++;
+    }
+    setImportStatus(`✅ 已匯入 ${count} 筆客戶`);
+    setPreview(null);
+    setRawText('');
+  }
+
+  function togglePreviewRow(idx) {
+    setPreview((prev) => prev.map((r, i) => i === idx ? { ...r, import: !r.import } : r));
   }
 
   async function handleArchive() {
@@ -167,6 +251,66 @@ export default function SettingsPanel({ onClose }) {
                 <button onClick={handlePasteImport} className="btn-primary text-sm">解析並匯入</button>
                 {pasteStatus && <p className="text-sm text-ink-2 bg-s2 rounded-lg px-3 py-2">{pasteStatus}</p>}
               </div>
+            </section>
+          )}
+
+          {/* ── Raw Import ── */}
+          {activeSection === 'import' && (
+            <section className="space-y-4">
+              <div className="card p-4 space-y-3">
+                <h3 className="font-semibold text-ink">📥 貼上名單匯入</h3>
+                <p className="text-xs text-ink-3 leading-relaxed">
+                  將舊系統複製的名單貼在下方，系統會自動解析<strong>公司名稱、聯絡人、電話</strong>。
+                  解析後可逐筆勾選要匯入的資料。
+                </p>
+                <textarea
+                  value={rawText}
+                  onChange={(e) => { setRawText(e.target.value); setPreview(null); setImportStatus(''); }}
+                  placeholder={'廖冠銘\n見晴動物醫院\n否\t開發中\n...'}
+                  rows={8}
+                  className="w-full text-xs resize-y font-mono"
+                />
+                <button onClick={handleParseRaw} className="btn-primary text-sm w-full">🔍 解析預覽</button>
+              </div>
+
+              {preview && preview.length > 0 && (
+                <div className="card p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-ink text-sm">解析結果 {preview.length} 筆</h4>
+                    <div className="flex gap-2 text-xs">
+                      <button onClick={() => setPreview((p) => p.map((r) => ({ ...r, import: true })))} className="text-accent hover:underline">全選</button>
+                      <button onClick={() => setPreview((p) => p.map((r) => ({ ...r, import: false })))} className="text-ink-3 hover:underline">全消</button>
+                    </div>
+                  </div>
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {preview.map((r, i) => (
+                      <label key={i} className={`flex items-start gap-2 px-2 py-1.5 rounded-lg cursor-pointer ${r.import ? 'bg-ok/8' : 'hover:bg-s2'}`}>
+                        <input
+                          type="checkbox"
+                          checked={!!r.import}
+                          onChange={() => togglePreviewRow(i)}
+                          className="mt-0.5 accent-accent shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-ink truncate">{r.name}</p>
+                          <p className="text-[10px] text-ink-3">
+                            {[r.contact && `聯絡人：${r.contact}`, r.phone].filter(Boolean).join('　')}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleImportRaw}
+                    disabled={!preview.some((r) => r.import)}
+                    className="btn-primary text-sm w-full disabled:opacity-40"
+                  >
+                    ✅ 匯入選取的 {preview.filter((r) => r.import).length} 筆
+                  </button>
+                </div>
+              )}
+
+              {importStatus && <p className="text-sm text-ink-2 bg-s2 rounded-lg px-3 py-2">{importStatus}</p>}
             </section>
           )}
 
