@@ -54,6 +54,62 @@ body {
 }
 .top-bar-title { font-size: 17px; font-weight: 700; color: var(--primary); }
 .top-bar-sub { font-size: 12px; color: var(--text-sub); }
+.top-bar-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-sub);
+  transition: all 0.13s;
+}
+.icon-btn:active { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+
+/* ── GLOBAL SEARCH OVERLAY ── */
+#globalSearch {
+  display: none;
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 150;
+  flex-direction: column;
+}
+#globalSearch.open { display: flex; }
+.gs-header {
+  background: var(--card);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: center;
+  box-shadow: var(--shadow);
+}
+.gs-input {
+  flex: 1;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 16px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+.gs-input:focus { border-color: var(--primary); }
+.gs-cancel {
+  background: none; border: none; cursor: pointer;
+  color: var(--primary); font-size: 15px; font-weight: 600;
+  padding: 8px 4px; white-space: nowrap; flex-shrink: 0;
+}
+.gs-body {
+  flex: 1; overflow-y: auto;
+  padding: 12px 14px;
+  -webkit-overflow-scrolling: touch;
+}
+.gs-hint {
+  text-align: center; padding: 48px 24px;
+  color: var(--text-sub); font-size: 14px; line-height: 1.8;
+}
+.gs-count {
+  font-size: 11px; color: var(--text-sub);
+  margin-bottom: 8px; padding-left: 2px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+}
 
 /* ── BOTTOM NAV ── */
 .bottom-nav {
@@ -409,6 +465,19 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 .action-btn:active { opacity: 0.75; }
 .action-phone { background: var(--green-bg); color: #3A8060; }
 .action-line  { background: #E8F5E8; color: #00A040; }
+.action-map   { background: #EAF0F5; color: #2A6080; }
+
+/* 下次預約日提示橫幅 */
+.next-date-banner {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
+  border-radius: 10px; padding: 10px 14px;
+  margin-bottom: 12px; font-size: 14px; color: var(--primary-dark);
+}
+.next-date-banner.overdue {
+  background: var(--red-bg); border-color: var(--red); color: var(--red);
+}
 
 /* ── INTERACTION TIMELINE ── */
 .timeline-item {
@@ -565,7 +634,294 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 }
 .comp-row:last-child { border-bottom: none; }
 
-/* ── RESPONSIVE ── */
+/* ── UPCOMING EVENTS ── */
+.event-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer;
+}
+.event-card:active { box-shadow: var(--shadow-lg); }
+.event-badge {
+  width: 44px; height: 44px; border-radius: 10px;
+  background: var(--primary-light);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.event-badge.urgent { background: var(--red-bg); }
+.event-badge-days { font-size: 16px; font-weight: 700; color: var(--primary); line-height: 1; }
+.event-badge.urgent .event-badge-days { color: var(--red); }
+.event-badge-lbl { font-size: 9px; color: var(--text-sub); }
+.event-info { flex: 1; min-width: 0; }
+.event-title { font-size: 14px; font-weight: 600; }
+.event-sub { font-size: 12px; color: var(--text-sub); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── SETTINGS QUICK TAGS ── */
+.qtag-mgr-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.qtag-mgr-item:last-child { border-bottom: none; }
+.qtag-mgr-label { flex: 1; font-size: 14px; }
+.qtag-del {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--red-bg); color: var(--red);
+  border: none; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; line-height: 1;
+}
+.qtag-del:active { opacity: 0.7; }
+
+/* ── IMPORTANT DATES FORM ── */
+.idate-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.idate-item:last-child { border-bottom: none; }
+.idate-title { font-size: 14px; flex: 1; }
+.idate-val { font-size: 13px; color: var(--text-sub); flex-shrink: 0; }
+.idate-del {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--red-bg); color: var(--red);
+  border: none; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+
+/* ── WEEKLY STRIP CALENDAR ── */
+.weekly-strip {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.wstrip-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px 4px;
+}
+.wstrip-month-lbl {
+  font-size: 13px; font-weight: 700; color: var(--text-sub); letter-spacing: .4px;
+}
+.wstrip-month-btn {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: 8px; padding: 5px 10px;
+  font-size: 12px; font-weight: 600; color: var(--text-sub);
+  cursor: pointer;
+}
+.wstrip-month-btn input[type="month"] {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; border: none; background: none;
+}
+.wstrip-scroll {
+  overflow-x: auto; padding: 4px 10px 12px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.wstrip-scroll::-webkit-scrollbar { display: none; }
+.wstrip-track { display: flex; gap: 5px; min-width: max-content; }
+.wday {
+  width: 50px; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 7px 4px 6px; border-radius: 10px;
+  background: var(--bg); cursor: pointer;
+  border: 2px solid transparent;
+  transition: background .15s, color .15s;
+  -webkit-user-select: none; user-select: none;
+}
+.wday:active { opacity: .75; }
+.wday.today  { border-color: var(--primary); }
+.wday.selected { background: var(--primary); border-color: var(--primary); }
+.wday.selected .wday-name,
+.wday.selected .wday-num { color: white; }
+.wday-name { font-size: 10px; color: var(--text-sub); margin-bottom: 2px; }
+.wday-num  { font-size: 18px; font-weight: 700; color: var(--text); line-height: 1; }
+.wday-dots { display: flex; gap: 3px; margin-top: 5px; min-height: 7px; align-items: center; }
+.wday-dot  { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.wday-dot.red  { background: var(--red); }
+.wday-dot.gold { background: var(--yellow); }
+.wday.selected .wday-dot.red  { background: #FFB0B0; }
+.wday.selected .wday-dot.gold { background: #FFE0A0; }
+
+/* ── FULL-SCREEN CALENDAR OVERLAY ── */
+.cal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: var(--bg); flex-direction: column; overflow: hidden;
+}
+.cal-overlay.open { display: flex; }
+.cal-panel {
+  display: flex; flex-direction: column; height: 100%;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.cal-panel-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px 10px;
+  background: var(--card); border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.cal-panel-head-month { flex: 1; text-align: center; font-size: 17px; font-weight: 700; color: var(--text); }
+.cal-nav-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--bg); border: 1.5px solid var(--border);
+  font-size: 22px; line-height: 1; color: var(--text-sub);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  flex-shrink: 0;
+}
+.cal-nav-btn:active { opacity: .7; }
+.cal-close-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--bg); border: 1.5px solid var(--border);
+  font-size: 16px; color: var(--text-sub);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  flex-shrink: 0;
+}
+.cal-weekday-row {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  padding: 6px 2px 4px; background: var(--card);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.cal-weekday-row span {
+  text-align: center; font-size: 11px; font-weight: 600; color: var(--text-sub); padding: 2px 0;
+}
+.cal-weekday-row span:first-child { color: var(--red); }
+.cal-grid {
+  flex: 1; display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 1px; background: var(--border); overflow-y: auto;
+}
+.cal-cell {
+  background: var(--card); padding: 4px 3px 5px;
+  min-height: 72px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px;
+  -webkit-user-select: none; user-select: none;
+}
+.cal-cell:active { background: var(--bg); }
+.cal-cell.other-month { background: #F8F6F3; }
+.cal-cell-num {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.cal-cell.today .cal-cell-num { background: var(--primary); color: white; }
+.cal-cell.other-month .cal-cell-num { opacity: .38; }
+.cal-cell.selected-day .cal-cell-num { outline: 2px solid var(--primary); }
+.cal-event {
+  font-size: 9.5px; font-weight: 600; padding: 1px 3px; border-radius: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.5;
+}
+.cal-event-red  { background: var(--red);    color: #fff; }
+.cal-event-gold { background: var(--yellow); color: #3A2E00; }
+
+/* ── LEAD SOURCE CHIPS ── */
+.lead-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.lead-chip {
+  padding: 5px 13px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  background: var(--bg); border: 1.5px solid var(--border);
+  color: var(--text-sub); cursor: pointer; transition: .15s;
+  -webkit-user-select: none; user-select: none;
+}
+.lead-chip.on { background: var(--primary); border-color: var(--primary); color: white; }
+.tag-lead { background: #EEF5F0; color: #4A7A5C; border-radius: 4px; font-size: 11px; padding: 1px 6px; }
+
+/* ── GOOGLE CALENDAR BUTTON ── */
+.gcal-btn {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px;
+  border-radius: 6px; background: #E8F0FE; color: #1967D2;
+  font-size: 11px; font-weight: 600; border: none; cursor: pointer;
+  text-decoration: none; flex-shrink: 0; white-space: nowrap;
+}
+.gcal-btn:hover { background: #D2E3FC; }
+
+/* ── MARKETING ROI TABLE ── */
+.roi-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.roi-table th {
+  font-size: 10px; color: var(--text-sub); font-weight: 700;
+  text-align: left; padding: 4px 6px; border-bottom: 1.5px solid var(--border);
+}
+.roi-table td { padding: 7px 6px; border-top: 1px solid var(--border); vertical-align: middle; }
+.roi-table tr.roi-best td { background: rgba(123,168,140,.1); }
+.roi-best-badge {
+  font-size: 9px; font-weight: 700; background: var(--green); color: white;
+  padding: 1px 4px; border-radius: 3px; margin-left: 4px; vertical-align: middle;
+}
+
+/* ── IMPORTANT DATES (extended) ── */
+.idate-gcal { margin-top: 2px; }
+
+/* ── CATEGORY TYPE TABS ── */
+.cat-tab-row {
+  display: flex; gap: 6px; overflow-x: auto;
+  padding: 0 0 10px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.cat-tab-row::-webkit-scrollbar { display: none; }
+.cat-tab {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 7px 13px; border-radius: 20px; white-space: nowrap;
+  background: var(--card); border: 1.5px solid var(--border);
+  font-size: 12px; font-weight: 600; color: var(--text-sub);
+  cursor: pointer; flex-shrink: 0; transition: background .15s, color .15s;
+  -webkit-user-select: none; user-select: none;
+}
+.cat-tab.on  { background: var(--primary); border-color: var(--primary); color: white; }
+.cat-tab.empty { opacity: .4; }
+.cat-tab-cnt {
+  font-size: 10px; font-weight: 700; padding: 1px 5px;
+  background: rgba(0,0,0,.1); border-radius: 10px;
+}
+.cat-tab.on .cat-tab-cnt { background: rgba(255,255,255,.25); }
+
+/* ── CUSTOMER SIDE DRAWER ── */
+#custDrawerVeil {
+  position: fixed; inset: 0; z-index: 150;
+  background: rgba(30,25,20,.42);
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+}
+#custDrawerVeil.open { opacity: 1; pointer-events: all; }
+#custDrawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(90vw, 480px);
+  background: var(--bg); z-index: 151;
+  transform: translateX(100%);
+  transition: transform .28s cubic-bezier(.4,0,.2,1);
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+#custDrawer.open { transform: translateX(0); }
+.drawer-hd {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px 10px;
+  background: var(--card); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 1; flex-shrink: 0;
+}
+.drawer-back {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--bg); border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 20px; color: var(--text-sub); flex-shrink: 0;
+}
+.drawer-back:active { opacity: .6; }
+.drawer-hd-title {
+  flex: 1; font-size: 15px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.drawer-hd-sub {
+  font-size: 11px; color: var(--text-sub); margin-top: 1px;
+}
+.drawer-edit-btn {
+  flex-shrink: 0; padding: 6px 12px; border-radius: 8px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  font-size: 12px; font-weight: 600; color: var(--text-sub); cursor: pointer;
+}
+.drawer-body { padding: 14px 14px 32px; flex: 1; }
+
 @media (min-width: 600px) {
   body { max-width: 480px; margin: 0 auto; }
   .bottom-nav, .fab { max-width: 480px; }
@@ -583,7 +939,14 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
     <div class="top-bar-title">KIA 卡旺業務作戰</div>
     <div class="top-bar-sub" id="headerDate"></div>
   </div>
-  <button class="btn btn-sm btn-secondary" onclick="exportData()" style="flex-shrink:0">匯出</button>
+  <div class="top-bar-actions">
+    <button class="icon-btn" onclick="openGlobalSearch()" title="搜尋客戶">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </button>
+    <button class="btn btn-sm btn-secondary" onclick="exportData()">匯出</button>
+  </div>
 </header>
 
 <!-- BOTTOM NAV -->
@@ -621,8 +984,38 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 <div class="page active" id="page-home">
   <div class="stats-grid" id="homeStats"></div>
   <div id="homeChart"></div>
+
+  <!-- 戰術微型日曆 -->
+  <div class="weekly-strip">
+    <div class="wstrip-header">
+      <span class="wstrip-month-lbl" id="wstripMonthLbl"></span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <label class="wstrip-month-btn" title="跳至指定月份">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          選月
+          <input type="month" id="wstripMonthPicker" onchange="onWeeklyMonthChange(this.value)">
+        </label>
+        <button class="wstrip-month-btn" onclick="openCalOverlay()" title="全螢幕月曆" style="border:none;background:var(--bg);cursor:pointer">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
+          </svg>
+          展開
+        </button>
+      </div>
+    </div>
+    <div class="wstrip-scroll" id="wstripScroll">
+      <div class="wstrip-track" id="wstripTrack"></div>
+    </div>
+  </div>
+
   <div class="section-label" id="redLbl">今天該追的客戶</div>
   <div id="redList"></div>
+  <div class="section-label" id="upcomingEventsLbl" style="margin-top:18px;display:none">近期重要事件（14天內）</div>
+  <div id="upcomingEvents"></div>
   <div class="section-label" style="margin-top:18px">最近聯絡</div>
   <div id="recentList"></div>
 </div>
@@ -635,6 +1028,8 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
     </svg>
     <input type="search" id="searchInput" placeholder="搜尋姓名、公司、電話…" oninput="renderCustList()">
   </div>
+  <!-- 業種分類 Tabs (JS 動態渲染含計數) -->
+  <div class="cat-tab-row" id="catTypeFilter"></div>
   <div class="filter-row" id="stageFilter">
     <div class="fchip on" data-v="">全部</div>
     <div class="fchip" data-v="陌生">陌生</div>
@@ -643,6 +1038,9 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
     <div class="fchip" data-v="議價">議價</div>
     <div class="fchip" data-v="成交">成交</div>
     <div class="fchip" data-v="失單">失單</div>
+  </div>
+  <div id="copyBtnWrap" style="display:none;padding:0 0 8px">
+    <button class="btn btn-secondary" style="width:100%;height:44px;font-size:14px" onclick="copyContactList()">📋 複製目前名單聯絡資訊</button>
   </div>
   <div id="custList"></div>
 </div>
@@ -676,6 +1074,10 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
     <div class="fchip" data-days="90">近 90 天</div>
   </div>
   <div class="loss-stat-grid" id="analysisSummary"></div>
+  <div class="section-label">行銷管道投報</div>
+  <div class="card" id="analysisLeadROI"></div>
+  <div class="section-label">漏斗轉換率（目前管線）</div>
+  <div class="card" id="analysisFunnel"></div>
   <div class="section-label">失單原因分布</div>
   <div class="card" id="analysisReasonChart"></div>
   <div class="section-label">最常輸給（Top 競品）</div>
@@ -691,7 +1093,7 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
       <div class="set-icon" style="background:#E8F0F5">📤</div>
       <div class="set-text">
         <div class="set-title">匯出備份</div>
-        <div class="set-sub">下載 JSON 檔案至手機</div>
+        <div class="set-sub">分享或下載 JSON 備份檔</div>
       </div>
     </div>
     <div class="set-row" onclick="document.getElementById('importInput').click()">
@@ -711,6 +1113,19 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
         <div class="set-title" style="color:var(--red)">清除所有資料</div>
         <div class="set-sub">此操作無法復原，請先備份</div>
       </div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:16px 16px 18px">
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">快捷標籤管理</div>
+    <div style="font-size:12px;color:var(--text-sub);margin-bottom:12px">新增跟進記錄時可一鍵插入的常用短語</div>
+    <div id="quickTagsList"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <input type="text" class="finput" id="newTagInput"
+        placeholder="新增標籤（如：[下週跟進]）"
+        style="font-size:14px;height:44px"
+        onkeydown="if(event.key==='Enter')addQuickTag()">
+      <button class="btn btn-primary" style="flex-shrink:0;height:44px;padding:0 16px" onclick="addQuickTag()">新增</button>
     </div>
   </div>
 
@@ -779,6 +1194,10 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
           <label class="flabel">目前階段 <span class="req">*</span></label>
           <div class="pill-group" id="fg-stage"></div>
         </div>
+        <div class="fgroup">
+          <label class="flabel">開發來源</label>
+          <div class="lead-chips" id="leadSourceChips"></div>
+        </div>
         <button class="btn btn-primary btn-block btn-lg" onclick="toStep2()">下一步 →</button>
         <div style="height:8px"></div>
       </div>
@@ -788,6 +1207,16 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
         <div class="fgroup">
           <label class="flabel">公司名稱</label>
           <input type="text" class="finput" id="fco" placeholder="大明物流有限公司" autocomplete="off">
+        </div>
+        <div style="display:flex;gap:9px">
+          <div class="fgroup" style="flex:1">
+            <label class="flabel">暱稱</label>
+            <input type="text" class="finput" id="fnickname" placeholder="小明">
+          </div>
+          <div class="fgroup" style="flex:1">
+            <label class="flabel">職位</label>
+            <input type="text" class="finput" id="fjobTitle" placeholder="老闆、採購">
+          </div>
         </div>
         <div class="fgroup">
           <label class="flabel">LINE ID / 暱稱</label>
@@ -819,7 +1248,31 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
         </div>
         <div class="fgroup">
           <label class="flabel">介紹人</label>
-          <select class="finput" id="freferrer"><option value="">— 無 —</option></select>
+          <input type="text" class="finput" id="freferrer" list="refList" placeholder="輸入姓名搜尋…" autocomplete="off">
+          <datalist id="refList"></datalist>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">地址</label>
+          <input type="text" class="finput" id="faddress" placeholder="公司或住家地址">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">重要日期</label>
+          <div id="importantDatesList" style="margin-bottom:8px"></div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input type="text" class="finput" id="newDateTitle"
+              placeholder="名稱（生日、保險到期…）"
+              style="flex:1;min-width:120px;font-size:14px;height:40px;padding:8px 10px">
+            <input type="date" class="finput" id="newDateVal"
+              style="width:130px;font-size:14px;height:40px;padding:8px 8px">
+            <input type="time" class="finput" id="newDateTime"
+              style="width:90px;font-size:14px;height:40px;padding:8px 8px">
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+            <input type="text" class="finput" id="newDateNotes"
+              placeholder="備註（可留空）"
+              style="flex:1;font-size:13px;height:38px;padding:8px 10px">
+            <button class="btn btn-secondary" style="flex-shrink:0;height:38px;padding:0 16px;font-size:18px;line-height:1" onclick="addImportantDate()">+</button>
+          </div>
         </div>
         <div class="fgroup">
           <label class="flabel">生活細節</label>
@@ -853,7 +1306,7 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
         <div class="pill-group" id="fg-method"></div>
       </div>
       <div class="fgroup">
-        <label class="flabel">內容摘要</label>
+        <label class="flabel">內容摘要 <span class="req">*</span></label>
         <div class="input-row">
           <textarea class="finput" id="iaContent" placeholder="聊了什麼、客戶反應、下一步行動…" rows="3"></textarea>
           <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="語音輸入">
@@ -866,6 +1319,17 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
           </button>
         </div>
         <div class="qtags" id="qtags"></div>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">備註（內部提醒，不對外）</label>
+        <textarea class="finput" id="iaRemark" placeholder="特殊條件、注意事項…" rows="2"></textarea>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">下次預約追蹤日</label>
+        <div style="display:flex;gap:8px">
+          <input type="date" class="finput" id="iaNextDate" style="flex:1">
+          <input type="time" class="finput" id="iaNextTime" style="width:100px">
+        </div>
       </div>
       <button class="btn btn-primary btn-block btn-lg" onclick="saveIA()">儲存記錄</button>
       <div style="height:8px"></div>
@@ -907,6 +1371,54 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
   </div>
 </div>
 
+<!-- ════════════ FULL-SCREEN CALENDAR OVERLAY ════════════ -->
+<div class="cal-overlay" id="calOverlay">
+  <div class="cal-panel">
+    <div class="cal-panel-head">
+      <button class="cal-nav-btn" onclick="calGridNav(-1)">‹</button>
+      <span class="cal-panel-head-month" id="calGridMonthLbl"></span>
+      <button class="cal-nav-btn" onclick="calGridNav(1)">›</button>
+      <button class="cal-close-btn" onclick="closeCalOverlay()" title="關閉">✕</button>
+    </div>
+    <div class="cal-weekday-row">
+      <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+    </div>
+    <div id="calGrid" class="cal-grid"></div>
+  </div>
+</div>
+
+<!-- ════════════ CUSTOMER SIDE DRAWER ════════════ -->
+<div id="custDrawerVeil" onclick="closeCustDrawer()"></div>
+<div id="custDrawer">
+  <div class="drawer-hd">
+    <button class="drawer-back" onclick="closeCustDrawer()">←</button>
+    <div style="flex:1;min-width:0">
+      <div class="drawer-hd-title" id="custDrawerTitle"></div>
+      <div class="drawer-hd-sub" id="custDrawerSub"></div>
+    </div>
+    <button class="drawer-edit-btn" onclick="closeCustDrawer();setTimeout(()=>openEdit(activeCid),80)">✏️ 編輯</button>
+  </div>
+  <div class="drawer-body" id="custDrawerBody"></div>
+</div>
+
+<!-- GLOBAL SEARCH -->
+<div id="globalSearch">
+  <div class="gs-header">
+    <input class="gs-input" id="gsInput" type="search"
+      placeholder="輸入姓名、電話、公司…"
+      oninput="renderGlobalSearch()"
+      autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="gs-cancel" onclick="closeGlobalSearch()">取消</button>
+  </div>
+  <div class="gs-body" id="gsBody">
+    <div class="gs-hint">
+      🔍 輸入關鍵字即時搜尋<br>
+      支援：姓名 · 電話 · 公司 · 地址<br>
+      <small style="font-size:12px;color:var(--text-sub)">空白鍵分隔可多字同時搜尋</small>
+    </div>
+  </div>
+</div>
+
 <!-- MOVE PICKER (long-press / drag fallback) -->
 <div id="movePicker" onclick="if(event.target===this)closePicker()">
   <div class="move-box">
@@ -926,18 +1438,22 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 // ════════════════════════════════════════
 // CONSTANTS
 // ════════════════════════════════════════
-const SK = 'kia_crm_v1';
+const SK      = 'kia_crm_v1';          // 舊 localStorage key（僅用於遷移）
+const IDB_NAME = 'kia_crm_idb';        // IndexedDB 資料庫名稱
+const IDB_VER  = 1;                     // Schema 版本
+const IDB_STORE = 'store';             // Object Store 名稱
 
 const RED_DAYS = { 陌生: 7, 接觸: 5, 報價: 3, 議價: 1 };
 
 const TYPES   = ['個體戶','車隊','物流','工程行','農用','食品冷鏈','其他'];
 const STAGES  = ['陌生','接觸','報價','議價','成交','失單'];
 const VEHICLES= ['一般貨卡','廂型','冷凍廂型','雙排座','其他'];
+const LEAD_SOURCES = ['短影音','FB廣告','轉介紹','陌生拜訪','Google搜尋','現有客戶'];
 const DECISIONS=['本人','配偶','父母','老闆','兒女','合夥人'];
 const PAYMENTS = ['現金','貸款','租賃','未定'];
 const METHODS  = ['LINE','電話','見面','試乘'];
 const LOSS_RSN = ['價格','配備','交期','對手促銷','客戶轉變','其他'];
-const QTAG_LIST= ['[急件]','[已試乘]','[等老婆同意]','[比價中]','[等貸款]','[已報價]','[下週再談]','[很有意願]'];
+const DEFAULT_QTAGS = ['[急件]','[已試乘]','[等老婆同意]','[比價中]','[等貸款]','[已報價]','[下週再談]','[很有意願]'];
 
 const PIPE_COLORS = {
   陌生:'#8A9BAB', 接觸:'#7BA88C', 報價:'#9B8AB0',
@@ -945,21 +1461,178 @@ const PIPE_COLORS = {
 };
 
 // ════════════════════════════════════════
-// DATA
+// 任務一：IndexedDB 輕量封裝
+// 採用單例模式，避免重複開啟連線
+// ════════════════════════════════════════
+const DBHelper = (() => {
+  let _conn = null; // 快取已開啟的連線
+
+  /** 開啟（或取得）資料庫連線，回傳 Promise<IDBDatabase> */
+  function open() {
+    if (_conn) return Promise.resolve(_conn);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, IDB_VER);
+
+      // 首次建立 / 版本升級時建立 Object Store
+      req.onupgradeneeded = e => {
+        e.target.result.createObjectStore(IDB_STORE);
+      };
+      req.onsuccess = e => {
+        _conn = e.target.result;
+        // 連線意外斷開時清除快取，下次自動重連
+        _conn.onclose = () => { _conn = null; };
+        resolve(_conn);
+      };
+      req.onerror = () => reject(req.error);
+      req.onblocked = () => reject(new Error('IDB blocked'));
+    });
+  }
+
+  /** 讀取指定 key 的值，回傳 Promise<any> */
+  function get(key) {
+    return open().then(conn => new Promise((resolve, reject) => {
+      const req = conn.transaction(IDB_STORE, 'readonly')
+                      .objectStore(IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror   = () => reject(req.error);
+    }));
+  }
+
+  /** 寫入 key/value，回傳 Promise<void> */
+  function put(key, value) {
+    return open().then(conn => new Promise((resolve, reject) => {
+      const req = conn.transaction(IDB_STORE, 'readwrite')
+                      .objectStore(IDB_STORE).put(value, key);
+      req.onsuccess = () => resolve();
+      req.onerror   = () => reject(req.error);
+    }));
+  }
+
+  /** 刪除指定 key，回傳 Promise<void> */
+  function del(key) {
+    return open().then(conn => new Promise((resolve, reject) => {
+      const req = conn.transaction(IDB_STORE, 'readwrite')
+                      .objectStore(IDB_STORE).delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror   = () => reject(req.error);
+    }));
+  }
+
+  return { get, put, del };
+})();
+
+// ════════════════════════════════════════
+// DATA 狀態（記憶體中的工作副本）
 // ════════════════════════════════════════
 let db = { customers: [], settings: { redLightDays: RED_DAYS } };
 
-function load() {
+/**
+ * 任務一：load()
+ * 啟動順序：
+ *   1. 嘗試從 IndexedDB 讀取
+ *   2. 若 IDB 無資料但 localStorage 有舊資料 → 無縫轉移
+ *   3. 若 IDB 完全不可用（如隱私模式封鎖）→ 降級至 localStorage
+ */
+async function load() {
   try {
-    const r = localStorage.getItem(SK);
-    if (r) db = JSON.parse(r);
-  } catch(e) {}
+    const idbData = await DBHelper.get('root');
+
+    if (idbData && Array.isArray(idbData.customers)) {
+      // 正常情境：從 IndexedDB 載入
+      db = idbData;
+      return;
+    }
+
+    // IDB 無資料，檢查是否有 localStorage 舊版資料需要遷移
+    const lsRaw = localStorage.getItem(SK);
+    if (lsRaw) {
+      const lsData = JSON.parse(lsRaw);
+      if (lsData && Array.isArray(lsData.customers)) {
+        db = lsData;
+        // 寫入 IndexedDB 完成後，才刪除 localStorage 舊資料（確保不遺失）
+        await DBHelper.put('root', db);
+        localStorage.removeItem(SK);
+        console.info('[KIA CRM] ✅ 資料已從 localStorage 無縫遷移至 IndexedDB');
+      }
+    }
+  } catch (e) {
+    // IDB 不可用（iOS 隱私模式等）→ 降級至 localStorage
+    console.warn('[KIA CRM] IndexedDB 不可用，降級至 localStorage', e);
+    try {
+      const lsRaw = localStorage.getItem(SK);
+      if (lsRaw) db = JSON.parse(lsRaw);
+    } catch (e2) { /* 靜默失敗，使用空資料 */ }
+  }
 }
 
-function save() {
+/**
+ * 任務一：save()
+ * 非同步寫入 IndexedDB；若失敗自動降級至 localStorage。
+ * 呼叫端不需 await，UI 可即時繼續（fire-and-forget）。
+ */
+async function save() {
   try {
-    localStorage.setItem(SK, JSON.stringify(db));
-  } catch(e) { toast('儲存失敗：儲存空間不足'); }
+    await DBHelper.put('root', db);
+  } catch (e) {
+    console.warn('[KIA CRM] IDB 寫入失敗，降級至 localStorage', e);
+    try {
+      localStorage.setItem(SK, JSON.stringify(db));
+    } catch (e2) {
+      toast('儲存失敗：儲存空間不足');
+    }
+  }
+}
+
+/**
+ * 任務二：Schema Migration
+ * 補齊缺少的新欄位，並重建 searchIndex。
+ * 每次啟動執行一次；有變更才呼叫 save()。
+ */
+function migrateData() {
+  let dirty = false; // 只有真正有修改才存回去
+
+  // 補齊 settings 物件與 quickTags 陣列
+  if (!db.settings) { db.settings = {}; dirty = true; }
+  if (!Array.isArray(db.settings.quickTags)) {
+    db.settings.quickTags = [...DEFAULT_QTAGS];
+    dirty = true;
+  }
+
+  db.customers = db.customers.map(c => {
+    let changed = false;
+
+    if (c.address         === undefined) { c.address         = '';   changed = true; }
+    if (c.nextContactDate === undefined) { c.nextContactDate = null; changed = true; }
+    if (c.importantDates  === undefined) { c.importantDates  = [];   changed = true; }
+    if (c.nickname        === undefined) { c.nickname        = '';   changed = true; }
+    if (c.jobTitle        === undefined) { c.jobTitle        = '';   changed = true; }
+    if (c.leadSource      === undefined) { c.leadSource      = '';   changed = true; }
+    if (c.nextContactTime === undefined) { c.nextContactTime = '';   changed = true; }
+
+    // 重建搜尋索引（每次都更新，確保編輯後同步）
+    const idx = buildSearchIndex(c);
+    if (c.searchIndex !== idx) { c.searchIndex = idx; changed = true; }
+
+    if (changed) dirty = true;
+    return c;
+  });
+
+  // 只在有欄位補充或索引更新時才寫入，避免無謂 I/O
+  if (dirty) save();
+}
+
+/**
+ * 建立單一客戶的全文搜尋索引字串。
+ * 將所有可搜尋欄位合併為小寫字串，並加入無符號電話版本。
+ */
+function buildSearchIndex(c) {
+  return [
+    c.name, c.nickname, c.jobTitle,
+    c.company, c.phone,
+    (c.phone || '').replace(/[-\s()]/g, ''),
+    c.lineId, c.type, c.purpose,
+    c.personalNotes, c.address, c.leadSource
+  ].filter(Boolean).join(' ').toLowerCase();
 }
 
 function uid() {
@@ -979,6 +1652,12 @@ function daysSince(d) {
 }
 
 function alertOf(c) {
+  if (c.stage === '成交' || c.stage === '失單') return 'none';
+  if (c.nextContactDate) {
+    const diff = Math.floor((new Date(c.nextContactDate + 'T12:00:00') - Date.now()) / 86400000);
+    if (diff < 0) return 'red';
+    if (diff <= 1) return 'yellow';
+  }
   const max = RED_DAYS[c.stage];
   if (!max) return 'none';
   const days = daysSince(c.lastContactAt || c.createdAt);
@@ -1013,9 +1692,10 @@ function goPage(name) {
     (name === 'settings' || name === 'analysis') ? 'none' : 'flex';
   activePage = name;
   if (name === 'home') renderHome();
-  if (name === 'customers') renderCustList();
+  if (name === 'customers') { renderCatTabs(); renderCustList(); }
   if (name === 'pipeline') renderPipeline();
   if (name === 'analysis') renderAnalysis();
+  if (name === 'settings') renderSettings();
 }
 
 function openOverlay(id) {
@@ -1029,16 +1709,234 @@ function closeOverlay(id) {
 }
 
 // ════════════════════════════════════════
+// WEEKLY STRIP CALENDAR
+// ════════════════════════════════════════
+const DAY_NAMES_TW = ['日','一','二','三','四','五','六'];
+
+// 日曆選取狀態（純顯示層，不寫入 IDB）
+let calSelectedDate = todayStr();  // 目前選取日期
+let calViewMonth    = null;        // null = 今天 ±15 天模式；否則為 'YYYY-MM'
+
+/**
+ * buildDateEventMap — O(n) 單次掃描，回傳 Map<dateStr, {red, gold}>
+ * red  = 該日有 nextContactDate 的客戶
+ * gold = 該日有 importantDates 事件的客戶
+ */
+function buildDateEventMap() {
+  const map = {};
+  const year = new Date().getFullYear();
+
+  const mark = (dateStr, type) => {
+    if (!dateStr) return;
+    if (!map[dateStr]) map[dateStr] = { red: false, gold: false };
+    map[dateStr][type] = true;
+  };
+
+  db.customers.forEach(c => {
+    if (c.nextContactDate) mark(c.nextContactDate, 'red');
+    (c.importantDates || []).forEach(evt => {
+      if (!evt || !evt.date) return;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(evt.date)) {
+        mark(evt.date, 'gold');
+      } else if (/^\d{2}-\d{2}$/.test(evt.date)) {
+        mark(`${year}-${evt.date}`, 'gold');
+        mark(`${year + 1}-${evt.date}`, 'gold');
+      }
+    });
+  });
+  return map;
+}
+
+/** renderWeeklyStrip — 用已建好的 eventMap 渲染日曆軌道，不再查詢資料 */
+function renderWeeklyStrip(eventMap) {
+  const todayDate = todayStr();
+  const selDate   = calSelectedDate || todayDate;
+
+  // 產生日期陣列
+  let dates = [];
+  if (calViewMonth) {
+    const [y, m] = calViewMonth.split('-').map(Number);
+    const dim = new Date(y, m, 0).getDate();
+    for (let d = 1; d <= dim; d++) {
+      dates.push(`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+    }
+  } else {
+    const base = new Date(todayDate + 'T12:00:00');
+    for (let i = -15; i <= 15; i++) {
+      const dt = new Date(base);
+      dt.setDate(base.getDate() + i);
+      dates.push(dt.toISOString().slice(0, 10));
+    }
+  }
+
+  // 月份標籤
+  const f = new Date(dates[0] + 'T12:00:00');
+  const l = new Date(dates[dates.length - 1] + 'T12:00:00');
+  document.getElementById('wstripMonthLbl').textContent =
+    f.getMonth() === l.getMonth()
+      ? `${f.getFullYear()} 年 ${f.getMonth() + 1} 月`
+      : `${f.getMonth() + 1} / ${l.getMonth() + 1} 月`;
+  document.getElementById('wstripMonthPicker').value = calViewMonth || todayDate.slice(0, 7);
+
+  // 渲染方塊
+  const track = document.getElementById('wstripTrack');
+  track.innerHTML = dates.map(ds => {
+    const d      = new Date(ds + 'T12:00:00');
+    const isToday = ds === todayDate;
+    const isSel   = ds === selDate;
+    const ev      = eventMap[ds] || {};
+    const cls     = ['wday', isToday ? 'today' : '', isSel ? 'selected' : '']
+                    .filter(Boolean).join(' ');
+    const dots    = (ev.red  ? '<span class="wday-dot red"></span>'  : '')
+                  + (ev.gold ? '<span class="wday-dot gold"></span>' : '');
+    return `<div class="${cls}" onclick="onDayClick('${ds}')">
+      <span class="wday-name">週${DAY_NAMES_TW[d.getDay()]}</span>
+      <span class="wday-num">${d.getDate()}</span>
+      <div class="wday-dots">${dots}</div>
+    </div>`;
+  }).join('');
+
+  // 選取日自動置中滾動
+  requestAnimationFrame(() => {
+    const selEl = track.querySelector('.wday.selected');
+    const scroll = document.getElementById('wstripScroll');
+    if (selEl && scroll) {
+      scroll.scrollLeft = selEl.offsetLeft - scroll.offsetWidth / 2 + selEl.offsetWidth / 2;
+    }
+  });
+}
+
+function onDayClick(dateStr) {
+  calSelectedDate = dateStr;
+  const map = buildDateEventMap();
+  renderWeeklyStrip(map);
+  renderHomeByDate(dateStr, map);
+}
+
+function onWeeklyMonthChange(monthStr) {
+  calViewMonth = monthStr || null;
+  const map = buildDateEventMap();
+  renderWeeklyStrip(map);
+  // 若目前選取日不在新月份，自動跳至該月第一天
+  if (calViewMonth && !(calSelectedDate || '').startsWith(calViewMonth)) {
+    calSelectedDate = calViewMonth + '-01';
+    renderHomeByDate(calSelectedDate, map);
+  }
+}
+
+// ════════════════════════════════════════
+// FULL-SCREEN CALENDAR OVERLAY
+// ════════════════════════════════════════
+let calOverlayMonth = null; // 'YYYY-MM' 目前大月曆顯示月份
+let calDetailMap    = {};   // 詳細事件 map（開啟/換月時重建）
+
+/** 掃描所有客戶，建立 dateStr → {red:[{id,name}], gold:[{id,name,title}]} */
+function buildDetailMap() {
+  const map  = {};
+  const year = new Date().getFullYear();
+  const mark = (dateStr, type, data) => {
+    if (!dateStr) return;
+    if (!map[dateStr]) map[dateStr] = { red: [], gold: [] };
+    map[dateStr][type].push(data);
+  };
+  db.customers.forEach(c => {
+    if (c.nextContactDate) mark(c.nextContactDate, 'red', { id: c.id, name: c.name });
+    (c.importantDates || []).forEach(evt => {
+      if (!evt?.date) return;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(evt.date)) {
+        mark(evt.date, 'gold', { id: c.id, name: c.name, title: evt.title });
+      } else if (/^\d{2}-\d{2}$/.test(evt.date)) {
+        mark(`${year}-${evt.date}`,     'gold', { id: c.id, name: c.name, title: evt.title });
+        mark(`${year + 1}-${evt.date}`, 'gold', { id: c.id, name: c.name, title: evt.title });
+      }
+    });
+  });
+  return map;
+}
+
+function openCalOverlay() {
+  calOverlayMonth = calViewMonth || todayStr().slice(0, 7);
+  calDetailMap    = buildDetailMap();
+  renderCalGrid();
+  document.getElementById('calOverlay').classList.add('open');
+}
+
+function closeCalOverlay() {
+  document.getElementById('calOverlay').classList.remove('open');
+}
+
+function calGridNav(dir) {
+  const [y, m] = calOverlayMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + dir, 1);
+  calOverlayMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  renderCalGrid();
+}
+
+function renderCalGrid() {
+  const [y, m]    = calOverlayMonth.split('-').map(Number);
+  const todayDate = todayStr();
+  document.getElementById('calGridMonthLbl').textContent = `${y} 年 ${m} 月`;
+
+  const firstDay = new Date(y, m - 1, 1);
+  const startPad = firstDay.getDay(); // 0=Sun
+  const lastDay  = new Date(y, m, 0);
+  const endPad   = 6 - lastDay.getDay();
+  const total    = startPad + lastDay.getDate() + endPad;
+
+  const cells = [];
+  for (let i = 0; i < total; i++) {
+    const d = new Date(y, m - 1, 1 - startPad + i);
+    cells.push(d.toISOString().slice(0, 10));
+  }
+
+  document.getElementById('calGrid').innerHTML = cells.map(ds => {
+    const d          = new Date(ds + 'T12:00:00');
+    const inMonth    = d.getMonth() + 1 === m && d.getFullYear() === y;
+    const isToday    = ds === todayDate;
+    const isSelected = ds === calSelectedDate;
+    const ev         = calDetailMap[ds] || { red: [], gold: [] };
+
+    const redLabels  = ev.red.slice(0, 2).map(r =>
+      `<div class="cal-event cal-event-red">${esc(r.name)}追蹤</div>`).join('');
+    const goldLabels = ev.gold.slice(0, 2).map(g =>
+      `<div class="cal-event cal-event-gold">${esc(g.name.charAt(0))}・${esc(g.title)}</div>`).join('');
+    const moreRed    = ev.red.length  > 2
+      ? `<div class="cal-event cal-event-red">+${ev.red.length  - 2}</div>` : '';
+    const moreGold   = ev.gold.length > 2
+      ? `<div class="cal-event cal-event-gold">+${ev.gold.length - 2}</div>` : '';
+
+    const cls = ['cal-cell',
+      !inMonth ? 'other-month' : '',
+      isToday  ? 'today'       : '',
+      isSelected && inMonth ? 'selected-day' : ''
+    ].filter(Boolean).join(' ');
+
+    return `<div class="${cls}" onclick="onCalDayClick('${ds}')">
+      <div class="cal-cell-num">${d.getDate()}</div>
+      ${redLabels}${moreRed}${goldLabels}${moreGold}
+    </div>`;
+  }).join('');
+}
+
+function onCalDayClick(dateStr) {
+  closeCalOverlay();
+  calSelectedDate = dateStr;
+  calViewMonth    = dateStr.slice(0, 7);
+  goPage('home');
+}
+
+// ════════════════════════════════════════
 // HOME
 // ════════════════════════════════════════
 function renderHome() {
-  const mo = new Date().toISOString().slice(0, 7);
-  const all = db.customers;
+  const mo     = new Date().toISOString().slice(0, 7);
+  const all    = db.customers;
   const active = all.filter(c => c.stage !== '成交' && c.stage !== '失單');
   const closed = all.filter(c => c.stage === '成交' && (c.lastContactAt || '').startsWith(mo));
   const redOnes = active.filter(c => alertOf(c) === 'red');
   const pipeAmt = active.reduce((s, c) => s + (c.budget || 0), 0);
 
+  // ① 統計看板
   document.getElementById('homeStats').innerHTML = `
     <div class="stat-card">
       <div class="stat-val green">${closed.length}</div>
@@ -1057,9 +1955,9 @@ function renderHome() {
       <div class="stat-lbl">潛在金額</div>
     </div>`;
 
-  // Stage distribution bar chart
+  // ② 階段長條圖
   const activeStages = ['陌生','接觸','報價','議價'];
-  const stageCounts = activeStages.map(s => ({ s, n: all.filter(c => c.stage === s).length }));
+  const stageCounts  = activeStages.map(s => ({ s, n: all.filter(c => c.stage === s).length }));
   const maxN = Math.max(...stageCounts.map(x => x.n), 1);
   document.getElementById('homeChart').innerHTML = `
     <div class="card" style="padding:14px 16px 10px">
@@ -1075,17 +1973,14 @@ function renderHome() {
         </div>`).join('')}
     </div>`;
 
-  document.getElementById('redLbl').textContent = `今天該追的客戶（${redOnes.length}）`;
+  // ③ 建立 O(n) 事件雜湊表，渲染微型日曆（雜湊表同時供日曆與過濾用）
+  const eventMap = buildDateEventMap();
+  renderWeeklyStrip(eventMap);
 
-  if (redOnes.length === 0) {
-    document.getElementById('redList').innerHTML =
-      `<div class="card" style="text-align:center;color:var(--green);font-size:14px;padding:18px">✓ 目前沒有逾期未聯絡的客戶</div>`;
-  } else {
-    document.getElementById('redList').innerHTML =
-      redOnes.sort((a, b) => daysSince(b.lastContactAt) - daysSince(a.lastContactAt))
-             .map(custCardHTML).join('');
-  }
+  // ④ 依目前選取日期渲染「該追 / 重要事件」區塊
+  renderHomeByDate(calSelectedDate, eventMap);
 
+  // ⑤ 最近聯絡（固定顯示，不受日曆過濾）
   const recent = [...all]
     .filter(c => c.lastContactAt)
     .sort((a, b) => b.lastContactAt.localeCompare(a.lastContactAt))
@@ -1099,6 +1994,60 @@ function renderHome() {
 // CUSTOMER LIST
 // ════════════════════════════════════════
 let stageF = '';
+let typeF  = '';  // 業種分類篩選
+
+// ── 業種 Tab 渲染 ──────────────────────────────────────
+const CAT_ALL = ['全部', ...TYPES]; // ['全部','個體戶','車隊',...]
+
+function renderCatTabs() {
+  const wrap = document.getElementById('catTypeFilter');
+  if (!wrap) return;
+  // 算各分類人數（stageF 不影響計數；只計全量）
+  const counts = Object.fromEntries(TYPES.map(t => [t, 0]));
+  db.customers.forEach(c => { if (counts[c.type] !== undefined) counts[c.type]++; });
+  const total = db.customers.length;
+
+  wrap.innerHTML = CAT_ALL.map(t => {
+    const cnt  = t === '全部' ? total : (counts[t] || 0);
+    const on   = (typeF === '' && t === '全部') || typeF === t;
+    const empty = cnt === 0 && t !== '全部';
+    return `<div class="cat-tab${on ? ' on' : ''}${empty ? ' empty' : ''}"
+      onclick="setCatType('${t}')" data-t="${t}">
+      ${t}<span class="cat-tab-cnt">${cnt}</span>
+    </div>`;
+  }).join('');
+}
+
+function setCatType(t) {
+  typeF = t === '全部' ? '' : t;
+  renderCatTabs();
+  renderCustList();
+}
+
+// ── 右側抽屜開關 ────────────────────────────────────────
+function openCustDrawer(id) {
+  activeCid = id;
+  const c = db.customers.find(x => x.id === id);
+  if (!c) return;
+
+  const nameParts = [c.name + (c.nickname ? ` (${c.nickname})` : ''), c.company]
+    .filter(Boolean).join(' · ');
+  document.getElementById('custDrawerTitle').textContent = nameParts;
+  const sub = document.getElementById('custDrawerSub');
+  sub.textContent = c.jobTitle || '';
+  sub.style.display = c.jobTitle ? '' : 'none';
+
+  document.getElementById('custDrawerBody').innerHTML = buildDetailBodyHTML(c);
+  document.getElementById('custDrawerVeil').classList.add('open');
+  document.getElementById('custDrawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCustDrawer() {
+  document.getElementById('custDrawerVeil').classList.remove('open');
+  document.getElementById('custDrawer').classList.remove('open');
+  document.body.style.overflow = '';
+}
 
 document.getElementById('stageFilter').addEventListener('click', e => {
   const chip = e.target.closest('.fchip');
@@ -1110,20 +2059,65 @@ document.getElementById('stageFilter').addEventListener('click', e => {
 });
 
 function renderCustList() {
-  const q = (document.getElementById('searchInput').value || '').toLowerCase();
+  const raw = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  const keywords = raw ? raw.split(/\s+/).filter(Boolean) : [];
   let list = db.customers.filter(c => {
+    if (typeF  && c.type  !== typeF)  return false;
     if (stageF && c.stage !== stageF) return false;
-    if (q) return (c.name||'').toLowerCase().includes(q)
-                || (c.company||'').toLowerCase().includes(q)
-                || (c.phone||'').includes(q);
-    return true;
+    if (keywords.length === 0) return true;
+    const hay = [c.name, c.company, c.phone, c.purpose, c.address, c.personalNotes,
+                 c.nickname, c.jobTitle]
+      .filter(Boolean).join(' ').toLowerCase();
+    return keywords.every(kw => hay.includes(kw));
   }).sort((a, b) =>
     (b.lastContactAt || b.createdAt || '').localeCompare(a.lastContactAt || a.createdAt || ''));
 
+  // 客戶頁使用 drawer card；其他頁共用 custCardHTML
   document.getElementById('custList').innerHTML = list.length
-    ? list.map(custCardHTML).join('')
-    : `<div class="empty"><div class="empty-icon">${q ? '🔍' : '👤'}</div>
-        <p>${q ? '找不到符合的客戶' : '這個階段還沒有客戶'}</p></div>`;
+    ? list.map(custCardHTMLDrawer).join('')
+    : `<div class="empty"><div class="empty-icon">${raw ? '🔍' : '👤'}</div>
+        <p>${raw ? '找不到符合「' + esc(raw) + '」的客戶' : '這個階段還沒有客戶'}</p>
+        ${raw && keywords.length > 1 ? '<small>多字搜尋：每個詞皆需符合</small>' : ''}</div>`;
+
+  const copyWrap = document.getElementById('copyBtnWrap');
+  if (copyWrap) copyWrap.style.display = (stageF || keywords.length > 0) && list.length > 0 ? '' : 'none';
+}
+
+async function copyContactList() {
+  const raw = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  const keywords = raw ? raw.split(/\s+/).filter(Boolean) : [];
+  const list = db.customers.filter(c => {
+    if (stageF && c.stage !== stageF) return false;
+    if (keywords.length === 0) return true;
+    const hay = [c.name, c.company, c.phone, c.purpose, c.address, c.personalNotes]
+      .filter(Boolean).join(' ').toLowerCase();
+    return keywords.every(kw => hay.includes(kw));
+  });
+  if (list.length > 100) {
+    alert(`名單共 ${list.length} 筆，超過 100 筆上限，請縮小篩選範圍後再複製`);
+    return;
+  }
+
+  // 格式：【姓名 (暱稱) | 職稱】 公司 | 電話 | LINE | 地址
+  const text = list.map(c => {
+    const nameTag = c.nickname ? `${c.name} (${c.nickname})` : c.name;
+    const titleTag = c.jobTitle ? ` | ${c.jobTitle}` : '';
+    const header = `【${nameTag}${titleTag}】`;
+    const parts = [
+      c.company || null,
+      c.phone   || null,
+      c.lineId  ? `LINE: ${c.lineId}` : null,
+      c.address || null,
+    ].filter(Boolean);
+    return header + (parts.length ? ' ' + parts.join(' | ') : '');
+  }).join('\n\n');  // 雙換行方便 LINE 閱讀
+
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(`已複製 ${list.length} 筆聯絡資訊`);
+  } catch {
+    toast('複製失敗，請手動操作');
+  }
 }
 
 function custCardHTML(c) {
@@ -1137,6 +2131,27 @@ function custCardHTML(c) {
     <div class="cust-tags">
       <span class="tag s-${c.stage}">${c.stage}</span>
       ${c.type ? `<span class="tag">${c.type}</span>` : ''}
+      ${c.leadSource ? `<span class="tag-lead">${esc(c.leadSource)}</span>` : ''}
+      <span class="tag">📞 ${c.lastContactAt ? agoText(c.lastContactAt) : '未聯絡'}</span>
+      ${c.expectedCloseMonth ? `<span class="tag">預計 ${fmtMonth(c.expectedCloseMonth)}</span>` : ''}
+      ${c.budget ? `<span class="tag">${c.budget}萬</span>` : ''}
+    </div>
+  </div>`;
+}
+
+/** 客戶頁專用：點擊開右側抽屜 */
+function custCardHTMLDrawer(c) {
+  const al = alertOf(c);
+  return `<div class="cust-card alert-${al}" onclick="openCustDrawer('${c.id}')">
+    <div class="cust-name-row">
+      ${al !== 'none' ? `<svg width="8" height="8" viewBox="0 0 8 8" style="flex-shrink:0"><circle cx="4" cy="4" r="4" fill="var(--${al})"/></svg>` : ''}
+      <span class="cust-name">${esc(c.name)}${c.nickname ? ` <span style="font-weight:400;font-size:.85em;color:var(--text-sub)">(${esc(c.nickname)})</span>` : ''}</span>
+      ${c.company ? `<span class="cust-company">${esc(c.company)}</span>` : ''}
+    </div>
+    <div class="cust-tags">
+      <span class="tag s-${c.stage}">${c.stage}</span>
+      ${c.jobTitle ? `<span class="tag" style="color:var(--text-sub)">${esc(c.jobTitle)}</span>` : ''}
+      ${c.leadSource ? `<span class="tag-lead">${esc(c.leadSource)}</span>` : ''}
       <span class="tag">📞 ${c.lastContactAt ? agoText(c.lastContactAt) : '未聯絡'}</span>
       ${c.expectedCloseMonth ? `<span class="tag">預計 ${fmtMonth(c.expectedCloseMonth)}</span>` : ''}
       ${c.budget ? `<span class="tag">${c.budget}萬</span>` : ''}
@@ -1154,12 +2169,57 @@ function openDetail(id) {
   const c = db.customers.find(x => x.id === id);
   if (!c) return;
 
-  document.getElementById('detailTitle').textContent = c.name + (c.company ? ` · ${c.company}` : '');
+  // Header: 姓名 (暱稱) · 公司 | 職位
+  const nameParts = [c.name + (c.nickname ? ` (${c.nickname})` : ''), c.company].filter(Boolean).join(' · ');
+  document.getElementById('detailTitle').textContent = nameParts;
+  if (c.jobTitle) {
+    let sub = document.getElementById('detailSubtitle');
+    if (!sub) {
+      sub = document.createElement('div');
+      sub.id = 'detailSubtitle';
+      sub.style.cssText = 'font-size:12px;color:var(--text-sub);padding:0 20px 2px;margin-top:-6px';
+      document.getElementById('detailTitle').insertAdjacentElement('afterend', sub);
+    }
+    sub.textContent = c.jobTitle;
+  } else {
+    const sub = document.getElementById('detailSubtitle');
+    if (sub) sub.remove();
+  }
 
+  document.getElementById('detailBody').innerHTML = buildDetailBodyHTML(c);
+  openOverlay('detailOverlay');
+}
+
+/** 共用 — 客戶詳情 body HTML（overlay 與 drawer 共享） */
+function buildDetailBodyHTML(c) {
   const al = alertOf(c);
   const alBadge = al !== 'none'
     ? `<div class="tag ${al}" style="margin-bottom:12px;font-size:12px">${al === 'red' ? '🔴 逾期未聯絡，今天該追！' : '🟡 即將逾期，提早聯絡'}</div>`
     : '';
+
+  const nextDateBanner = c.nextContactDate ? (() => {
+    const diff = Math.floor((new Date(c.nextContactDate + 'T12:00:00') - Date.now()) / 86400000);
+    const overdue = diff < 0;
+    const timeStr = c.nextContactTime ? ' ' + c.nextContactTime : '';
+    const label = overdue
+      ? `預約追蹤日 ${c.nextContactDate}${timeStr} 已過期`
+      : diff === 0 ? `今天是預約追蹤日 ${c.nextContactDate}${timeStr}`
+      : `預約追蹤日：${c.nextContactDate}${timeStr}（還有 ${diff} 天）`;
+    const gcalUrl = makeGCalUrl({
+      title: `追蹤：${c.name}${c.company ? '・' + c.company : ''}`,
+      date: c.nextContactDate,
+      time: c.nextContactTime || '',
+      location: c.address || '',
+      details: buildGCalDetails(c)
+    });
+    return `<div class="next-date-banner${overdue ? ' overdue' : ''}" style="display:flex;align-items:center;gap:8px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      <span style="flex:1">${label}</span>
+      ${gcalUrl ? `<a href="${gcalUrl}" target="_blank" class="gcal-btn" title="加入 Google 日曆">➕ Google</a>` : ''}
+    </div>`;
+  })() : '';
 
   const iaHTML = (c.interactions || []).length
     ? [...(c.interactions)].reverse().map((ia, i, arr) => `
@@ -1171,6 +2231,7 @@ function openDetail(id) {
           <div style="flex:1;padding-top:1px">
             <div class="tl-date">${ia.date}<span class="tl-method">${ia.method}</span></div>
             <div class="tl-content">${esc(ia.content)}</div>
+            ${ia.remark ? `<div style="font-size:12px;color:var(--text-sub);font-style:italic;margin-top:2px">📝 ${esc(ia.remark)}</div>` : ''}
           </div>
         </div>`).join('')
     : `<p style="color:var(--text-sub);font-size:13px">尚無跟進記錄</p>`;
@@ -1184,8 +2245,9 @@ function openDetail(id) {
       ${c.lossDetail.lesson ? drow('心得', c.lossDetail.lesson) : ''}
     </div>` : '';
 
-  document.getElementById('detailBody').innerHTML = `
+  return `
     ${alBadge}
+    ${nextDateBanner}
     <div class="action-row">
       <a href="tel:${c.phone}" class="action-btn action-phone">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1197,11 +2259,19 @@ function openDetail(id) {
         <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
         LINE
       </a>` : ''}
+      ${c.address ? `<button class="action-btn action-map" onclick="openMap(this.dataset.addr)" data-addr="${esc(c.address)}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+        </svg>
+        導航
+      </button>` : ''}
     </div>
 
     <div class="card" style="padding:4px 14px">
       ${drow('階段', `<span class="tag s-${c.stage}">${c.stage}</span>`)}
+      ${c.leadSource ? drow('開發來源', `<span class="tag-lead">${esc(c.leadSource)}</span>`) : ''}
       ${drow('類型', c.type)}
+      ${c.jobTitle ? drow('職位', c.jobTitle) : ''}
       ${drow('用途', c.purpose)}
       ${c.vehicleNeeds?.length ? drow('車型需求', c.vehicleNeeds.join('、')) : ''}
       ${c.currentVehicle ? drow('現有車況', c.currentVehicle) : ''}
@@ -1210,7 +2280,27 @@ function openDetail(id) {
       ${c.paymentMethod ? drow('付款方式', c.paymentMethod) : ''}
       ${c.expectedCloseMonth ? drow('預計成交', fmtMonth(c.expectedCloseMonth)) : ''}
       ${c.referrer ? drow('介紹人', refName(c.referrer)) : ''}
+      ${c.address ? drow('地址', esc(c.address)) : ''}
       ${c.personalNotes ? drow('生活細節', c.personalNotes) : ''}
+      ${(c.importantDates && c.importantDates.length) ? drow('重要日期',
+          c.importantDates.map(d => {
+            const timeStr = d.time ? ' ' + d.time : '';
+            const gcalUrl = makeGCalUrl({
+              title: `${d.title}：${c.name}${c.company ? '・' + c.company : ''}`,
+              date: /^\d{4}/.test(d.date) ? d.date : `${new Date().getFullYear()}-${d.date}`,
+              time: d.time || '',
+              location: c.address || '',
+              details: buildGCalDetails(c, d.notes)
+            });
+            return `<div style="margin-bottom:4px">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span>${esc(d.title)}：${esc(d.date)}${timeStr}</span>
+                ${gcalUrl ? `<a href="${gcalUrl}" target="_blank" class="gcal-btn">➕ Google</a>` : ''}
+              </div>
+              ${d.notes ? `<div style="font-size:11px;color:var(--text-sub);font-style:italic;padding-left:2px">${esc(d.notes)}</div>` : ''}
+            </div>`;
+          }).join('')
+        ) : ''}
     </div>
 
     ${lossSection}
@@ -1232,9 +2322,7 @@ function openDetail(id) {
     </div>
     <div style="height:8px"></div>
   `;
-
-  openOverlay('detailOverlay');
-}
+} // end buildDetailBodyHTML
 
 function drow(k, v) {
   return `<div class="detail-row"><span class="dk">${k}</span><span class="dv">${v || '—'}</span></div>`;
@@ -1245,13 +2333,82 @@ function refName(id) {
   return c ? esc(c.name) : '—';
 }
 
+/** 彙整客戶資訊為 Google 日曆 description 字串 */
+function buildGCalDetails(c, extraNote) {
+  const lines = [];
+  if (c.jobTitle)    lines.push(`職稱：${c.jobTitle}`);
+  if (c.leadSource)  lines.push(`來源：${c.leadSource}`);
+  if (c.purpose)     lines.push(`需求：${c.purpose}`);
+  if (c.type)        lines.push(`類型：${c.type}`);
+  if (c.budget)      lines.push(`預算：${c.budget} 萬`);
+  if (c.vehicleNeeds?.length) lines.push(`車型：${c.vehicleNeeds.join('、')}`);
+  if (c.referrer)    lines.push(`介紹人：${refName(c.referrer)}`);
+  if (c.personalNotes) lines.push(`備註：${c.personalNotes}`);
+  if (extraNote)     lines.push(`說明：${extraNote}`);
+  return lines.join('\n');
+}
+
+/** 產生 Google 日曆新增事件網址 */
+function makeGCalUrl({ title, date, time, endTime, location, details }) {
+  const enc = encodeURIComponent;
+  // date: YYYY-MM-DD, time: HH:MM (optional)
+  const d = (date || '').replace(/-/g, '');
+  if (!d) return null;
+  let dates;
+  if (time) {
+    const t = time.replace(':', '') + '00';
+    const end = endTime ? endTime.replace(':', '') + '00' : (() => {
+      const [h, m] = time.split(':').map(Number);
+      const eh = String(h + 1).padStart(2, '0');
+      return `${eh}${String(m).padStart(2, '0')}00`;
+    })();
+    dates = `${d}T${t}/${d}T${end}`;
+  } else {
+    dates = `${d}/${d}`;
+  }
+  let url = `https://calendar.google.com/calendar/render?action=TEMPLATE`;
+  url += `&text=${enc(title)}`;
+  url += `&dates=${dates}`;
+  if (details) url += `&details=${enc(details)}`;
+  if (location) url += `&location=${enc(location)}`;
+  return url;
+}
+
+function openMap(addr) {
+  if (!addr) return;
+  const url = 'https://maps.google.com/?q=' + encodeURIComponent(addr);
+  window.open(url, '_blank');
+}
+
+function scheduleAftercare(c) {
+  const base = new Date(todayStr());
+  const schedule = [
+    { months: 1,  title: '滿意度確認' },
+    { months: 3,  title: '車況關心' },
+    { months: 6,  title: '定保提醒' },
+    { months: 11, title: '保險續約' },
+  ];
+  if (!Array.isArray(c.importantDates)) c.importantDates = [];
+  schedule.forEach(({ months, title }) => {
+    const d = new Date(base);
+    d.setMonth(d.getMonth() + months);
+    c.importantDates.push({ title, date: d.toISOString().slice(0, 10) });
+  });
+}
+
 function markStage(id, stage) {
   const c = db.customers.find(x => x.id === id);
   if (!c) return;
   c.stage = stage;
   c.lastContactAt = todayStr();
+  if (stage === '成交') {
+    if (confirm('恭喜成交！要自動建立 1-3-6-11 個月售後關懷排程嗎？')) {
+      scheduleAftercare(c);
+    }
+  }
   save();
   closeOverlay('detailOverlay');
+  closeCustDrawer();
   refreshAll();
   toast(`已移至「${stage}」`);
 }
@@ -1263,6 +2420,7 @@ function markLoss(id) {
   document.getElementById('lossGap').value = '';
   document.getElementById('lossLesson').value = '';
   closeOverlay('detailOverlay');
+  closeCustDrawer();
   openOverlay('lossOverlay');
 }
 
@@ -1271,6 +2429,7 @@ function delCust(id) {
   db.customers = db.customers.filter(c => c.id !== id);
   save();
   closeOverlay('detailOverlay');
+  closeCustDrawer();
   refreshAll();
   toast('已刪除');
 }
@@ -1279,6 +2438,40 @@ function delCust(id) {
 // ADD / EDIT CUSTOMER
 // ════════════════════════════════════════
 let editId = null;
+let formImportantDates = [];  // 表單中暫存的重要日期清單
+
+function renderImportantDatesList() {
+  const el = document.getElementById('importantDatesList');
+  if (!el) return;
+  el.innerHTML = formImportantDates.length
+    ? formImportantDates.map((d, i) => `
+        <div class="idate-item">
+          <span class="idate-title">${esc(d.title)}</span>
+          <span class="idate-val">${esc(d.date)}${d.time ? ' ' + d.time : ''}</span>
+          <button class="idate-del" onclick="removeImportantDate(${i})">×</button>
+        </div>
+        ${d.notes ? `<div style="font-size:11px;color:var(--text-sub);padding:0 4px 4px;font-style:italic">${esc(d.notes)}</div>` : ''}`).join('')
+    : `<p style="font-size:13px;color:var(--text-sub);padding:4px 0 6px">尚未記錄重要日期</p>`;
+}
+
+function addImportantDate() {
+  const title = (document.getElementById('newDateTitle').value || '').trim();
+  const date  = (document.getElementById('newDateVal').value  || '').trim();
+  if (!title || !date) { toast('請填寫名稱與日期'); return; }
+  const time  = (document.getElementById('newDateTime').value  || '').trim();
+  const notes = (document.getElementById('newDateNotes').value || '').trim();
+  formImportantDates.push({ title, date, time, notes });
+  document.getElementById('newDateTitle').value = '';
+  document.getElementById('newDateVal').value   = '';
+  document.getElementById('newDateTime').value  = '';
+  document.getElementById('newDateNotes').value = '';
+  renderImportantDatesList();
+}
+
+function removeImportantDate(i) {
+  formImportantDates.splice(i, 1);
+  renderImportantDatesList();
+}
 
 function openAddCustomer() {
   editId = null;
@@ -1295,21 +2488,31 @@ function openEdit(id) {
   document.getElementById('custModalTitle').textContent = '編輯客戶';
   clearCustForm();
 
-  document.getElementById('fn').value = c.name || '';
-  document.getElementById('fphone').value = c.phone || '';
-  document.getElementById('fpurpose').value = c.purpose || '';
-  document.getElementById('fco').value = c.company || '';
-  document.getElementById('fline').value = c.lineId || '';
-  document.getElementById('fveh').value = c.currentVehicle || '';
-  document.getElementById('fbudget').value = c.budget || '';
-  document.getElementById('fmonth').value = c.expectedCloseMonth || '';
-  document.getElementById('fnotes').value = c.personalNotes || '';
+  document.getElementById('fn').value       = c.name     || '';
+  document.getElementById('fphone').value   = c.phone    || '';
+  document.getElementById('fpurpose').value = c.purpose  || '';
+  document.getElementById('fco').value      = c.company  || '';
+  document.getElementById('fnickname').value= c.nickname || '';
+  document.getElementById('fjobTitle').value= c.jobTitle || '';
+  document.getElementById('fline').value    = c.lineId   || '';
+  document.getElementById('fveh').value     = c.currentVehicle || '';
+  document.getElementById('fbudget').value  = c.budget   || '';
+  document.getElementById('fmonth').value   = c.expectedCloseMonth || '';
+  document.getElementById('fnotes').value   = c.personalNotes || '';
+  document.getElementById('faddress').value = c.address  || '';
+  formImportantDates = (c.importantDates || []).map(d => ({ ...d }));
+  renderImportantDatesList();
 
   pills('fg-type', 'ctype', TYPES, c.type || '個體戶');
   pills('fg-stage', 'cstage', STAGES, c.stage || '陌生');
   checks('fg-vehicle', 'cvehicle', VEHICLES, c.vehicleNeeds || []);
   pills('fg-decision', 'cdecision', DECISIONS, c.decisionMaker || '本人');
   pills('fg-payment', 'cpayment', PAYMENTS, c.paymentMethod || '未定');
+  renderLeadSourceChips(c.leadSource || '');
+  if (c.leadSource && !LEAD_SOURCES.includes(c.leadSource)) {
+    const custom = document.getElementById('leadSourceCustom');
+    if (custom) custom.value = c.leadSource;
+  }
   fillReferrer(c.referrer);
 
   closeOverlay('detailOverlay');
@@ -1318,27 +2521,49 @@ function openEdit(id) {
 }
 
 function clearCustForm() {
-  ['fn','fphone','fpurpose','fco','fline','fveh','fbudget','fmonth','fnotes']
-    .forEach(id => document.getElementById(id).value = '');
+  ['fn','fphone','fpurpose','fco','fnickname','fjobTitle','fline','fveh',
+   'fbudget','fmonth','fnotes','faddress','newDateTitle','newDateVal','newDateTime','newDateNotes']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  formImportantDates = [];
+  renderImportantDatesList();
   pills('fg-type', 'ctype', TYPES, '個體戶');
   pills('fg-stage', 'cstage', STAGES, '陌生');
   checks('fg-vehicle', 'cvehicle', VEHICLES, []);
   pills('fg-decision', 'cdecision', DECISIONS, '本人');
   pills('fg-payment', 'cpayment', PAYMENTS, '未定');
+  renderLeadSourceChips('');
   fillReferrer(null);
 }
 
+function renderLeadSourceChips(current) {
+  const wrap = document.getElementById('leadSourceChips');
+  if (!wrap) return;
+  wrap.innerHTML = LEAD_SOURCES.map(s =>
+    `<div class="lead-chip${current === s ? ' on' : ''}" data-v="${s}"
+      onclick="this.parentElement.querySelectorAll('.lead-chip').forEach(c=>c.classList.remove('on'));
+               this.classList.toggle('on', !this.classList.contains('on') || '${s}' !== '${current}')"
+    >${s}</div>`
+  ).join('') +
+  `<input type="text" id="leadSourceCustom" class="finput"
+    placeholder="自定義…"
+    style="height:32px;font-size:12px;padding:4px 10px;width:80px"
+    oninput="document.querySelectorAll('#leadSourceChips .lead-chip').forEach(c=>c.classList.remove('on'))">`;
+}
+
 function fillReferrer(sel) {
-  const s = document.getElementById('freferrer');
-  s.innerHTML = '<option value="">— 無 —</option>';
+  const input = document.getElementById('freferrer');
+  const dl = document.getElementById('refList');
+  dl.innerHTML = '';
+  let selText = '';
   db.customers.forEach(c => {
     if (c.id === editId) return;
+    const label = c.name + (c.company ? ` (${c.company})` : '');
     const o = document.createElement('option');
-    o.value = c.id;
-    o.textContent = c.name + (c.company ? ` (${c.company})` : '');
-    if (c.id === sel) o.selected = true;
-    s.appendChild(o);
+    o.value = label;
+    dl.appendChild(o);
+    if (c.id === sel) selText = label;
   });
+  input.value = selText;
 }
 
 function toStep1(init) {
@@ -1370,6 +2595,14 @@ function saveCust() {
 
   const patch = {
     name, phone,
+    nickname:  document.getElementById('fnickname').value.trim(),
+    jobTitle:  document.getElementById('fjobTitle').value.trim(),
+    leadSource: (() => {
+      const on = document.querySelector('#leadSourceChips .lead-chip.on');
+      if (on) return on.dataset.v;
+      const custom = document.getElementById('leadSourceCustom');
+      return custom ? custom.value.trim() : '';
+    })(),
     type: ctype,
     stage: cstage,
     purpose: document.getElementById('fpurpose').value.trim(),
@@ -1379,11 +2612,23 @@ function saveCust() {
     budget: parseInt(document.getElementById('fbudget').value) || null,
     expectedCloseMonth: document.getElementById('fmonth').value || null,
     personalNotes: document.getElementById('fnotes').value.trim(),
+    address: document.getElementById('faddress').value.trim(),
     decisionMaker: checkedVal('cdecision') || null,
     paymentMethod: checkedVal('cpayment') || null,
     vehicleNeeds: checkedVals('cvehicle'),
-    referrer: document.getElementById('freferrer').value || null,
+    referrer: (() => {
+      const refVal = document.getElementById('freferrer').value.trim();
+      if (!refVal) return null;
+      const match = db.customers.find(c =>
+        (c.name + (c.company ? ` (${c.company})` : '')) === refVal || c.name === refVal
+      );
+      return match ? match.id : null;
+    })(),
+    importantDates: formImportantDates.map(d => ({ ...d })),
   };
+
+  // 每次存檔都同步更新 searchIndex，確保全域搜尋正確
+  patch.searchIndex = buildSearchIndex(patch);
 
   if (editId) {
     const idx = db.customers.findIndex(c => c.id === editId);
@@ -1395,12 +2640,15 @@ function saveCust() {
       interactions: [],
       createdAt: todayStr(),
       lastContactAt: todayStr(),
-      lossDetail: null
+      lossDetail: null,
+      nextContactDate: null,
+      nextContactTime: '',
+      importantDates: []
     });
     toast('已新增客戶 🎉');
   }
 
-  save();
+  save(); // fire-and-forget，UI 不需等待
   closeOverlay('custOverlay');
   refreshAll();
 }
@@ -1414,11 +2662,15 @@ let recording = false;
 
 function openIA(id) {
   activeIaCid = id;
-  document.getElementById('iaDate').value = todayStr();
+  document.getElementById('iaDate').value    = todayStr();
   document.getElementById('iaContent').value = '';
+  document.getElementById('iaRemark').value  = '';
+  const nd = document.getElementById('iaNextDate'); if (nd) nd.value = '';
+  const nt = document.getElementById('iaNextTime'); if (nt) nt.value = '';
   pills('fg-method', 'imethod', METHODS, 'LINE');
-  document.getElementById('qtags').innerHTML = QTAG_LIST
-    .map(t => `<div class="qtag" onclick="appendTag('${t}')">${t}</div>`).join('');
+  const qtags = (db.settings && db.settings.quickTags) || DEFAULT_QTAGS;
+  document.getElementById('qtags').innerHTML = qtags
+    .map(t => `<div class="qtag" onclick="appendTag('${t.replace(/'/g,"\\'")}')"> ${esc(t)}</div>`).join('');
   openOverlay('iaOverlay');
 }
 
@@ -1429,19 +2681,40 @@ function appendTag(t) {
 }
 
 function saveIA() {
-  const content = document.getElementById('iaContent').value.trim();
+  const content = (document.getElementById('iaContent')?.value || '').trim();
   if (!content) { toast('請填寫內容摘要'); return; }
   const c = db.customers.find(x => x.id === activeIaCid);
-  if (!c) return;
-  if (!c.interactions) c.interactions = [];
-  const date = document.getElementById('iaDate').value || todayStr();
-  c.interactions.push({ date, method: checkedVal('imethod') || 'LINE', content });
-  c.lastContactAt = date;
+  if (!c) { toast('找不到客戶資料，請重試'); return; }
+  if (!Array.isArray(c.interactions)) c.interactions = [];
+
+  const date            = document.getElementById('iaDate')?.value     || todayStr();
+  const method          = checkedVal('imethod') || 'LINE';
+  const remark          = (document.getElementById('iaRemark')?.value   || '').trim();
+  const nextContactDate = document.getElementById('iaNextDate')?.value  || null;
+  const nextContactTime = document.getElementById('iaNextTime')?.value  || '';
+
+  c.interactions.push({
+    date,
+    method,
+    content,
+    remark: remark || '',
+    nextContactDate: nextContactDate || null,
+    nextContactTime: nextContactTime || ''
+  });
+
+  c.lastContactAt   = date;
+  c.nextContactDate = nextContactDate || null;
+  c.nextContactTime = nextContactTime || '';
+
   save();
   closeOverlay('iaOverlay');
-  toast('跟進記錄已儲存');
-  if (activeCid === activeIaCid && document.getElementById('detailOverlay').classList.contains('open')) {
-    openDetail(activeCid);
+  toast('跟進記錄已儲存 ✓');
+  if (activeCid === activeIaCid) {
+    if (document.getElementById('detailOverlay')?.classList.contains('open')) {
+      openDetail(activeCid);
+    } else if (document.getElementById('custDrawer')?.classList.contains('open')) {
+      openCustDrawer(activeCid);
+    }
   }
   refreshAll();
 }
@@ -1722,6 +2995,50 @@ document.getElementById('analysisFilter').addEventListener('click', e => {
   renderAnalysis();
 });
 
+function calcLeadROI(cutoff) {
+  const map = {};
+  db.customers.forEach(c => {
+    const src = c.leadSource || '未分類';
+    const dateRef = c.lastContactAt || c.createdAt || '';
+    if (cutoff && dateRef < cutoff) return;
+    if (!map[src]) map[src] = { total: 0, wins: 0, revenue: 0 };
+    map[src].total++;
+    if (c.stage === '成交') {
+      map[src].wins++;
+      map[src].revenue += c.budget || 0;
+    }
+  });
+  return Object.entries(map)
+    .map(([src, d]) => ({
+      src,
+      total: d.total,
+      wins: d.wins,
+      rate: d.total > 0 ? Math.round(d.wins / d.total * 100) : 0,
+      revenue: d.revenue
+    }))
+    .sort((a, b) => b.rate - a.rate || b.total - a.total);
+}
+
+function calcWinRate(cutoff) {
+  let wins = db.customers.filter(c => c.stage === '成交');
+  let losses = db.customers.filter(c => c.stage === '失單');
+  if (cutoff) {
+    wins   = wins.filter(c   => (c.lastContactAt || '') >= cutoff);
+    losses = losses.filter(c => (c.lossDetail?.date || c.lastContactAt || '') >= cutoff);
+  }
+  const total = wins.length + losses.length;
+  return total === 0 ? null : Math.round(wins.length / total * 100);
+}
+
+function calcFunnel() {
+  const stageOrder = ['陌生', '接觸', '報價', '議價'];
+  const counts = Object.fromEntries(
+    stageOrder.map(s => [s, db.customers.filter(c => c.stage === s).length])
+  );
+  const base = Math.max(...Object.values(counts), 1);
+  return stageOrder.map(s => ({ stage: s, pct: Math.round(counts[s] / base * 100), n: counts[s] }));
+}
+
 function renderAnalysis() {
   const cutoff = analysisDays > 0
     ? new Date(Date.now() - analysisDays * 86400000).toISOString().slice(0, 10)
@@ -1737,6 +3054,7 @@ function renderAnalysis() {
   const avgGap = withGap.length
     ? Math.round(withGap.reduce((s, c) => s + c.lossDetail.gap, 0) / withGap.length)
     : null;
+  const winRate = calcWinRate(cutoff);
   document.getElementById('analysisSummary').innerHTML = `
     <div class="stat-card">
       <div class="stat-val red">${losses.length}</div>
@@ -1747,7 +3065,51 @@ function renderAnalysis() {
         ${avgGap !== null ? avgGap + '萬' : '—'}
       </div>
       <div class="stat-lbl">平均價差</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--green)">
+        ${winRate !== null ? winRate + '%' : '—'}
+      </div>
+      <div class="stat-lbl">總體勝率</div>
     </div>`;
+
+  // Lead ROI table
+  const roiData = calcLeadROI(cutoff);
+  const bestRate = roiData.length ? roiData[0].rate : 0;
+  document.getElementById('analysisLeadROI').innerHTML = roiData.length === 0
+    ? '<p style="color:var(--text-sub);font-size:13px">尚無來源標籤資料（新增客戶時選取「開發來源」即可累積）</p>'
+    : `<table class="roi-table">
+        <thead><tr>
+          <th>來源</th><th style="text-align:right">進單</th>
+          <th style="text-align:right">成交</th><th style="text-align:right">轉化率</th>
+          <th style="text-align:right">貢獻</th>
+        </tr></thead>
+        <tbody>
+          ${roiData.map(r => `
+            <tr class="${r.rate === bestRate && bestRate > 0 ? 'roi-best' : ''}">
+              <td>${esc(r.src)}${r.rate === bestRate && bestRate > 0 ? '<span class="roi-best-badge">最高</span>' : ''}</td>
+              <td style="text-align:right;color:var(--text-sub)">${r.total}</td>
+              <td style="text-align:right;color:var(--green);font-weight:700">${r.wins}</td>
+              <td style="text-align:right;font-weight:700;color:${r.rate >= 50 ? 'var(--green)' : r.rate >= 25 ? 'var(--yellow)' : 'var(--text-sub)'}">${r.rate}%</td>
+              <td style="text-align:right;color:var(--text-sub)">${r.revenue > 0 ? r.revenue + '萬' : '—'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+
+  // Funnel (active pipeline, no date filter)
+  const funnelData = calcFunnel();
+  document.getElementById('analysisFunnel').innerHTML = funnelData.every(f => f.n === 0)
+    ? '<p style="color:var(--text-sub);font-size:13px">目前管線無客戶</p>'
+    : funnelData.map(f => `
+        <div class="bar-row">
+          <span class="bar-lbl" style="width:36px;font-size:11px">${f.stage}</span>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${f.pct === 0 ? '2px' : f.pct + '%'};background:var(--primary)">
+              ${f.n > 0 ? `<span>${f.pct}%</span>` : ''}
+            </div>
+          </div>
+          <span style="font-size:11px;color:var(--text-sub);flex-shrink:0;width:28px;text-align:right">${f.n} 人</span>
+        </div>`).join('');
 
   // Reason bar chart
   const rCounts = Object.fromEntries(LOSS_RSN.map(r => [r, 0]));
@@ -1801,14 +3163,65 @@ function renderAnalysis() {
 }
 
 // ════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════
+function renderSettings() {
+  const tags = (db.settings && db.settings.quickTags) || DEFAULT_QTAGS;
+  const el = document.getElementById('quickTagsList');
+  if (!el) return;
+  el.innerHTML = tags.length
+    ? tags.map((t, i) => `
+        <div class="qtag-mgr-item">
+          <span class="qtag-mgr-label">${esc(t)}</span>
+          <button class="qtag-del" onclick="deleteQuickTag(${i})" title="刪除">×</button>
+        </div>`).join('')
+    : `<p style="font-size:13px;color:var(--text-sub);padding:6px 0">尚未設定快捷標籤</p>`;
+}
+
+function deleteQuickTag(i) {
+  if (!db.settings) db.settings = {};
+  if (!Array.isArray(db.settings.quickTags)) db.settings.quickTags = [...DEFAULT_QTAGS];
+  db.settings.quickTags.splice(i, 1);
+  save();
+  renderSettings();
+  toast('已刪除標籤');
+}
+
+function addQuickTag() {
+  const inp = document.getElementById('newTagInput');
+  const val = (inp.value || '').trim();
+  if (!val) { toast('請輸入標籤文字'); return; }
+  if (!db.settings) db.settings = {};
+  if (!Array.isArray(db.settings.quickTags)) db.settings.quickTags = [...DEFAULT_QTAGS];
+  if (db.settings.quickTags.includes(val)) { toast('標籤已存在'); return; }
+  db.settings.quickTags.push(val);
+  inp.value = '';
+  save();
+  renderSettings();
+  toast('已新增標籤');
+}
+
+// ════════════════════════════════════════
 // EXPORT / IMPORT
 // ════════════════════════════════════════
-function exportData() {
-  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+async function exportData() {
+  const json = JSON.stringify(db, null, 2);
+  const fileName = `kia_crm_${todayStr()}.json`;
+  const blob = new Blob([json], { type: 'application/json' });
+  const file = new File([blob], fileName, { type: 'application/json' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'KIA CRM 備份' });
+      toast('備份已分享');
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `kia_crm_${todayStr()}.json`;
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -1820,13 +3233,15 @@ function importData(e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => {
+  // 匯入需 await save() 確保資料確實寫入後才提示成功
+  reader.onload = async ev => {
     try {
       const imported = JSON.parse(ev.target.result);
       if (!Array.isArray(imported.customers)) throw new Error();
       if (!confirm(`匯入後將覆蓋現有資料（共 ${imported.customers.length} 筆客戶）。確定繼續？`)) return;
       db = imported;
-      save();
+      migrateData();         // 補齊新欄位 + 重建 searchIndex
+      await save();          // 確保寫入完成再提示
       refreshAll();
       toast(`已匯入 ${imported.customers.length} 筆客戶`);
     } catch {
@@ -1837,11 +3252,11 @@ function importData(e) {
   e.target.value = '';
 }
 
-function confirmClear() {
+async function confirmClear() {
   if (!confirm('確定要清除所有資料嗎？建議先匯出備份。')) return;
   if (!confirm('最後確認：所有客戶資料都將被刪除，無法復原。')) return;
   db = { customers: [], settings: { redLightDays: RED_DAYS } };
-  save();
+  await save(); // 等待清空寫入完成
   refreshAll();
   toast('已清除全部資料');
 }
@@ -1888,30 +3303,248 @@ function toast(msg) {
   _toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
 
+// ════════════════════════════════════════
+// GLOBAL SEARCH
+// ════════════════════════════════════════
+function openGlobalSearch() {
+  document.getElementById('globalSearch').classList.add('open');
+  // Focus input after animation frame so iOS keyboard opens correctly
+  requestAnimationFrame(() => {
+    const inp = document.getElementById('gsInput');
+    inp.value = '';
+    inp.focus();
+    document.getElementById('gsBody').innerHTML = `
+      <div class="gs-hint">🔍 輸入關鍵字即時搜尋<br>支援：姓名 · 電話 · 公司 · 地址<br><small style="font-size:12px;color:var(--text-sub)">空白鍵分隔可多字同時搜尋</small></div>`;
+  });
+}
+
+function closeGlobalSearch() {
+  document.getElementById('globalSearch').classList.remove('open');
+  document.getElementById('gsInput').blur();
+}
+
+function renderGlobalSearch() {
+  const raw = (document.getElementById('gsInput').value || '').trim().toLowerCase();
+  const body = document.getElementById('gsBody');
+
+  if (!raw) {
+    body.innerHTML = `<div class="gs-hint">🔍 輸入關鍵字即時搜尋<br>支援：姓名 · 電話 · 公司 · 地址<br><small style="font-size:12px;color:var(--text-sub)">空白鍵分隔可多字同時搜尋</small></div>`;
+    return;
+  }
+
+  const keywords = raw.split(/\s+/).filter(Boolean);
+
+  const results = db.customers.filter(c => {
+    if (c.searchIndex) {
+      // 每個關鍵字都必須命中 searchIndex（多字 AND 邏輯）
+      return keywords.every(kw => {
+        const kwN = kw.replace(/[-\s()]/g, '');
+        return c.searchIndex.includes(kw) || c.searchIndex.includes(kwN);
+      });
+    }
+    // 降級：無 searchIndex 時逐欄比對（仍支援 AND）
+    const hay = [c.name, c.company, c.phone, c.purpose, c.address, c.personalNotes]
+      .filter(Boolean).join(' ').toLowerCase();
+    return keywords.every(kw => hay.includes(kw));
+  }).sort((a, b) =>
+    (b.lastContactAt || b.createdAt || '').localeCompare(a.lastContactAt || a.createdAt || '')
+  );
+
+  if (results.length === 0) {
+    body.innerHTML = `<div class="gs-hint">找不到「${esc(raw)}」<br><small style="font-size:12px">試試看電話後四碼或公司簡稱</small></div>`;
+    return;
+  }
+
+  // 高亮顯示：針對第一個關鍵字做高亮
+  const q0 = keywords[0];
+  const hi = (str) => {
+    if (!str || !q0) return esc(str || '');
+    const idx = str.toLowerCase().indexOf(q0);
+    if (idx === -1) return esc(str);
+    return esc(str.slice(0, idx))
+      + `<mark style="background:#FFF0A0;border-radius:2px;padding:0 1px">${esc(str.slice(idx, idx + q0.length))}</mark>`
+      + esc(str.slice(idx + q0.length));
+  };
+
+  body.innerHTML = `
+    <div class="gs-count">找到 ${results.length} 筆${keywords.length > 1 ? `（${keywords.length} 個條件 AND）` : ''}</div>
+    ${results.map(c => {
+      const al = alertOf(c);
+      return `<div class="cust-card alert-${al}" onclick="gsOpenDetail('${c.id}')">
+        <div class="cust-name-row">
+          ${al !== 'none' ? `<svg width="8" height="8" viewBox="0 0 8 8" style="flex-shrink:0"><circle cx="4" cy="4" r="4" fill="var(--${al})"/></svg>` : ''}
+          <span class="cust-name">${hi(c.name)}</span>
+          ${c.company ? `<span class="cust-company">${hi(c.company)}</span>` : ''}
+        </div>
+        <div class="cust-tags">
+          <span class="tag s-${c.stage}">${c.stage}</span>
+          ${c.type ? `<span class="tag">${c.type}</span>` : ''}
+          <span class="tag" style="font-family:monospace">${hi(c.phone)}</span>
+          ${c.lastContactAt ? `<span class="tag">📞 ${agoText(c.lastContactAt)}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+// ════════════════════════════════════════
+// HOME DATE FILTER
+// 純顯示層過濾，不修改任何 IDB 資料
+// ════════════════════════════════════════
+function renderHomeByDate(dateStr, eventMap) {
+  const todayDate = todayStr();
+  const isToday   = !dateStr || dateStr === todayDate;
+  const evtLbl    = document.getElementById('upcomingEventsLbl');
+  const evtEl     = document.getElementById('upcomingEvents');
+
+  if (isToday) {
+    // ── 今日：沿用原始紅燈邏輯 ──
+    const active  = db.customers.filter(c => c.stage !== '成交' && c.stage !== '失單');
+    const redOnes = active.filter(c => alertOf(c) === 'red');
+    document.getElementById('redLbl').textContent = `今天該追的客戶（${redOnes.length}）`;
+    document.getElementById('redList').innerHTML = redOnes.length
+      ? redOnes.sort((a, b) => daysSince(b.lastContactAt) - daysSince(a.lastContactAt))
+               .map(custCardHTML).join('')
+      : `<div class="card" style="text-align:center;color:var(--green);font-size:14px;padding:18px">✓ 目前沒有逾期未聯絡的客戶</div>`;
+    renderUpcomingEvents();   // 14 天內事件，獨立渲染
+    return;
+  }
+
+  // ── 非今日：按選取日期過濾 ──
+  const [, mm, dd] = dateStr.split('-');
+  const dateLabel  = `${parseInt(mm)} 月 ${parseInt(dd)} 日`;
+
+  // 追蹤客戶：nextContactDate === 選取日
+  const trackers = db.customers.filter(c => c.nextContactDate === dateStr);
+  document.getElementById('redLbl').textContent = `${dateLabel} 的追蹤客戶（${trackers.length}）`;
+  document.getElementById('redList').innerHTML = trackers.length
+    ? trackers.map(custCardHTML).join('')
+    : `<div class="card" style="text-align:center;color:var(--text-sub);font-size:14px;padding:18px">該日無設定追蹤的客戶</div>`;
+
+  // 重要事件：importantDates 命中選取日
+  const curYear = new Date().getFullYear();
+  const hits = [];
+  db.customers.forEach(c => {
+    (c.importantDates || []).forEach(evt => {
+      if (!evt || !evt.date) return;
+      const fullMatch = /^\d{4}-\d{2}-\d{2}$/.test(evt.date) && evt.date === dateStr;
+      const mmddMatch = /^\d{2}-\d{2}$/.test(evt.date) &&
+        (`${curYear}-${evt.date}` === dateStr || `${curYear + 1}-${evt.date}` === dateStr);
+      if (fullMatch || mmddMatch) hits.push({ c, evt });
+    });
+  });
+
+  evtLbl.style.display = '';
+  evtLbl.textContent = `${dateLabel} 的重要事件（${hits.length}）`;
+  evtEl.innerHTML = hits.length
+    ? hits.map(({ c, evt }) => `<div class="event-card" onclick="openDetail('${c.id}')">
+        <div class="event-badge">
+          <span class="event-badge-days">${parseInt(dd)}</span>
+          <span class="event-badge-lbl">日</span>
+        </div>
+        <div class="event-info">
+          <div class="event-title">${esc(c.name)}${c.company ? ' · ' + esc(c.company) : ''}</div>
+          <div class="event-sub">${esc(evt.title)}（${esc(evt.date)}）</div>
+        </div>
+      </div>`).join('')
+    : `<div class="card" style="text-align:center;color:var(--text-sub);font-size:14px;padding:18px">該日無重要事件</div>`;
+}
+
+// ════════════════════════════════════════
+// UPCOMING EVENTS（近期重要日期倒數）
+// 獨立函式，不阻塞首頁其他渲染
+// ════════════════════════════════════════
+function renderUpcomingEvents() {
+  const lbl = document.getElementById('upcomingEventsLbl');
+  const el  = document.getElementById('upcomingEvents');
+  if (!lbl || !el) return;
+
+  const now   = Date.now();
+  const today = new Date();
+  const year  = today.getFullYear();
+  const hits  = [];
+
+  db.customers.forEach(c => {
+    (c.importantDates || []).forEach(evt => {
+      if (!evt || !evt.date) return;
+      let diff = null;
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(evt.date)) {
+        // 有年份的完整日期
+        diff = Math.floor((new Date(evt.date + 'T12:00:00') - now) / 86400000);
+      } else if (/^\d{2}-\d{2}$/.test(evt.date)) {
+        // 無年份 (MM-DD)：先試今年，再試明年
+        const thisY = Math.floor((new Date(`${year}-${evt.date}T12:00:00`) - now) / 86400000);
+        const nextY = Math.floor((new Date(`${year + 1}-${evt.date}T12:00:00`) - now) / 86400000);
+        diff = thisY >= 0 ? thisY : nextY;
+      }
+
+      if (diff !== null && diff >= 0 && diff <= 14) {
+        hits.push({ c, evt, diff });
+      }
+    });
+  });
+
+  hits.sort((a, b) => a.diff - b.diff);
+
+  if (hits.length === 0) {
+    lbl.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+
+  lbl.style.display = '';
+  el.innerHTML = hits.map(({ c, evt, diff }) => {
+    const urgent = diff <= 2;
+    const diffLabel = diff === 0 ? '今天' : diff === 1 ? '明天' : `${diff} 天後`;
+    return `<div class="event-card" onclick="openDetail('${c.id}')">
+      <div class="event-badge${urgent ? ' urgent' : ''}">
+        <span class="event-badge-days">${diff === 0 ? '今' : diff}</span>
+        <span class="event-badge-lbl">${diff === 0 ? '' : '天後'}</span>
+      </div>
+      <div class="event-info">
+        <div class="event-title">${esc(c.name)}${c.company ? ' · ' + esc(c.company) : ''}</div>
+        <div class="event-sub">${esc(evt.title)}　${diffLabel}（${esc(evt.date)}）</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function gsOpenDetail(id) {
+  closeGlobalSearch();
+  // Small delay so overlay closes before sheet opens
+  setTimeout(() => openDetail(id), 80);
+}
+
 function refreshAll() {
   if (activePage === 'home') renderHome();
-  if (activePage === 'customers') renderCustList();
+  if (activePage === 'customers') { renderCatTabs(); renderCustList(); }
   if (activePage === 'pipeline') renderPipeline();
   // always refresh home stats silently
   if (activePage !== 'home') renderHome();
 }
 
 // ════════════════════════════════════════
-// INIT
+// INIT（任務一 + 二：async 啟動流程）
 // ════════════════════════════════════════
-(function init() {
-  load();
-
+(async function init() {
+  // 先設日期，讓頂部在載入期間就顯示正確資訊
   const d = new Date();
-  const days = ['日','一','二','三','四','五','六'];
+  const dayNames = ['日','一','二','三','四','五','六'];
   document.getElementById('headerDate').textContent =
-    `${d.getMonth() + 1} 月 ${d.getDate()} 日（週${days[d.getDay()]}）`;
+    `${d.getMonth() + 1} 月 ${d.getDate()} 日（週${dayNames[d.getDay()]}）`;
 
+  // ① 必須 await 資料完全載入（含 localStorage → IDB 遷移）
+  await load();
+
+  // ② 補齊新欄位 + 重建 searchIndex（有異動才會觸發 save）
+  migrateData();
+
+  // ③ 資料就緒後才渲染 UI，確保畫面不會閃現空白
   renderHome();
   initDragDrop();
   initLongPress();
 
-  // Prevent iOS scroll bounce breaking layout
+  // 防止 iOS Safari 的 bounce 捲動干擾佈局
   document.body.addEventListener('touchmove', e => {
     if (e.target.closest('.sheet, .pipeline-scroll, .filter-row, .search-wrap')) return;
   }, { passive: true });
