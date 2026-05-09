@@ -854,6 +854,74 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
 /* ── IMPORTANT DATES (extended) ── */
 .idate-gcal { margin-top: 2px; }
 
+/* ── CATEGORY TYPE TABS ── */
+.cat-tab-row {
+  display: flex; gap: 6px; overflow-x: auto;
+  padding: 0 0 10px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.cat-tab-row::-webkit-scrollbar { display: none; }
+.cat-tab {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 7px 13px; border-radius: 20px; white-space: nowrap;
+  background: var(--card); border: 1.5px solid var(--border);
+  font-size: 12px; font-weight: 600; color: var(--text-sub);
+  cursor: pointer; flex-shrink: 0; transition: background .15s, color .15s;
+  -webkit-user-select: none; user-select: none;
+}
+.cat-tab.on  { background: var(--primary); border-color: var(--primary); color: white; }
+.cat-tab.empty { opacity: .4; }
+.cat-tab-cnt {
+  font-size: 10px; font-weight: 700; padding: 1px 5px;
+  background: rgba(0,0,0,.1); border-radius: 10px;
+}
+.cat-tab.on .cat-tab-cnt { background: rgba(255,255,255,.25); }
+
+/* ── CUSTOMER SIDE DRAWER ── */
+#custDrawerVeil {
+  position: fixed; inset: 0; z-index: 150;
+  background: rgba(30,25,20,.42);
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+}
+#custDrawerVeil.open { opacity: 1; pointer-events: all; }
+#custDrawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(90vw, 480px);
+  background: var(--bg); z-index: 151;
+  transform: translateX(100%);
+  transition: transform .28s cubic-bezier(.4,0,.2,1);
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+#custDrawer.open { transform: translateX(0); }
+.drawer-hd {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px 10px;
+  background: var(--card); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 1; flex-shrink: 0;
+}
+.drawer-back {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--bg); border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 20px; color: var(--text-sub); flex-shrink: 0;
+}
+.drawer-back:active { opacity: .6; }
+.drawer-hd-title {
+  flex: 1; font-size: 15px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.drawer-hd-sub {
+  font-size: 11px; color: var(--text-sub); margin-top: 1px;
+}
+.drawer-edit-btn {
+  flex-shrink: 0; padding: 6px 12px; border-radius: 8px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  font-size: 12px; font-weight: 600; color: var(--text-sub); cursor: pointer;
+}
+.drawer-body { padding: 14px 14px 32px; flex: 1; }
+
 @media (min-width: 600px) {
   body { max-width: 480px; margin: 0 auto; }
   .bottom-nav, .fab { max-width: 480px; }
@@ -960,6 +1028,8 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
     </svg>
     <input type="search" id="searchInput" placeholder="搜尋姓名、公司、電話…" oninput="renderCustList()">
   </div>
+  <!-- 業種分類 Tabs (JS 動態渲染含計數) -->
+  <div class="cat-tab-row" id="catTypeFilter"></div>
   <div class="filter-row" id="stageFilter">
     <div class="fchip on" data-v="">全部</div>
     <div class="fchip" data-v="陌生">陌生</div>
@@ -1317,6 +1387,20 @@ textarea.finput { min-height: 76px; resize: vertical; line-height: 1.5; }
   </div>
 </div>
 
+<!-- ════════════ CUSTOMER SIDE DRAWER ════════════ -->
+<div id="custDrawerVeil" onclick="closeCustDrawer()"></div>
+<div id="custDrawer">
+  <div class="drawer-hd">
+    <button class="drawer-back" onclick="closeCustDrawer()">←</button>
+    <div style="flex:1;min-width:0">
+      <div class="drawer-hd-title" id="custDrawerTitle"></div>
+      <div class="drawer-hd-sub" id="custDrawerSub"></div>
+    </div>
+    <button class="drawer-edit-btn" onclick="closeCustDrawer();setTimeout(()=>openEdit(activeCid),80)">✏️ 編輯</button>
+  </div>
+  <div class="drawer-body" id="custDrawerBody"></div>
+</div>
+
 <!-- GLOBAL SEARCH -->
 <div id="globalSearch">
   <div class="gs-header">
@@ -1608,7 +1692,7 @@ function goPage(name) {
     (name === 'settings' || name === 'analysis') ? 'none' : 'flex';
   activePage = name;
   if (name === 'home') renderHome();
-  if (name === 'customers') renderCustList();
+  if (name === 'customers') { renderCatTabs(); renderCustList(); }
   if (name === 'pipeline') renderPipeline();
   if (name === 'analysis') renderAnalysis();
   if (name === 'settings') renderSettings();
@@ -1910,6 +1994,60 @@ function renderHome() {
 // CUSTOMER LIST
 // ════════════════════════════════════════
 let stageF = '';
+let typeF  = '';  // 業種分類篩選
+
+// ── 業種 Tab 渲染 ──────────────────────────────────────
+const CAT_ALL = ['全部', ...TYPES]; // ['全部','個體戶','車隊',...]
+
+function renderCatTabs() {
+  const wrap = document.getElementById('catTypeFilter');
+  if (!wrap) return;
+  // 算各分類人數（stageF 不影響計數；只計全量）
+  const counts = Object.fromEntries(TYPES.map(t => [t, 0]));
+  db.customers.forEach(c => { if (counts[c.type] !== undefined) counts[c.type]++; });
+  const total = db.customers.length;
+
+  wrap.innerHTML = CAT_ALL.map(t => {
+    const cnt  = t === '全部' ? total : (counts[t] || 0);
+    const on   = (typeF === '' && t === '全部') || typeF === t;
+    const empty = cnt === 0 && t !== '全部';
+    return `<div class="cat-tab${on ? ' on' : ''}${empty ? ' empty' : ''}"
+      onclick="setCatType('${t}')" data-t="${t}">
+      ${t}<span class="cat-tab-cnt">${cnt}</span>
+    </div>`;
+  }).join('');
+}
+
+function setCatType(t) {
+  typeF = t === '全部' ? '' : t;
+  renderCatTabs();
+  renderCustList();
+}
+
+// ── 右側抽屜開關 ────────────────────────────────────────
+function openCustDrawer(id) {
+  activeCid = id;
+  const c = db.customers.find(x => x.id === id);
+  if (!c) return;
+
+  const nameParts = [c.name + (c.nickname ? ` (${c.nickname})` : ''), c.company]
+    .filter(Boolean).join(' · ');
+  document.getElementById('custDrawerTitle').textContent = nameParts;
+  const sub = document.getElementById('custDrawerSub');
+  sub.textContent = c.jobTitle || '';
+  sub.style.display = c.jobTitle ? '' : 'none';
+
+  document.getElementById('custDrawerBody').innerHTML = buildDetailBodyHTML(c);
+  document.getElementById('custDrawerVeil').classList.add('open');
+  document.getElementById('custDrawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCustDrawer() {
+  document.getElementById('custDrawerVeil').classList.remove('open');
+  document.getElementById('custDrawer').classList.remove('open');
+  document.body.style.overflow = '';
+}
 
 document.getElementById('stageFilter').addEventListener('click', e => {
   const chip = e.target.closest('.fchip');
@@ -1924,16 +2062,19 @@ function renderCustList() {
   const raw = (document.getElementById('searchInput').value || '').trim().toLowerCase();
   const keywords = raw ? raw.split(/\s+/).filter(Boolean) : [];
   let list = db.customers.filter(c => {
+    if (typeF  && c.type  !== typeF)  return false;
     if (stageF && c.stage !== stageF) return false;
     if (keywords.length === 0) return true;
-    const hay = [c.name, c.company, c.phone, c.purpose, c.address, c.personalNotes]
+    const hay = [c.name, c.company, c.phone, c.purpose, c.address, c.personalNotes,
+                 c.nickname, c.jobTitle]
       .filter(Boolean).join(' ').toLowerCase();
     return keywords.every(kw => hay.includes(kw));
   }).sort((a, b) =>
     (b.lastContactAt || b.createdAt || '').localeCompare(a.lastContactAt || a.createdAt || ''));
 
+  // 客戶頁使用 drawer card；其他頁共用 custCardHTML
   document.getElementById('custList').innerHTML = list.length
-    ? list.map(custCardHTML).join('')
+    ? list.map(custCardHTMLDrawer).join('')
     : `<div class="empty"><div class="empty-icon">${raw ? '🔍' : '👤'}</div>
         <p>${raw ? '找不到符合「' + esc(raw) + '」的客戶' : '這個階段還沒有客戶'}</p>
         ${raw && keywords.length > 1 ? '<small>多字搜尋：每個詞皆需符合</small>' : ''}</div>`;
@@ -1998,6 +2139,26 @@ function custCardHTML(c) {
   </div>`;
 }
 
+/** 客戶頁專用：點擊開右側抽屜 */
+function custCardHTMLDrawer(c) {
+  const al = alertOf(c);
+  return `<div class="cust-card alert-${al}" onclick="openCustDrawer('${c.id}')">
+    <div class="cust-name-row">
+      ${al !== 'none' ? `<svg width="8" height="8" viewBox="0 0 8 8" style="flex-shrink:0"><circle cx="4" cy="4" r="4" fill="var(--${al})"/></svg>` : ''}
+      <span class="cust-name">${esc(c.name)}${c.nickname ? ` <span style="font-weight:400;font-size:.85em;color:var(--text-sub)">(${esc(c.nickname)})</span>` : ''}</span>
+      ${c.company ? `<span class="cust-company">${esc(c.company)}</span>` : ''}
+    </div>
+    <div class="cust-tags">
+      <span class="tag s-${c.stage}">${c.stage}</span>
+      ${c.jobTitle ? `<span class="tag" style="color:var(--text-sub)">${esc(c.jobTitle)}</span>` : ''}
+      ${c.leadSource ? `<span class="tag-lead">${esc(c.leadSource)}</span>` : ''}
+      <span class="tag">📞 ${c.lastContactAt ? agoText(c.lastContactAt) : '未聯絡'}</span>
+      ${c.expectedCloseMonth ? `<span class="tag">預計 ${fmtMonth(c.expectedCloseMonth)}</span>` : ''}
+      ${c.budget ? `<span class="tag">${c.budget}萬</span>` : ''}
+    </div>
+  </div>`;
+}
+
 // ════════════════════════════════════════
 // DETAIL
 // ════════════════════════════════════════
@@ -2025,6 +2186,12 @@ function openDetail(id) {
     if (sub) sub.remove();
   }
 
+  document.getElementById('detailBody').innerHTML = buildDetailBodyHTML(c);
+  openOverlay('detailOverlay');
+}
+
+/** 共用 — 客戶詳情 body HTML（overlay 與 drawer 共享） */
+function buildDetailBodyHTML(c) {
   const al = alertOf(c);
   const alBadge = al !== 'none'
     ? `<div class="tag ${al}" style="margin-bottom:12px;font-size:12px">${al === 'red' ? '🔴 逾期未聯絡，今天該追！' : '🟡 即將逾期，提早聯絡'}</div>`
@@ -2078,7 +2245,7 @@ function openDetail(id) {
       ${c.lossDetail.lesson ? drow('心得', c.lossDetail.lesson) : ''}
     </div>` : '';
 
-  document.getElementById('detailBody').innerHTML = `
+  return `
     ${alBadge}
     ${nextDateBanner}
     <div class="action-row">
@@ -2155,9 +2322,7 @@ function openDetail(id) {
     </div>
     <div style="height:8px"></div>
   `;
-
-  openOverlay('detailOverlay');
-}
+} // end buildDetailBodyHTML
 
 function drow(k, v) {
   return `<div class="detail-row"><span class="dk">${k}</span><span class="dv">${v || '—'}</span></div>`;
@@ -2243,6 +2408,7 @@ function markStage(id, stage) {
   }
   save();
   closeOverlay('detailOverlay');
+  closeCustDrawer();
   refreshAll();
   toast(`已移至「${stage}」`);
 }
@@ -2254,6 +2420,7 @@ function markLoss(id) {
   document.getElementById('lossGap').value = '';
   document.getElementById('lossLesson').value = '';
   closeOverlay('detailOverlay');
+  closeCustDrawer();
   openOverlay('lossOverlay');
 }
 
@@ -2262,6 +2429,7 @@ function delCust(id) {
   db.customers = db.customers.filter(c => c.id !== id);
   save();
   closeOverlay('detailOverlay');
+  closeCustDrawer();
   refreshAll();
   toast('已刪除');
 }
@@ -2541,9 +2709,12 @@ function saveIA() {
   save();
   closeOverlay('iaOverlay');
   toast('跟進記錄已儲存 ✓');
-  if (activeCid === activeIaCid &&
-      document.getElementById('detailOverlay')?.classList.contains('open')) {
-    openDetail(activeCid);
+  if (activeCid === activeIaCid) {
+    if (document.getElementById('detailOverlay')?.classList.contains('open')) {
+      openDetail(activeCid);
+    } else if (document.getElementById('custDrawer')?.classList.contains('open')) {
+      openCustDrawer(activeCid);
+    }
   }
   refreshAll();
 }
@@ -3346,7 +3517,7 @@ function gsOpenDetail(id) {
 
 function refreshAll() {
   if (activePage === 'home') renderHome();
-  if (activePage === 'customers') renderCustList();
+  if (activePage === 'customers') { renderCatTabs(); renderCustList(); }
   if (activePage === 'pipeline') renderPipeline();
   // always refresh home stats silently
   if (activePage !== 'home') renderHome();
