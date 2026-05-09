@@ -1,44 +1,49 @@
-"""Claude API streaming analysis — updates caller every ~1.5 s."""
+"""Gemini API streaming analysis — completely free tier, no credit card needed."""
 
 import asyncio
 from typing import Awaitable, Callable
 
-import anthropic
+from google import genai
+from google.genai import types
 import config
 
-_client: anthropic.AsyncAnthropic | None = None
+_client: genai.Client | None = None
+
+_SYSTEM = (
+    "你是專業的台股分析師，熟悉技術分析與基本面分析。"
+    "請用繁體中文回答，語氣精簡專業，重點突出，避免贅述。"
+    "不要給出明確的買入或賣出建議。"
+)
 
 
-def _get_client() -> anthropic.AsyncAnthropic:
+def _get_client() -> genai.Client:
     global _client
     if _client is None:
-        _client = anthropic.AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
+        _client = genai.Client(api_key=config.GOOGLE_API_KEY)
     return _client
 
 
 async def stream_analysis(prompt: str, on_update: Callable[[str], Awaitable[None]]) -> str:
     """
-    Stream a Claude response.
+    Stream a Gemini response.
     `on_update(text)` is awaited periodically with the accumulated text so far.
     Returns the complete final text.
     """
     full = ""
-    last_flush = asyncio.get_event_loop().time()
-    FLUSH_INTERVAL = 1.5  # seconds between Telegram edits
+    last_flush = asyncio.get_running_loop().time()
+    FLUSH_INTERVAL = 1.5
 
-    async with _get_client().messages.stream(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=1400,
-        system=(
-            "你是專業的台股分析師，熟悉技術分析與基本面分析。"
-            "請用繁體中文回答，語氣精簡專業，重點突出，避免贅述。"
-            "不要給出明確的買入或賣出建議。"
+    async for chunk in await _get_client().aio.models.generate_content_stream(
+        model="gemini-2.0-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=_SYSTEM,
+            max_output_tokens=1400,
         ),
-        messages=[{"role": "user", "content": prompt}],
-    ) as stream:
-        async for chunk in stream.text_stream:
-            full += chunk
-            now = asyncio.get_event_loop().time()
+    ):
+        if chunk.text:
+            full += chunk.text
+            now = asyncio.get_running_loop().time()
             if now - last_flush >= FLUSH_INTERVAL:
                 await on_update(full + " ▌")
                 last_flush = now
