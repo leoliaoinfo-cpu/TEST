@@ -27,7 +27,7 @@ async def stream_analysis(prompt: str, on_update: Callable[[str], Awaitable[None
     FLUSH_INTERVAL = 1.5  # seconds between Telegram edits
 
     async with _get_client().messages.stream(
-        model="claude-opus-4-7",
+        model="claude-haiku-4-5-20251001",
         max_tokens=1400,
         system=(
             "你是專業的台股分析師，熟悉技術分析與基本面分析。"
