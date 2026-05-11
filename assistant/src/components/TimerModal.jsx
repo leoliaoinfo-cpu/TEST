@@ -23,6 +23,10 @@ const ALERT_STYLE = `
 
 export default function TimerModal() {
   const { timers, saveTimer, deleteTimer } = useApp();
+  const confirmedTimers = timers
+    .filter((t) => t.confirmedAt)
+    .sort((a, b) => b.confirmedAt.localeCompare(a.confirmedAt))
+    .slice(0, 20);
   const [showPanel, setShowPanel] = useState(false);
   const [notifiedIds, setNotifiedIds] = useState(new Set());
   const intervalRef = useRef(null);
@@ -126,8 +130,11 @@ export default function TimerModal() {
               <div className="space-y-2 mb-5 max-h-48 overflow-y-auto">
                 {expiredTimers.map((t) => (
                   <div key={t.id} className="flex items-center justify-between bg-accent/10 rounded-xl px-4 py-3 gap-2">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-ink text-sm leading-tight truncate">{t.note || t.clientName || '提醒'}</p>
+                    <div className="min-w-0 flex-1">
+                      {t.clientName && (
+                        <p className="font-bold text-accent text-base leading-tight truncate">👤 {t.clientName}</p>
+                      )}
+                      <p className="font-semibold text-ink text-sm leading-tight truncate mt-0.5">{t.note || '提醒'}</p>
                       <p className="text-xs text-ink-3 mt-0.5">{dayjs(t.triggerAt).format('MM/DD HH:mm')}</p>
                     </div>
                     {expiredTimers.length > 1 && (
@@ -170,17 +177,19 @@ export default function TimerModal() {
         </>
       )}
 
-      {/* ── Floating bell — manage upcoming timers ── */}
-      {pendingTimers.length > 0 && expiredTimers.length === 0 && (
+      {/* ── Floating bell — manage upcoming timers or view history ── */}
+      {expiredTimers.length === 0 && (pendingTimers.length > 0 || confirmedTimers.length > 0) && (
         <button
           onClick={() => setShowPanel(true)}
           className="fixed bottom-24 right-4 md:bottom-6 bg-accent text-white rounded-full w-12 h-12 shadow-panel z-40 flex items-center justify-center text-xl"
           title="計時提醒"
         >
           🔔
-          <span className="absolute -top-1 -right-1 bg-accent text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-            {pendingTimers.length}
-          </span>
+          {pendingTimers.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-accent text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 border-2 border-white">
+              {pendingTimers.length}
+            </span>
+          )}
         </button>
       )}
 
@@ -220,6 +229,26 @@ export default function TimerModal() {
                 <p className="text-xs font-semibold text-ink-3 mb-1.5">新增提醒</p>
                 <AddTimerForm onAdd={async (t) => { await saveTimer(t); }} />
               </div>
+
+              {confirmedTimers.length > 0 && (
+                <div className="pt-2 border-t border-bdr/50">
+                  <p className="text-xs font-semibold text-ink-3 mb-1.5">已確認歷史（{confirmedTimers.length}）</p>
+                  <div className="space-y-1.5">
+                    {confirmedTimers.map((t) => (
+                      <div key={t.id} className="bg-s2 rounded-lg px-3 py-2">
+                        {t.clientName && (
+                          <p className="text-xs font-semibold text-accent truncate">👤 {t.clientName}</p>
+                        )}
+                        <p className="text-xs text-ink-2 truncate">{t.note || '提醒'}</p>
+                        <p className="text-[10px] text-ink-3 mt-0.5">
+                          確認：{dayjs(t.confirmedAt).format('MM/DD HH:mm')}
+                          　設定：{dayjs(t.triggerAt).format('MM/DD HH:mm')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </>
