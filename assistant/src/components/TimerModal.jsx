@@ -21,13 +21,12 @@ const ALERT_STYLE = `
 .bell-shake { animation: bellShake 0.8s ease infinite; }
 `;
 
-export default function TimerModal() {
+export default function TimerModal({ showPanel, setShowPanel }) {
   const { timers, saveTimer, deleteTimer } = useApp();
   const confirmedTimers = timers
     .filter((t) => t.confirmedAt)
     .sort((a, b) => b.confirmedAt.localeCompare(a.confirmedAt))
     .slice(0, 20);
-  const [showPanel, setShowPanel] = useState(false);
   const [notifiedIds, setNotifiedIds] = useState(new Set());
   const intervalRef = useRef(null);
 
@@ -177,21 +176,6 @@ export default function TimerModal() {
         </>
       )}
 
-      {/* ── Floating bell — manage upcoming timers or view history ── */}
-      {expiredTimers.length === 0 && (pendingTimers.length > 0 || confirmedTimers.length > 0) && (
-        <button
-          onClick={() => setShowPanel(true)}
-          className="fixed bottom-24 right-4 md:bottom-6 bg-accent text-white rounded-full w-12 h-12 shadow-panel z-40 flex items-center justify-center text-xl"
-          title="計時提醒"
-        >
-          🔔
-          {pendingTimers.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-accent text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 border-2 border-white">
-              {pendingTimers.length}
-            </span>
-          )}
-        </button>
-      )}
 
       {/* ── Upcoming timers panel ── */}
       {showPanel && (

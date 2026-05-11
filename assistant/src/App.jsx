@@ -130,10 +130,14 @@ class ErrorBoundary extends Component {
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 function AppInner() {
-  const { loading, dbUnavailable } = useApp();
+  const { loading, dbUnavailable, timers } = useApp();
   const [tab, setTab] = useState('crm');
   const [showSettings, setShowSettings] = useState(false);
   const [openClientId, setOpenClientId] = useState(null);
+  const [showTimerPanel, setShowTimerPanel] = useState(false);
+
+  const timerPendingCount = timers.filter((t) => !t.confirmedAt).length;
+  const timerHasHistory = timers.some((t) => t.confirmedAt);
 
   function handleOpenClient(clientId) {
     setOpenClientId(clientId);
@@ -171,7 +175,14 @@ function AppInner() {
         </div>
       )}
 
-      <Header tab={tab} setTab={handleSetTab} onSettings={() => setShowSettings(true)} />
+      <Header
+        tab={tab}
+        setTab={handleSetTab}
+        onSettings={() => setShowSettings(true)}
+        timerPendingCount={timerPendingCount}
+        timerHasHistory={timerHasHistory}
+        onTimerBell={() => setShowTimerPanel(true)}
+      />
 
       <main className="pb-20 md:pb-0">
         <div className="anim-fade-in" key={tab}>
@@ -211,7 +222,7 @@ function AppInner() {
       </nav>
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
-      <TimerModal />
+      <TimerModal showPanel={showTimerPanel} setShowPanel={setShowTimerPanel} />
     </div>
   );
 }
