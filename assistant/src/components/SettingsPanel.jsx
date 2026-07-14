@@ -58,7 +58,61 @@ function detectRepMarkers(text) {
   return sorted.filter(([, n]) => n >= Math.max(2, Math.ceil(max / 3))).map(([t]) => t);
 }
 
+// Clean a phone cell: strip ;/-/spaces, keep only complete numbers.
+// Masked numbers like "033962XX;" or "0985869XXX;" are dropped entirely.
+function cleanPhone(cell) {
+  const tok = (cell || '').replace(/;/g, ' ').trim().split(/\s+/)[0] || '';
+  const digits = tok.replace(/[-\s]/g, '');
+  return /^0\d{7,9}$/.test(digits) ? digits : '';
+}
+
+// ── Table format parser (tab-separated dump from 開發名單查詢) ────────────────
+// Columns: 申請轉單/公司名稱/類型/地區/電話/手機/狀態/權重分數/開發原因/業務
+// The 狀態 cell spills onto its own lines (開發中-…/建立日期:…/轉移日期:…).
+const TABLE_SKIP_RE = /^(開發中|建立日期|轉移日期|查詢結果|申請轉單|搜尋條件|開發主因|搜尋總筆數)/;
+
+function parseTableText(text) {
+  const records = [];
+  text.split('\n').forEach((line) => {
+    if (!line.trim()) return;
+    const cells = line.split('\t').map((c) => c.trim());
+    const fi = cells.findIndex((c) => c);
+    if (fi === -1) return;
+    const first = cells[fi];
+    if (TABLE_SKIP_RE.test(first)) return;
+
+    // A pure phone-ish first cell is a continuation line (extra mobile number):
+    // attach it to the previous record if that one has no phone yet.
+    if (/^[\d\-;X ]+$/i.test(first)) {
+      const p = cleanPhone(first);
+      const last = records[records.length - 1];
+      if (p && last && !last.phone) last.phone = p;
+      return;
+    }
+
+    // Company name: needs CJK or ≥2 latin letters, length ≥2
+    if (first.length < 2 || (!/[一-鿿]/.test(first) && !/[A-Za-z]{2,}/.test(first))) return;
+
+    // Scan remaining cells for the first valid (unmasked) phone
+    let phone = '';
+    for (const c of cells.slice(fi + 1)) {
+      const p = cleanPhone(c);
+      if (p) { phone = p; break; }
+    }
+    const region = cells.slice(fi + 1).find((c) => /^[一-鿿]{1,3}[市縣區]$/.test(c)) || '';
+    records.push({ name: first, contact: '', phone, note: region ? `地區：${region}` : '' });
+  });
+  return records;
+}
+
 function parseRawCrmText(text, markerInput = '') {
+  // Format detection: many lines with ≥4 tabs → table dump, not the vertical rep-marker format
+  const tabLineCount = text.split('\n').filter((l) => (l.match(/\t/g) || []).length >= 4).length;
+  if (tabLineCount >= 2) {
+    const records = parseTableText(text);
+    if (records.length > 0) return { records, markers: [], format: 'table' };
+  }
+
   let markers = markerInput.split(/[,，\s]+/).filter(Boolean);
   if (markers.length === 0) markers = detectRepMarkers(text);
   if (markers.length === 0) return { records: [], markers: [] };
@@ -175,12 +229,14 @@ export default function SettingsPanel({ onClose }) {
 
   // ── Raw text import ──────────────────────────────────────────────────────
   function handleParseRaw() {
-    const { records, markers } = parseRawCrmText(rawText, repMarker);
+    const { records, markers, format } = parseRawCrmText(rawText, repMarker);
     setPreview(records.map((r) => ({ ...r, import: true })));
     if (records.length === 0) {
       setImportStatus(markers.length === 0
         ? '❌ 偵測不到業務姓名，請在上方欄位手動輸入（例如：廖冠銘）後重新解析'
         : '❌ 解析不到任何資料，請確認格式');
+    } else if (format === 'table') {
+      setImportStatus(`🔍 偵測為表格格式，解析出 ${records.length} 筆（遮罩電話已省略）`);
     } else {
       setImportStatus(`🔍 以「${markers.join('、')}」作為分隔，解析出 ${records.length} 筆`);
     }
@@ -205,7 +261,7 @@ export default function SettingsPanel({ onClose }) {
         id: generateId('client'),
         name: r.name,
         phone: r.phone || '',
-        notes: r.contact ? `聯絡人：${r.contact}` : '',
+        notes: [r.contact && `聯絡人：${r.contact}`, r.note].filter(Boolean).join('，'),
         catId: importCatId,
         stageId: '',
         intentLevel: 0,
@@ -358,7 +414,7 @@ export default function SettingsPanel({ onClose }) {
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-semibold text-ink truncate">{r.name}</p>
                           <p className="text-[10px] text-ink-3">
-                            {[r.contact && `聯絡人：${r.contact}`, r.phone].filter(Boolean).join('　')}
+                            {[r.contact && `聯絡人：${r.contact}`, r.phone || '（無電話）', r.note].filter(Boolean).join('　')}
                           </p>
                         </div>
                       </label>
