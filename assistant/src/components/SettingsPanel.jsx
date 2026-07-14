@@ -28,141 +28,168 @@ const SECTION_LABELS = {
   help: '📖 使用說明',
 };
 
-// ── Raw text parser for old CRM format ───────────────────────────────────────
-const PHONE_RE = /^0\d{7,10}$/;
-const SKIP_RE = /^(否|是|開發中|再追蹤|未接通|方案：|續約：|MMRWD|開發:|轉移:|簡訊|業務|公司名稱|連絡人|已加LINE|狀態|報價|廣告|電話|類型|營業|日期|建立)/;
-// Contact-person titles — a token ending with these is a contact, not a rep marker
-const TITLE_RE = /(先生|小姐|太太|女士|經理|老闆|店長|主任|醫師|藥師|會計)$/;
+// ── Universal raw-text parser ─────────────────────────────────────────────────
+// Works on ANY copy-paste shape (tabs, spaces, mobile-flattened tables, paged
+// lists): every whitespace-separated token is classified first, then a state
+// machine assembles records. A company-name token starts a record; phones,
+// regions and contacts attach to the current record until the next company.
 
-function escapeRegExp(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Contact-person titles — a token ending with these is a contact, never a company
+const TITLE_RE = /(先生|小姐|太太|女士|經理|老闆|店長|主任|醫師|藥師|會計|副理|協理|特助|秘書|總監)$/;
+// Exact noise words: table headers, yes/no flags, status words
+const NOISE_EXACT = new Set([
+  '申請轉單', '公司名稱', '類型', '地區', '電話', '手機', '狀態', '權重分數',
+  '開發原因', '業務', '連絡人', '聯絡人', '是', '否', '未接通', '開發中',
+  '再追蹤', '沒網站', '沒手機版', '未開發', '已收資料', 'FB買廣告', '朋友介紹',
+  '網路來電諮詢', '有手機號碼', '已結案', 'SSL', '查網址', '網站簡陋',
+  '國外主機', '無店鋪店家', '區域型店家', '轉單客戶', '簡訊', '營業', '日期', '建立',
+]);
+// Noise by prefix: status/date rows, pagination footers, field labels
+const NOISE_PREFIX_RE = /^(開發中|建立日期|轉移日期|查詢結果|搜尋條件|搜尋總筆數|開發主因|可能性重覆|方案[:：]|續約[:：]|開發[:：]|轉移[:：]|報價[:：]?|廣告[:：]?|已加LINE|共【?\d+】?筆|MMRWD|入口相關|未放關鍵字|開錯關鍵字|接洽不到|網路廣告|買消費性|Flash|個人網址|無店鋪|區域型)/;
+// Noise if contained anywhere: product/plan types and 開發原因 reason strings
+const NOISE_ANY_RE = /(網站製作|曝光計畫|分身行銷|快模|沒網站|沒手機版|關鍵字|入口相關行業|轉單客戶|手機版\+電腦版)/;
+// Fully anchored — a loose prefix match would swallow dashed phone numbers
+// like 02-23456789 or 0912-345-678
+const DATE_RE = /^\d{2,4}[-\/.]\d{1,2}([-\/.]\d{1,2})?$/;
+const TIME_RE = /^\d{1,2}:\d{2}(:\d{2})?$/;
+const REGION_RE = /^[一-鿿]{1,3}[市縣區]$/;
+const NOT_REGION_RE = /(超市|夜市|菜市)$/;
+// 2-3 char CJK companies are rare; allow them only with a shop-ish ending
+const BIZ_SHORT_RE = /[行社店廠局坊軒閣苑莊舖鋪]$/;
+
+// Classify one whitespace-separated token
+function classifyToken(tok, reps) {
+  if (!tok) return { type: 'noise' };
+  if (reps.has(tok)) return { type: 'noise' };
+  if (NOISE_EXACT.has(tok)) return { type: 'noise' };
+  if (DATE_RE.test(tok) || TIME_RE.test(tok)) return { type: 'noise' };
+
+  // Numeric-ish tokens → phone / masked phone / plain-number noise
+  if (/^[\d\-();,.X ]+$/i.test(tok)) {
+    const digits = tok.replace(/[^\dX]/gi, '');
+    if (/^0\d{7,9}$/.test(digits)) return { type: 'phone', value: digits };
+    if (/X/i.test(digits)) return { type: 'masked' };
+    return { type: 'noise' }; // scores (80/205), page numbers, lone zeros
+  }
+
+  if (NOISE_PREFIX_RE.test(tok)) return { type: 'noise' };
+  if (NOISE_ANY_RE.test(tok)) return { type: 'noise' };
+  // Parenthesised fragments like （未滿5組） — but keep real companies
+  if (/^[（(]/.test(tok) && !/(公司|有限|企業)/.test(tok)) return { type: 'noise' };
+
+  if (REGION_RE.test(tok) && !NOT_REGION_RE.test(tok)) return { type: 'region', value: tok };
+  if (tok.length <= 6 && TITLE_RE.test(tok)) return { type: 'title', value: tok };
+  // Short pure-CJK token without a shop-ish ending → person name (rep/contact)
+  if (/^[一-鿿]{2,3}$/.test(tok) && !BIZ_SHORT_RE.test(tok)) return { type: 'person', value: tok };
+  // Anything else with CJK or ≥2 latin letters is a company name
+  if (tok.length >= 2 && (/[一-鿿]/.test(tok) || /[A-Za-z]{2,}/.test(tok))) {
+    return { type: 'company', value: tok };
+  }
+  return { type: 'noise' };
 }
 
-// Auto-detect the sales-rep name(s) used as record separators:
-// a 2–4 char CJK token at the start of a line, repeating ≥2 times,
-// not a status/header word and not a contact title.
-function detectRepMarkers(text) {
+// Single parsing pass with a known set of rep names to ignore
+function coreParse(text, reps) {
+  const records = [];
+  let cur = null;
+  let curLine = -1;
+  let masked = 0;
+
+  text.split('\n').forEach((line, li) => {
+    let lastWasCompany = false;
+    line.split(/[\s　]+/).forEach((raw) => {
+      const tok = raw.trim();
+      if (!tok) return;
+      const cls = classifyToken(tok, reps);
+
+      if (cls.type === 'masked') { masked++; lastWasCompany = false; return; }
+      if (cls.type === 'noise') { lastWasCompany = false; return; }
+      if (cls.type === 'phone') {
+        if (cur) {
+          if (!cur.phone) cur.phone = cls.value;
+          else if (!cur.phone2 && cls.value !== cur.phone) cur.phone2 = cls.value;
+        }
+        lastWasCompany = false; return;
+      }
+      if (cls.type === 'region') {
+        if (cur && !cur.region) cur.region = cls.value;
+        lastWasCompany = false; return;
+      }
+      if (cls.type === 'title') {
+        if (cur && !cur.contact) cur.contact = cls.value;
+        lastWasCompany = false; return;
+      }
+      if (cls.type === 'person') {
+        // A bare person name counts as the contact only right after the company
+        // (≤2 lines) — later ones are sales-rep columns, not contacts.
+        if (cur && !cur.contact && li - curLine <= 2) cur.contact = cls.value;
+        lastWasCompany = false; return;
+      }
+      // company token → new record; merge split latin names on the same line
+      if (lastWasCompany && cur && curLine === li) {
+        cur.name += ' ' + cls.value;
+      } else {
+        cur = { name: cls.value, contact: '', phone: '', phone2: '', region: '' };
+        curLine = li;
+        records.push(cur);
+      }
+      lastWasCompany = true;
+    });
+  });
+  return { records, masked };
+}
+
+// Count 2-3 char CJK person-name tokens that lead a line — candidates for the
+// rep-name record separator used by the vertical export format.
+function countLeadingPersons(text) {
   const counts = {};
   text.split('\n').forEach((line) => {
-    const tok = line.trim().split(/\t/)[0]?.trim() || '';
-    if (/^[一-鿿]{2,4}$/.test(tok) && !SKIP_RE.test(tok) && !TITLE_RE.test(tok)) {
+    const tok = line.trim().split(/[\s　]+/)[0] || '';
+    if (/^[一-鿿]{2,3}$/.test(tok) && !NOISE_EXACT.has(tok)
+        && !TITLE_RE.test(tok) && !REGION_RE.test(tok) && !BIZ_SHORT_RE.test(tok)) {
       counts[tok] = (counts[tok] || 0) + 1;
     }
   });
-  const sorted = Object.entries(counts).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]);
-  if (sorted.length === 0) return [];
-  // Keep every name that repeats at least 2 times and at least 1/3 as often as
-  // the most frequent one — supports lists mixing multiple reps while
-  // filtering out accidentally repeated contact names.
-  const max = sorted[0][1];
-  return sorted.filter(([, n]) => n >= Math.max(2, Math.ceil(max / 3))).map(([t]) => t);
-}
-
-// Clean a phone cell: strip ;/-/spaces, keep only complete numbers.
-// Masked numbers like "033962XX;" or "0985869XXX;" are dropped entirely.
-function cleanPhone(cell) {
-  const tok = (cell || '').replace(/;/g, ' ').trim().split(/\s+/)[0] || '';
-  const digits = tok.replace(/[-\s]/g, '');
-  return /^0\d{7,9}$/.test(digits) ? digits : '';
-}
-
-// ── Table format parser (tab-separated dump from 開發名單查詢) ────────────────
-// Columns: 申請轉單/公司名稱/類型/地區/電話/手機/狀態/權重分數/開發原因/業務
-// The 狀態 cell spills onto its own lines (開發中-…/建立日期:…/轉移日期:…).
-const TABLE_SKIP_RE = /^(開發中|建立日期|轉移日期|查詢結果|申請轉單|搜尋條件|開發主因|搜尋總筆數)/;
-
-function parseTableText(text) {
-  const records = [];
-  text.split('\n').forEach((line) => {
-    if (!line.trim()) return;
-    const cells = line.split('\t').map((c) => c.trim());
-    const fi = cells.findIndex((c) => c);
-    if (fi === -1) return;
-    const first = cells[fi];
-    if (TABLE_SKIP_RE.test(first)) return;
-
-    // A pure phone-ish first cell is a continuation line (extra mobile number):
-    // attach it to the previous record if that one has no phone yet.
-    if (/^[\d\-;X ]+$/i.test(first)) {
-      const p = cleanPhone(first);
-      const last = records[records.length - 1];
-      if (p && last && !last.phone) last.phone = p;
-      return;
-    }
-
-    // Company name: needs CJK or ≥2 latin letters, length ≥2
-    if (first.length < 2 || (!/[一-鿿]/.test(first) && !/[A-Za-z]{2,}/.test(first))) return;
-
-    // Scan remaining cells for the first valid (unmasked) phone
-    let phone = '';
-    for (const c of cells.slice(fi + 1)) {
-      const p = cleanPhone(c);
-      if (p) { phone = p; break; }
-    }
-    const region = cells.slice(fi + 1).find((c) => /^[一-鿿]{1,3}[市縣區]$/.test(c)) || '';
-    records.push({ name: first, contact: '', phone, note: region ? `地區：${region}` : '' });
-  });
-  return records;
+  return counts;
 }
 
 function parseRawCrmText(text, markerInput = '') {
-  // Format detection: many lines with ≥4 tabs → table dump, not the vertical rep-marker format
-  const tabLineCount = text.split('\n').filter((l) => (l.match(/\t/g) || []).length >= 4).length;
-  if (tabLineCount >= 2) {
-    const records = parseTableText(text);
-    if (records.length > 0) return { records, markers: [], format: 'table' };
-  }
+  const manual = new Set(markerInput.split(/[,，\s]+/).filter(Boolean));
 
-  let markers = markerInput.split(/[,，\s]+/).filter(Boolean);
-  if (markers.length === 0) markers = detectRepMarkers(text);
-  if (markers.length === 0) return { records: [], markers: [] };
+  // Pass 1: parse with manual reps only, to estimate the record count
+  const pass1 = coreParse(text, manual);
+  const estimate = Math.max(pass1.records.length, 1);
 
-  // Split into blocks by any rep-name marker line
-  const splitRe = new RegExp('\\n?(?:' + markers.map(escapeRegExp).join('|') + ')[\\t ]*');
-  const blocks = text.split(splitRe);
-  const records = [];
-
-  blocks.forEach((block) => {
-    const lines = block.split('\n').map((l) => l.trim()).filter((l) => l && !SKIP_RE.test(l));
-    if (lines.length === 0) return;
-
-    // Company name: first meaningful line
-    const company = lines[0];
-    if (!company || company.length < 2) return;
-
-    let contact = '';
-    let phone = '';
-
-    // Line after company: if it doesn't look like a phone or status, it's the contact
-    if (lines[1] && !PHONE_RE.test(lines[1]) && !/^\d+$/.test(lines[1])) {
-      // Split by tab in case "陳小姐\t否\t未接通"
-      const parts = lines[1].split(/\t+/);
-      if (parts[0] && !SKIP_RE.test(parts[0]) && parts[0] !== company) {
-        contact = parts[0];
-      }
-    }
-
-    // Fallback: scan the whole block for a token with a contact title (陳小姐、王經理…)
-    if (!contact) {
-      for (const l of lines.slice(1)) {
-        for (const tok of l.split(/\t+/)) {
-          const t = tok.trim();
-          if (t && t.length <= 6 && TITLE_RE.test(t) && t !== company) { contact = t; break; }
-        }
-        if (contact) break;
-      }
-    }
-
-    // Find phone: a line that's purely digits starting with 0, length 8-11
-    for (const l of lines.slice(1)) {
-      const clean = l.split(/\s+/)[0]; // take first token
-      if (PHONE_RE.test(clean)) { phone = clean; break; }
-    }
-
-    records.push({ name: company, contact, phone });
+  // A token leading ≥⅓ of the records' lines is a rep-name separator, not data
+  const reps = new Set(manual);
+  Object.entries(countLeadingPersons(text)).forEach(([tok, n]) => {
+    if (n >= Math.max(2, Math.ceil(estimate / 3))) reps.add(tok);
   });
 
-  return { records, markers };
+  const { records, masked } = reps.size > manual.size ? coreParse(text, reps) : pass1;
+
+  // Dedupe by company name (dumps flag 可能性重覆名單) — merge missing fields
+  const byName = new Map();
+  for (const r of records) {
+    const prev = byName.get(r.name);
+    if (prev) {
+      if (!prev.phone) { prev.phone = r.phone; prev.phone2 = prev.phone2 || r.phone2; }
+      if (!prev.contact) prev.contact = r.contact;
+      if (!prev.region) prev.region = r.region;
+    } else {
+      byName.set(r.name, r);
+    }
+  }
+
+  const final = [...byName.values()].map((r) => ({
+    name: r.name,
+    contact: r.contact,
+    phone: r.phone,
+    note: [r.region && `地區：${r.region}`, r.phone2 && `另一電話：${r.phone2}`]
+      .filter(Boolean).join('，'),
+  }));
+
+  return { records: final, markers: [...reps], masked, merged: records.length - final.length };
 }
 
 export default function SettingsPanel({ onClose }) {
@@ -229,16 +256,16 @@ export default function SettingsPanel({ onClose }) {
 
   // ── Raw text import ──────────────────────────────────────────────────────
   function handleParseRaw() {
-    const { records, markers, format } = parseRawCrmText(rawText, repMarker);
+    const { records, markers, masked, merged } = parseRawCrmText(rawText, repMarker);
     setPreview(records.map((r) => ({ ...r, import: true })));
     if (records.length === 0) {
-      setImportStatus(markers.length === 0
-        ? '❌ 偵測不到業務姓名，請在上方欄位手動輸入（例如：廖冠銘）後重新解析'
-        : '❌ 解析不到任何資料，請確認格式');
-    } else if (format === 'table') {
-      setImportStatus(`🔍 偵測為表格格式，解析出 ${records.length} 筆（遮罩電話已省略）`);
+      setImportStatus('❌ 解析不到任何資料，請確認貼上的內容包含公司名稱');
     } else {
-      setImportStatus(`🔍 以「${markers.join('、')}」作為分隔，解析出 ${records.length} 筆`);
+      const parts = [`🔍 解析出 ${records.length} 筆`];
+      if (markers.length > 0) parts.push(`已略過業務姓名：${markers.join('、')}`);
+      if (masked > 0) parts.push(`省略 ${masked} 個遮罩電話`);
+      if (merged > 0) parts.push(`合併 ${merged} 筆重複`);
+      setImportStatus(parts.join('，'));
     }
   }
 
@@ -373,9 +400,9 @@ export default function SettingsPanel({ onClose }) {
               <div className="card p-4 space-y-3">
                 <h3 className="font-semibold text-ink">📥 貼上名單匯入</h3>
                 <p className="text-xs text-ink-3 leading-relaxed">
-                  將舊系統複製的名單貼在下方，系統會自動解析<strong>公司名稱、聯絡人、電話</strong>。
-                  解析後可逐筆勾選要匯入的資料。
-                  系統會<strong>自動偵測業務姓名</strong>作為每筆資料的分隔；若偵測錯誤可手動輸入。
+                  將舊系統複製的名單貼在下方（任何格式皆可：直式名單、表格、分頁列表），
+                  系統會自動解析<strong>公司名稱、聯絡人、電話、地區</strong>，
+                  遮罩電話（如 0985869XXX）會自動省略。解析後可逐筆勾選要匯入的資料。
                 </p>
                 <ImeInput
                   value={repMarker}
