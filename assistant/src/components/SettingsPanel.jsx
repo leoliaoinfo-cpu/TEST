@@ -29,12 +29,43 @@ const SECTION_LABELS = {
 };
 
 // ── Raw text parser for old CRM format ───────────────────────────────────────
-function parseRawCrmText(text) {
-  const PHONE_RE = /^0\d{7,10}$/;
-  const SKIP_RE = /^(否|是|開發中|再追蹤|未接通|方案：|續約：|MMRWD|開發:|轉移:|簡訊|業務|公司名稱|連絡人|已加LINE|狀態|報價|廣告|電話|類型|營業|日期|建立)/;
+const PHONE_RE = /^0\d{7,10}$/;
+const SKIP_RE = /^(否|是|開發中|再追蹤|未接通|方案：|續約：|MMRWD|開發:|轉移:|簡訊|業務|公司名稱|連絡人|已加LINE|狀態|報價|廣告|電話|類型|營業|日期|建立)/;
+// Contact-person titles — a token ending with these is a contact, not a rep marker
+const TITLE_RE = /(先生|小姐|太太|女士|經理|老闆|店長|主任|醫師|藥師|會計)$/;
 
-  // Split into blocks by "廖冠銘" marker lines
-  const blocks = text.split(/\n?廖冠銘[\t ]*/);
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Auto-detect the sales-rep name(s) used as record separators:
+// a 2–4 char CJK token at the start of a line, repeating ≥2 times,
+// not a status/header word and not a contact title.
+function detectRepMarkers(text) {
+  const counts = {};
+  text.split('\n').forEach((line) => {
+    const tok = line.trim().split(/\t/)[0]?.trim() || '';
+    if (/^[一-鿿]{2,4}$/.test(tok) && !SKIP_RE.test(tok) && !TITLE_RE.test(tok)) {
+      counts[tok] = (counts[tok] || 0) + 1;
+    }
+  });
+  const sorted = Object.entries(counts).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]);
+  if (sorted.length === 0) return [];
+  // Keep every name that repeats at least 2 times and at least 1/3 as often as
+  // the most frequent one — supports lists mixing multiple reps while
+  // filtering out accidentally repeated contact names.
+  const max = sorted[0][1];
+  return sorted.filter(([, n]) => n >= Math.max(2, Math.ceil(max / 3))).map(([t]) => t);
+}
+
+function parseRawCrmText(text, markerInput = '') {
+  let markers = markerInput.split(/[,，\s]+/).filter(Boolean);
+  if (markers.length === 0) markers = detectRepMarkers(text);
+  if (markers.length === 0) return { records: [], markers: [] };
+
+  // Split into blocks by any rep-name marker line
+  const splitRe = new RegExp('\\n?(?:' + markers.map(escapeRegExp).join('|') + ')[\\t ]*');
+  const blocks = text.split(splitRe);
   const records = [];
 
   blocks.forEach((block) => {
@@ -57,6 +88,17 @@ function parseRawCrmText(text) {
       }
     }
 
+    // Fallback: scan the whole block for a token with a contact title (陳小姐、王經理…)
+    if (!contact) {
+      for (const l of lines.slice(1)) {
+        for (const tok of l.split(/\t+/)) {
+          const t = tok.trim();
+          if (t && t.length <= 6 && TITLE_RE.test(t) && t !== company) { contact = t; break; }
+        }
+        if (contact) break;
+      }
+    }
+
     // Find phone: a line that's purely digits starting with 0, length 8-11
     for (const l of lines.slice(1)) {
       const clean = l.split(/\s+/)[0]; // take first token
@@ -66,7 +108,7 @@ function parseRawCrmText(text) {
     records.push({ name: company, contact, phone });
   });
 
-  return records;
+  return { records, markers };
 }
 
 export default function SettingsPanel({ onClose }) {
@@ -77,6 +119,7 @@ export default function SettingsPanel({ onClose }) {
   const [pasteText, setPasteText] = useState('');
   const [pasteStatus, setPasteStatus] = useState('');
   const [rawText, setRawText] = useState('');
+  const [repMarker, setRepMarker] = useState(''); // manual rep-name override
   const [preview, setPreview] = useState(null); // parsed records
   const [importStatus, setImportStatus] = useState('');
   const fileRef = useRef(null);
@@ -132,9 +175,15 @@ export default function SettingsPanel({ onClose }) {
 
   // ── Raw text import ──────────────────────────────────────────────────────
   function handleParseRaw() {
-    const records = parseRawCrmText(rawText).map((r) => ({ ...r, import: true }));
-    setPreview(records);
-    setImportStatus(records.length > 0 ? '' : '❌ 解析不到任何資料，請確認格式');
+    const { records, markers } = parseRawCrmText(rawText, repMarker);
+    setPreview(records.map((r) => ({ ...r, import: true })));
+    if (records.length === 0) {
+      setImportStatus(markers.length === 0
+        ? '❌ 偵測不到業務姓名，請在上方欄位手動輸入（例如：廖冠銘）後重新解析'
+        : '❌ 解析不到任何資料，請確認格式');
+    } else {
+      setImportStatus(`🔍 以「${markers.join('、')}」作為分隔，解析出 ${records.length} 筆`);
+    }
   }
 
   async function handleImportRaw() {
@@ -270,7 +319,14 @@ export default function SettingsPanel({ onClose }) {
                 <p className="text-xs text-ink-3 leading-relaxed">
                   將舊系統複製的名單貼在下方，系統會自動解析<strong>公司名稱、聯絡人、電話</strong>。
                   解析後可逐筆勾選要匯入的資料。
+                  系統會<strong>自動偵測業務姓名</strong>作為每筆資料的分隔；若偵測錯誤可手動輸入。
                 </p>
+                <ImeInput
+                  value={repMarker}
+                  onChange={(e) => setRepMarker(e.target.value)}
+                  placeholder="業務姓名（留空＝自動偵測，多位業務以逗號分隔）"
+                  className="w-full text-xs"
+                />
                 <textarea
                   value={rawText}
                   onChange={(e) => { setRawText(e.target.value); setPreview(null); setImportStatus(''); }}
