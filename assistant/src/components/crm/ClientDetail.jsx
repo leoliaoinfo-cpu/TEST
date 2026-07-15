@@ -11,7 +11,7 @@ const INTENT_LABELS = ['未評估', '低', '中', '高', '非常高'];
 const INTENT_COLORS = ['#b88860', '#808020', '#2080a0', '#2a8a50', '#c9670a'];
 
 export default function ClientDetail({ client, cats, stages, onClose, onSave, onDelete }) {
-  const { customFields, saveTimer, timers, updateClient } = useApp();
+  const { customFields, saveTimer, timers, updateClient, thresholds } = useApp();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...client });
   const [logInput, setLogInput] = useState('');
@@ -25,7 +25,7 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
   const [signingNote, setSigningNote] = useState(client.signingNote || '');
   const [todoInput, setTodoInput] = useState('');
 
-  const status = getClientStatus(client);
+  const status = getClientStatus(client, thresholds);
   const cat = cats.find((c) => c.id === client.catId);
   const stage = stages.find((s) => s.id === client.stageId);
   const daysSinceContact = client.lastContact ? dayjs().diff(dayjs(client.lastContact), 'day') : null;
@@ -49,13 +49,13 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
       text: logInput.trim() || '已聯繫',
       type: 'contact',
     };
+    setLogInput(''); // 先清空再儲存，避免儲存期間輸入的新內容被清掉
     await updateClient(client.id, (c) => ({
       ...c,
       lastContact: t,
       missedCalls: 0,
       log: [...(c.log || []), logEntry],
     }));
-    setLogInput('');
   }
 
   async function handleMissedCall() {
@@ -73,18 +73,24 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
   async function handleAddEvent() {
     if (!eventType) return;
     const t = today();
-    const def = EVENT_TYPES[eventType];
+    const type = eventType;
+    const def = EVENT_TYPES[type];
     const entry = {
       id: generateId('log'),
       date: t,
-      type: eventType,
+      type,
       text: eventNote.trim() || def.label,
     };
     const amount = Number(eventAmount);
     if (def.hasAmount && amount > 0) entry.amount = amount;
 
+    // 先關閉表單再儲存：避免連點重複記錄、避免儲存期間的輸入被清掉
+    setEventType(null);
+    setEventNote('');
+    setEventAmount('');
+
     // 交車：自動建立 3 / 7 / 30 天售後回訪提醒，並把下次追蹤設為 3 天後
-    const isDelivery = eventType === 'delivery';
+    const isDelivery = type === 'delivery';
     if (isDelivery) {
       for (const n of DELIVERY_FOLLOWUP_DAYS) {
         await saveTimer({
@@ -105,9 +111,6 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
       log: [...(c.log || []), entry],
       ...(isDelivery ? { nextDate: addDays(t, DELIVERY_FOLLOWUP_DAYS[0]) } : {}),
     }));
-    setEventType(null);
-    setEventNote('');
-    setEventAmount('');
   }
 
   // ── 即將簽約：置頂 / 重點備註 / 簽約前待辦 ─────────────────────────────────
@@ -124,11 +127,11 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
   async function addTodo() {
     const text = todoInput.trim();
     if (!text) return;
+    setTodoInput(''); // 先清空再儲存，避免儲存期間輸入的下一筆被清掉
     await updateClient(client.id, (c) => ({
       ...c,
       todos: [...(c.todos || []), { id: generateId('todo'), text, done: false }],
     }));
-    setTodoInput('');
   }
 
   async function toggleTodo(id) {
@@ -158,17 +161,20 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
 
   async function handleAddTimer() {
     if (!timerNote.trim() || !timerTime) return;
+    const note = timerNote.trim();
+    const triggerAt = new Date(timerTime).toISOString();
+    // 先關閉表單再儲存，避免連點重複建立
+    setTimerNote('');
+    setTimerTime('');
+    setShowAddTimer(false);
     await saveTimer({
       id: generateId('timer'),
       clientId: client.id,
       clientName: client.name,
-      note: timerNote.trim(),
-      triggerAt: new Date(timerTime).toISOString(),
+      note,
+      triggerAt,
       confirmedAt: null,
     });
-    setTimerNote('');
-    setTimerTime('');
-    setShowAddTimer(false);
   }
 
   function setNextDate(dateStr) {

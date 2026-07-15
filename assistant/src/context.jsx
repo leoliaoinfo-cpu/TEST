@@ -2,7 +2,7 @@ import {
   createContext, useContext, useReducer, useEffect, useCallback, useRef, useState,
 } from 'react';
 import { db } from './db';
-import { generateId } from './utils/crm';
+import { generateId, DEFAULT_THRESHOLDS, normalizeThresholds } from './utils/crm';
 import { today } from './utils/date';
 import dayjs from 'dayjs';
 
@@ -67,6 +67,7 @@ const initialState = {
   customFields: [],
   journalEntries: {},
   timers: [],
+  thresholds: DEFAULT_THRESHOLDS,
 };
 
 function reducer(state, action) {
@@ -94,6 +95,8 @@ function reducer(state, action) {
       return { ...state, stages: action.payload };
     case 'SET_CUSTOM_FIELDS':
       return { ...state, customFields: action.payload };
+    case 'SET_THRESHOLDS':
+      return { ...state, thresholds: action.payload };
 
     // Journal
     case 'SET_JOURNAL_ENTRY':
@@ -134,12 +137,13 @@ export function AppProvider({ children }) {
   useEffect(() => {
     async function loadAll() {
       try {
-        const [clients, cats, stages, customFields, timers] = await Promise.all([
+        const [clients, cats, stages, customFields, timers, thresholdRow] = await Promise.all([
           db.getAll('clients'),
           db.getAll('cats'),
           db.getAll('stages'),
           db.getAll('customFields'),
           db.getAll('timers'),
+          db.get('settings', 'crmThresholds').catch(() => null),
         ]);
 
         const resolvedCats = cats.length > 0 ? cats : DEFAULT_CATS;
@@ -150,7 +154,10 @@ export function AppProvider({ children }) {
 
         dispatch({
           type: 'LOAD_INIT',
-          payload: { clients, cats: resolvedCats, stages: resolvedStages, customFields, timers },
+          payload: {
+            clients, cats: resolvedCats, stages: resolvedStages, customFields, timers,
+            thresholds: thresholdRow ? normalizeThresholds(thresholdRow) : DEFAULT_THRESHOLDS,
+          },
         });
       } catch (err) {
         // IndexedDB 不可用時（file:// 限制、隱私模式等），以空資料繼續執行
@@ -235,6 +242,13 @@ export function AppProvider({ children }) {
     dispatch({ type: 'SET_CUSTOM_FIELDS', payload: fields });
   }, []);
 
+  const saveThresholds = useCallback(async (t) => {
+    const clean = normalizeThresholds(t);
+    await db.put('settings', { key: 'crmThresholds', ...clean }).catch(() => {});
+    dispatch({ type: 'SET_THRESHOLDS', payload: clean });
+    return clean;
+  }, []);
+
   // ── Timers ────────────────────────────────────────────────────────────────
   const saveTimer = useCallback(async (timer) => {
     await db.put('timers', timer);
@@ -248,16 +262,24 @@ export function AppProvider({ children }) {
 
   // ── Full reload (after import) ────────────────────────────────────────────
   const reloadAll = useCallback(async () => {
-    const [clients, cats, stages, customFields, timers] = await Promise.all([
+    const [clients, cats, stages, customFields, timers, thresholdRow] = await Promise.all([
       db.getAll('clients'),
       db.getAll('cats'),
       db.getAll('stages'),
       db.getAll('customFields'),
       db.getAll('timers'),
+      db.get('settings', 'crmThresholds').catch(() => null),
     ]);
     dispatch({
       type: 'RELOAD_ALL',
-      payload: { clients, cats: cats.length > 0 ? cats : DEFAULT_CATS, stages: stages.length > 0 ? stages : DEFAULT_STAGES, customFields, timers },
+      payload: {
+        clients,
+        cats: cats.length > 0 ? cats : DEFAULT_CATS,
+        stages: stages.length > 0 ? stages : DEFAULT_STAGES,
+        customFields,
+        timers,
+        thresholds: thresholdRow ? normalizeThresholds(thresholdRow) : DEFAULT_THRESHOLDS,
+      },
     });
   }, []);
 
@@ -272,6 +294,7 @@ export function AppProvider({ children }) {
     saveCats,
     saveStages,
     saveCustomFields,
+    saveThresholds,
     saveTimer,
     deleteTimer,
     reloadAll,

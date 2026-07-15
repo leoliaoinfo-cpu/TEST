@@ -43,7 +43,7 @@ function useVirtualList(items, containerRef, itemHeight = ITEM_HEIGHT) {
 }
 
 export default function CrmPage({ focusId, onFocusConsumed }) {
-  const { clients, cats, stages, saveClient, deleteClient } = useApp();
+  const { clients, cats, stages, thresholds, saveClient, deleteClient } = useApp();
   const [filter, setFilter] = useState('all');
   const [sortKey, setSortKey] = useState('createdAt');
   const [search, setSearch] = useState('');
@@ -61,7 +61,7 @@ export default function CrmPage({ focusId, onFocusConsumed }) {
   }, [focusId, onFocusConsumed]);
 
   const filteredSorted = useMemo(() => {
-    let list = clients.filter((c) => clientMatchesFilter(c, filter, cats, stages));
+    let list = clients.filter((c) => clientMatchesFilter(c, filter, thresholds));
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter((c) =>
@@ -72,7 +72,7 @@ export default function CrmPage({ focusId, onFocusConsumed }) {
       );
     }
     return sortClients(list, sortKey);
-  }, [clients, filter, sortKey, search, cats, stages]);
+  }, [clients, filter, sortKey, search, thresholds]);
 
   const { visibleItems, totalHeight, offsetY } = useVirtualList(filteredSorted, listRef);
 
@@ -103,9 +103,9 @@ export default function CrmPage({ focusId, onFocusConsumed }) {
   }).length, [clients]);
 
   const coldCount = useMemo(() => clients.filter((c) => {
-    const s = getClientStatus(c);
+    const s = getClientStatus(c, thresholds);
     return s === 'cold' || s === 'hot';
-  }).length, [clients]);
+  }).length, [clients, thresholds]);
 
   function handleSelect(id) {
     setSelectedId(id);
@@ -278,7 +278,8 @@ function SidebarItem({ label, count, color, active, onClick }) {
 
 // ── ClientRow ─────────────────────────────────────────────────────────────────
 function ClientRow({ client, cats, stages, selected, onClick }) {
-  const status = getClientStatus(client);
+  const { thresholds } = useApp();
+  const status = getClientStatus(client, thresholds);
   const cat = cats.find((c) => c.id === client.catId);
   const stage = stages.find((s) => s.id === client.stageId);
 

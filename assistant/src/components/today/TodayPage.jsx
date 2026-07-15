@@ -8,7 +8,7 @@ import dayjs from 'dayjs';
 const BACKUP_REMIND_DAYS = 7;
 
 export default function TodayPage({ onOpenClient }) {
-  const { clients, cats, timers, updateClient, saveTimer, deleteTimer } = useApp();
+  const { clients, cats, timers, thresholds, updateClient, saveTimer, deleteTimer } = useApp();
   const todayStr = dayjs().format('YYYY-MM-DD');
   const [lastBackupAt, setLastBackupAt] = useState(undefined); // undefined=載入中, null=從未備份
 
@@ -46,8 +46,8 @@ export default function TodayPage({ onOpenClient }) {
     [timers]);
 
   const coldCount = useMemo(() =>
-    clients.filter((c) => ['hot', 'cold'].includes(getClientStatus(c))).length,
-    [clients]);
+    clients.filter((c) => ['hot', 'cold'].includes(getClientStatus(c, thresholds))).length,
+    [clients, thresholds]);
 
   const allClear = overdue.length === 0 && dueToday.length === 0 && todayTimers.length === 0;
 
@@ -210,7 +210,8 @@ function Section({ title, titleColor, children }) {
 }
 
 function ClientTaskRow({ client, cats, tag, tagColor, onOpen, onDone }) {
-  const status = getClientStatus(client);
+  const { thresholds } = useApp();
+  const status = getClientStatus(client, thresholds);
   const cat = cats.find((c) => c.id === client.catId);
 
   return (

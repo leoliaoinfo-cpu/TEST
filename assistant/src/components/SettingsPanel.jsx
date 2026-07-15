@@ -9,18 +9,19 @@ const HELP_CARDS = [
   { icon: '👥', title: '客戶追蹤 CRM', desc: '管理所有客戶聯繫狀態、分類、意願度與追蹤日期。' },
   { icon: '🚛', title: '業務進度記錄', desc: '在客戶詳情記錄 LINE 摘要、報價、看車試乘、貸款補件、下訂、交車、售後回訪；記錄交車會自動建立 3/7/30 天回訪提醒。' },
   { icon: '📌', title: '即將簽約', desc: '置頂重點客戶，可寫重點備註並管理簽約前待辦清單。' },
-  { icon: '💡', title: '客戶狀態', desc: '🟢追蹤中 / 🟡待聯繫（到期）/ 🟠逾半年 / 🔴逾一年。' },
+  { icon: '💡', title: '客戶狀態', desc: '🟢追蹤中 / 🟡待聯繫（到期）/ 🟠久未聯繫 / 🔴冷掉了。天數門檻可在「追蹤規則」調整（預設 180 / 365 天）。' },
   { icon: '⏰', title: '計時提醒', desc: '可在客戶詳情頁設定提醒，到期後強制彈出 Modal 確認。' },
   { icon: '💾', title: '備份與還原', desc: '下載 JSON 備份所有資料，或上傳 JSON 檔案進行還原。超過 7 天未備份會在今日工作頁提醒。' },
   { icon: '📦', title: '舊版資料匯入', desc: '支援匯入舊版格式 { _v:1, crm, jnl, sal } 的 JSON 備份。' },
 ];
 
-const SECTION_KEYS = ['backup', 'cats', 'stages', 'fields', 'archive', 'help'];
+const SECTION_KEYS = ['backup', 'cats', 'stages', 'fields', 'rules', 'archive', 'help'];
 const SECTION_LABELS = {
   backup: '💾 備份還原',
   cats: '🏷 客戶分類',
   stages: '📶 業務進度',
   fields: '✏️ 自訂欄位',
+  rules: '⏱ 追蹤規則',
   archive: '🗄 日誌封存',
   help: '📖 使用說明',
 };
@@ -54,7 +55,10 @@ function summarizeBackup(data) {
 }
 
 export default function SettingsPanel({ onClose }) {
-  const { cats, stages, customFields, saveCats, saveStages, saveCustomFields, reloadAll } = useApp();
+  const {
+    cats, stages, customFields, thresholds,
+    saveCats, saveStages, saveCustomFields, saveThresholds, reloadAll,
+  } = useApp();
   const [activeSection, setActiveSection] = useState('backup');
   const [status, setStatus] = useState('');
   const [archiveStatus, setArchiveStatus] = useState('');
@@ -230,6 +234,11 @@ export default function SettingsPanel({ onClose }) {
             />
           )}
 
+          {/* ── Rules ── */}
+          {activeSection === 'rules' && (
+            <ThresholdEditor thresholds={thresholds} onSave={saveThresholds} />
+          )}
+
           {/* ── Archive ── */}
           {activeSection === 'archive' && (
             <div className="card p-4 space-y-3">
@@ -260,6 +269,56 @@ export default function SettingsPanel({ onClose }) {
         </div>
       </div>
     </>
+  );
+}
+
+// ── ThresholdEditor（追蹤規則天數）────────────────────────────────────────────
+function ThresholdEditor({ thresholds, onSave }) {
+  const [coldDays, setColdDays] = useState(String(thresholds.coldDays));
+  const [deadDays, setDeadDays] = useState(String(thresholds.deadDays));
+  const [saved, setSaved] = useState('');
+
+  async function commit() {
+    const clean = await onSave({ coldDays, deadDays });
+    // 回填清理後的值（例如冷掉天數被自動抬高到不低於久未聯繫天數）
+    setColdDays(String(clean.coldDays));
+    setDeadDays(String(clean.deadDays));
+    setSaved(`✅ 已儲存：${clean.coldDays} 天未聯繫 → 久未聯繫；${clean.deadDays} 天 → 冷掉了`);
+  }
+
+  return (
+    <div className="card p-4 space-y-4">
+      <div>
+        <h3 className="font-semibold text-ink">追蹤規則</h3>
+        <p className="text-xs text-ink-3 mt-1 leading-relaxed">
+          超過天數未聯繫的客戶會標示警示色，並列入「冷掉了」篩選與今日工作的「久未聯繫」統計。
+          從未聯繫過的客戶，以建檔日起算。
+        </p>
+      </div>
+
+      <label className="flex items-center gap-3 text-sm text-ink-2">
+        <span className="w-32 shrink-0">🟠 久未聯繫（天）</span>
+        <input
+          type="number" min="1" value={coldDays}
+          onChange={(e) => setColdDays(e.target.value)}
+          className="w-24 text-sm"
+        />
+      </label>
+
+      <label className="flex items-center gap-3 text-sm text-ink-2">
+        <span className="w-32 shrink-0">🔴 冷掉了（天）</span>
+        <input
+          type="number" min="1" value={deadDays}
+          onChange={(e) => setDeadDays(e.target.value)}
+          className="w-24 text-sm"
+        />
+      </label>
+
+      <p className="text-xs text-ink-3">「冷掉了」天數不會低於「久未聯繫」天數，儲存時會自動修正。</p>
+
+      <button onClick={commit} className="btn-primary text-sm">儲存規則</button>
+      {saved && <p className="text-sm text-ink-2 bg-s2 rounded-lg px-3 py-2">{saved}</p>}
+    </div>
   );
 }
 

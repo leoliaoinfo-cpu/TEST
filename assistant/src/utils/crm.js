@@ -10,11 +10,22 @@ export const STATUS_COLOR = {
 export const STATUS_LABEL = {
   ok: '追蹤中',
   warn: '待聯繫',
-  hot: '逾半年',
-  cold: '逾一年',
+  hot: '久未聯繫',
+  cold: '冷掉了',
 };
 
-export function getClientStatus(client) {
+/** 追蹤規則預設值：超過 coldDays 天未聯繫 → 🟠久未聯繫；超過 deadDays 天 → 🔴冷掉了 */
+export const DEFAULT_THRESHOLDS = { coldDays: 180, deadDays: 365 };
+
+/** 清理使用者輸入的門檻：至少 1 天，且 deadDays 不小於 coldDays */
+export function normalizeThresholds(t) {
+  const coldDays = Math.max(1, Math.round(Number(t?.coldDays)) || DEFAULT_THRESHOLDS.coldDays);
+  const deadDays = Math.max(coldDays, Math.round(Number(t?.deadDays)) || DEFAULT_THRESHOLDS.deadDays);
+  return { coldDays, deadDays };
+}
+
+export function getClientStatus(client, thresholds) {
+  const { coldDays, deadDays } = thresholds || DEFAULT_THRESHOLDS;
   const now = dayjs();
   const created = dayjs(client.createdAt);
   const lastContact = client.lastContact ? dayjs(client.lastContact) : null;
@@ -23,14 +34,15 @@ export function getClientStatus(client) {
   const daysSinceCreated = now.diff(created, 'day');
   const daysSinceContact = lastContact ? now.diff(lastContact, 'day') : null;
 
-  if (!lastContact && daysSinceCreated >= 180) return 'cold';
-  if (daysSinceContact !== null && daysSinceContact >= 365) return 'cold';
-  if (daysSinceContact !== null && daysSinceContact >= 180) return 'hot';
+  if (!lastContact && daysSinceCreated >= coldDays) return 'cold';
+  if (daysSinceContact !== null && daysSinceContact >= deadDays) return 'cold';
+  if (daysSinceContact !== null && daysSinceContact >= coldDays) return 'hot';
   if (nextDate && !nextDate.isAfter(now, 'day')) return 'warn';
   return 'ok';
 }
 
-export function clientMatchesFilter(client, filter, cats, stages) {
+export function clientMatchesFilter(client, filter, thresholds) {
+  const { coldDays } = thresholds || DEFAULT_THRESHOLDS;
   const now = dayjs();
   const lastContact = client.lastContact ? dayjs(client.lastContact) : null;
   const created = dayjs(client.createdAt);
@@ -43,8 +55,8 @@ export function clientMatchesFilter(client, filter, cats, stages) {
   if (filter === 'cold') {
     const daysSinceCreated = now.diff(created, 'day');
     const daysSinceContact = lastContact ? now.diff(lastContact, 'day') : null;
-    if (!lastContact && daysSinceCreated >= 180) return true;
-    if (daysSinceContact !== null && daysSinceContact >= 180) return true;
+    if (!lastContact && daysSinceCreated >= coldDays) return true;
+    if (daysSinceContact !== null && daysSinceContact >= coldDays) return true;
     return false;
   }
   // catId filter
