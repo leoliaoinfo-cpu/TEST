@@ -9,18 +9,20 @@ const HELP_CARDS = [
   { icon: '👥', title: '客戶追蹤 CRM', desc: '管理所有客戶聯繫狀態、分類、意願度與追蹤日期。' },
   { icon: '🚛', title: '業務進度記錄', desc: '在客戶詳情記錄 LINE 摘要、報價、看車試乘、貸款補件、下訂、交車、售後回訪；記錄交車會自動建立 3/7/30 天回訪提醒。' },
   { icon: '📌', title: '即將簽約', desc: '置頂重點客戶，可寫重點備註並管理簽約前待辦清單。' },
+  { icon: '📈', title: '業績表', desc: '客戶成交後按「成交歸檔」帶入當月業績，單月細項與成交總表自動加總成交金額、保險金額、收入等（欄位可自訂）。' },
   { icon: '💡', title: '客戶狀態', desc: '🟢追蹤中 / 🟡待聯繫（到期）/ 🟠久未聯繫 / 🔴冷掉了。天數門檻可在「追蹤規則」調整（預設 180 / 365 天）。' },
   { icon: '⏰', title: '計時提醒', desc: '可在客戶詳情頁設定提醒，到期後強制彈出 Modal 確認。' },
   { icon: '💾', title: '備份與還原', desc: '下載 JSON 備份所有資料，或上傳 JSON 檔案進行還原。超過 7 天未備份會在今日工作頁提醒。' },
   { icon: '📦', title: '舊版資料匯入', desc: '支援匯入舊版格式 { _v:1, crm, jnl, sal } 的 JSON 備份。' },
 ];
 
-const SECTION_KEYS = ['backup', 'cats', 'stages', 'fields', 'rules', 'help'];
+const SECTION_KEYS = ['backup', 'cats', 'stages', 'fields', 'dealFields', 'rules', 'help'];
 const SECTION_LABELS = {
   backup: '💾 備份還原',
   cats: '🏷 客戶分類',
   stages: '📶 業務進度',
   fields: '✏️ 自訂欄位',
+  dealFields: '🏆 業績欄位',
   rules: '⏱ 追蹤規則',
   help: '📖 使用說明',
 };
@@ -45,6 +47,7 @@ function summarizeBackup(data) {
       version: 'v2',
       exportedAt: data.exportedAt,
       clients: data.clients.length,
+      deals: (data.deals || []).length,
       journal: (data.journalEntries || []).length + (data.archivedJournal || []).length,
       salary: (data.salaryMonths || []).length,
       timers: (data.timers || []).length,
@@ -55,8 +58,8 @@ function summarizeBackup(data) {
 
 export default function SettingsPanel({ onClose }) {
   const {
-    cats, stages, customFields, thresholds,
-    saveCats, saveStages, saveCustomFields, saveThresholds, reloadAll,
+    cats, stages, customFields, dealFields, thresholds,
+    saveCats, saveStages, saveCustomFields, saveDealFields, saveThresholds, reloadAll,
   } = useApp();
   const [activeSection, setActiveSection] = useState('backup');
   const [status, setStatus] = useState('');
@@ -169,6 +172,7 @@ export default function SettingsPanel({ onClose }) {
                         <li>匯出時間：{pendingImport.summary.exportedAt.slice(0, 16).replace('T', ' ')}</li>
                       )}
                       <li>客戶：{pendingImport.summary.clients} 筆</li>
+                      <li>成交：{pendingImport.summary.deals || 0} 筆</li>
                       <li>提醒：{pendingImport.summary.timers} 筆</li>
                     </ul>
                     <p className="text-xs text-danger">⚠️ 還原會完整覆蓋目前資料（會先自動下載目前資料備份）</p>
@@ -217,6 +221,23 @@ export default function SettingsPanel({ onClose }) {
               fields={customFields}
               onChange={saveCustomFields}
             />
+          )}
+
+          {/* ── Deal fields ── */}
+          {activeSection === 'dealFields' && (
+            <div className="space-y-3">
+              <p className="text-xs text-ink-3 px-1">
+                成交歸檔時可填的金額欄位（例如保險金額、收入），業績表會逐欄自動加總。「成交金額」為內建欄位不需新增。
+              </p>
+              <ListEditor
+                title="業績欄位"
+                items={dealFields}
+                colors={FIELD_COLORS}
+                colorCount={FIELD_COLORS.length}
+                onChange={saveDealFields}
+                newLabel="新欄位"
+              />
+            </div>
           )}
 
           {/* ── Rules ── */}
@@ -298,11 +319,11 @@ function ThresholdEditor({ thresholds, onSave }) {
 }
 
 // ── ListEditor (shared for cats & stages) ────────────────────────────────────
-function ListEditor({ title, items, colors, colorCount, onChange }) {
+function ListEditor({ title, items, colors, colorCount, onChange, newLabel = '新分類' }) {
   const sorted = [...items].sort((a, b) => a.order - b.order);
 
   function addItem() {
-    const newItem = { id: generateId('item'), name: '新分類', colorIdx: 0, order: sorted.length };
+    const newItem = { id: generateId('item'), name: newLabel, colorIdx: 0, order: sorted.length };
     onChange([...items, newItem]);
   }
 

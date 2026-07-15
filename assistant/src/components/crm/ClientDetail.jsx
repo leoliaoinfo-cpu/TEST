@@ -1,17 +1,21 @@
 import { useState } from 'react';
 import {
   getClientStatus, STATUS_COLOR, STATUS_LABEL, CAT_COLORS, FIELD_COLORS, generateId,
-  EVENT_TYPES, QUICK_EVENT_KEYS, DELIVERY_FOLLOWUP_DAYS, DELIVERY_TODO_TEMPLATE,
+  EVENT_TYPES, QUICK_EVENT_KEYS, DELIVERY_FOLLOWUP_DAYS, DELIVERY_TODO_TEMPLATE, formatMoney,
 } from '../../utils/crm';
 import { today, formatDateFull, addDays, QUICK_DATES } from '../../utils/date';
 import { useApp } from '../../context';
+import DealModal from '../deals/DealModal';
 import dayjs from 'dayjs';
 
 const INTENT_LABELS = ['未評估', '低', '中', '高', '非常高'];
 const INTENT_COLORS = ['#b88860', '#808020', '#2080a0', '#2a8a50', '#c9670a'];
 
 export default function ClientDetail({ client, cats, stages, onClose, onSave, onDelete }) {
-  const { customFields, saveTimer, timers, updateClient, thresholds } = useApp();
+  const {
+    customFields, saveTimer, timers, updateClient, thresholds,
+    deals, dealFields, saveDeal,
+  } = useApp();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...client });
   const [logInput, setLogInput] = useState('');
@@ -24,6 +28,11 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
   const [eventAmount, setEventAmount] = useState('');
   const [signingNote, setSigningNote] = useState(client.signingNote || '');
   const [todoInput, setTodoInput] = useState('');
+  const [showDealModal, setShowDealModal] = useState(false);
+
+  const clientDeals = deals
+    .filter((d) => d.clientId === client.id)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
   const status = getClientStatus(client, thresholds);
   const cat = cats.find((c) => c.id === client.catId);
@@ -145,6 +154,24 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
     await updateClient(client.id, (c) => ({
       ...c,
       todos: (c.todos || []).filter((td) => td.id !== id),
+    }));
+  }
+
+  /** 成交歸檔：寫入業績表 + 客戶時間軸 */
+  async function handleArchiveDeal(deal) {
+    setShowDealModal(false);
+    await saveDeal(deal);
+    const monthLabel = dayjs(deal.date).format('M月');
+    await updateClient(client.id, (c) => ({
+      ...c,
+      lastContact: deal.date,
+      log: [...(c.log || []), {
+        id: generateId('log'),
+        date: deal.date,
+        type: 'deal',
+        text: `成交歸檔至 ${monthLabel}業績表${deal.note ? `：${deal.note}` : ''}`,
+        ...(deal.amount > 0 ? { amount: deal.amount } : {}),
+      }],
     }));
   }
 
@@ -412,6 +439,26 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
           )}
         </section>
 
+        {/* 成交歸檔 */}
+        <section className="card p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-sm text-ink-2">🏆 成交歸檔</h3>
+            <button onClick={() => setShowDealModal(true)} className="btn-primary text-xs">
+              ＋ 歸檔到業績表
+            </button>
+          </div>
+          <p className="text-xs text-ink-3">
+            成交後把金額歸入當月業績表，可記錄保險金額、收入等欄位並自動加總（欄位可在設定自訂）。
+          </p>
+          {clientDeals.map((d) => (
+            <div key={d.id} className="flex items-center gap-2 text-xs bg-s2 rounded-lg px-3 py-2">
+              <span className="text-ink-3 font-mono">{dayjs(d.date).format('YYYY/MM/DD')}</span>
+              <span className="font-semibold text-accent">NT$ {formatMoney(d.amount)}</span>
+              {d.note && <span className="text-ink-2 truncate">{d.note}</span>}
+            </div>
+          ))}
+        </section>
+
         {/* 即將簽約：重點備註 + 簽約前待辦 */}
         {client.pinned && (
           <section className="card p-4 space-y-3 border-accent/40">
@@ -534,6 +581,16 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
               })}
             </div>
           </section>
+        )}
+
+        {showDealModal && (
+          <DealModal
+            deal={null}
+            client={client}
+            dealFields={dealFields}
+            onClose={() => setShowDealModal(false)}
+            onSave={handleArchiveDeal}
+          />
         )}
 
         {/* Danger zone */}

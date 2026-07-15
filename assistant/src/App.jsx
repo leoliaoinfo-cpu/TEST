@@ -3,6 +3,7 @@ import { useApp } from './context';
 import Header from './components/Header';
 import TodayPage from './components/today/TodayPage';
 import CrmPage from './components/crm/CrmPage';
+import DealsPage from './components/deals/DealsPage';
 import SettingsPanel from './components/SettingsPanel';
 import TimerModal from './components/TimerModal';
 
@@ -87,6 +88,7 @@ function AppInner() {
           {tab === 'crm' && (
             <CrmPage focusId={crmFocusId} onFocusConsumed={() => setCrmFocusId(null)} />
           )}
+          {tab === 'deals' && <DealsPage onOpenClient={openClient} />}
         </div>
       </main>
 
@@ -95,6 +97,7 @@ function AppInner() {
         {[
           { key: 'today', icon: '☀️', label: '今日' },
           { key: 'crm', icon: '👥', label: '客戶' },
+          { key: 'deals', icon: '📈', label: '業績' },
         ].map((item) => (
           <button
             key={item.key}

@@ -31,8 +31,12 @@ await page.reload();
 
 ## Flows worth driving
 
-- Only two tabs exist: 今日工作 (default) and 客戶追蹤 — 薪資計算 and 工作日誌 were
+- Three tabs exist: 今日工作 (default), 客戶追蹤, 業績表 — 薪資計算 and 工作日誌 were
   removed on purpose; their IndexedDB stores remain for old-backup import compat.
+- 業績表: archive a deal via client detail 「＋ 歸檔到業績表」 (amount prefills from the
+  latest quote/order event); 單月 view shows per-field totals, 總表 groups by month.
+  Deal fields are editable in 設定 → 🏆 業績欄位. Deleting a deal keeps the client's
+  timeline entry (by design).
 - Today page: empty state shows 「今天沒有待辦事項」; recording events on clients makes
   an auto-computed 「📊 本日成果」 section appear (counts + NT$ amounts from timeline).
 - CRM: 新增 client → detail → 業務進度記錄 quick-event buttons (報價 has amount field);

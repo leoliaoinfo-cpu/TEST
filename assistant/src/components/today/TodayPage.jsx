@@ -62,7 +62,7 @@ export default function TodayPage({ onOpenClient }) {
         if (entry.amount > 0) amounts[entry.type] = (amounts[entry.type] || 0) + entry.amount;
       }
     }
-    const order = ['contact', 'line', 'quote', 'visit', 'loan', 'order', 'delivery', 'aftercare', 'missed'];
+    const order = ['deal', 'contact', 'line', 'quote', 'visit', 'loan', 'order', 'delivery', 'aftercare', 'missed'];
     return order
       .filter((type) => counts[type])
       .map((type) => ({ type, ...EVENT_TYPES[type], count: counts[type], amount: amounts[type] }));

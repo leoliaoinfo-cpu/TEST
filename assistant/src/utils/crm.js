@@ -120,6 +120,7 @@ export const EVENT_TYPES = {
   order:     { icon: '📝', label: '下訂',     color: '#e04000', hasAmount: true },
   delivery:  { icon: '🔑', label: '交車',     color: '#2a8a50' },
   aftercare: { icon: '🤝', label: '售後回訪', color: '#808020' },
+  deal:      { icon: '🏆', label: '成交歸檔', color: '#8a6a00' },
 };
 
 /** 客戶詳情頁快速記錄事件的按鈕順序（已聯繫/未接另有專屬按鈕） */
@@ -127,6 +128,21 @@ export const QUICK_EVENT_KEYS = ['line', 'quote', 'visit', 'loan', 'order', 'del
 
 /** 交車後自動建立的售後回訪天數 */
 export const DELIVERY_FOLLOWUP_DAYS = [3, 7, 30];
+
+/** 業績表金額加總 */
+export function sumDeals(deals, dealFields) {
+  const totals = { count: deals.length, amount: 0, fields: {} };
+  for (const f of dealFields) totals.fields[f.id] = 0;
+  for (const d of deals) {
+    totals.amount += Number(d.amount) || 0;
+    for (const f of dealFields) totals.fields[f.id] += Number(d.fields?.[f.id]) || 0;
+  }
+  return totals;
+}
+
+export function formatMoney(n) {
+  return (Number(n) || 0).toLocaleString('zh-TW');
+}
 
 /** 簽約～交車常見待辦範本（可一鍵套用到簽約前待辦） */
 export const DELIVERY_TODO_TEMPLATE = [

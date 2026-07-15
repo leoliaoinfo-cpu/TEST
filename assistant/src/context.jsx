@@ -14,6 +14,12 @@ const DEFAULT_CATS = [
   { id: 'cat-3', name: '成交客戶', colorIdx: 2, order: 2 },
 ];
 
+// 業績表預設金額欄位（成交金額為內建，這裡是額外欄位，可在設定自訂）
+const DEFAULT_DEAL_FIELDS = [
+  { id: 'dfield-1', name: '保險金額', colorIdx: 2, order: 0 },
+  { id: 'dfield-2', name: '收入', colorIdx: 1, order: 1 },
+];
+
 // 貨車銷售固定管道：新名單 → 已聯絡 → 拜訪中 → 試乘 → 報價 → 議價 → 成交 → 交車 → 售後
 const DEFAULT_STAGES = [
   { id: 'stage-1', name: '新名單', colorIdx: 6, order: 0 },
@@ -33,6 +39,8 @@ const initialState = {
   cats: DEFAULT_CATS,
   stages: DEFAULT_STAGES,
   customFields: [],
+  deals: [],
+  dealFields: DEFAULT_DEAL_FIELDS,
   timers: [],
   thresholds: DEFAULT_THRESHOLDS,
 };
@@ -65,6 +73,19 @@ function reducer(state, action) {
     case 'SET_THRESHOLDS':
       return { ...state, thresholds: action.payload };
 
+    // Deals（成交歸檔）
+    case 'UPSERT_DEAL': {
+      const idx = state.deals.findIndex((d) => d.id === action.payload.id);
+      const next = [...state.deals];
+      if (idx === -1) next.push(action.payload);
+      else next[idx] = action.payload;
+      return { ...state, deals: next };
+    }
+    case 'DELETE_DEAL':
+      return { ...state, deals: state.deals.filter((d) => d.id !== action.id) };
+    case 'SET_DEAL_FIELDS':
+      return { ...state, dealFields: action.payload };
+
     // Timers
     case 'SET_TIMERS':
       return { ...state, timers: action.payload };
@@ -96,25 +117,30 @@ export function AppProvider({ children }) {
   useEffect(() => {
     async function loadAll() {
       try {
-        const [clients, cats, stages, customFields, timers, thresholdRow] = await Promise.all([
+        const [clients, cats, stages, customFields, deals, dealFields, timers, thresholdRow] = await Promise.all([
           db.getAll('clients'),
           db.getAll('cats'),
           db.getAll('stages'),
           db.getAll('customFields'),
+          db.getAll('deals'),
+          db.getAll('dealFields'),
           db.getAll('timers'),
           db.get('settings', 'crmThresholds').catch(() => null),
         ]);
 
         const resolvedCats = cats.length > 0 ? cats : DEFAULT_CATS;
         const resolvedStages = stages.length > 0 ? stages : DEFAULT_STAGES;
+        const resolvedDealFields = dealFields.length > 0 ? dealFields : DEFAULT_DEAL_FIELDS;
 
         if (cats.length === 0) for (const c of DEFAULT_CATS) await db.put('cats', c).catch(() => {});
         if (stages.length === 0) for (const s of DEFAULT_STAGES) await db.put('stages', s).catch(() => {});
+        if (dealFields.length === 0) for (const f of DEFAULT_DEAL_FIELDS) await db.put('dealFields', f).catch(() => {});
 
         dispatch({
           type: 'LOAD_INIT',
           payload: {
-            clients, cats: resolvedCats, stages: resolvedStages, customFields, timers,
+            clients, cats: resolvedCats, stages: resolvedStages, customFields,
+            deals, dealFields: resolvedDealFields, timers,
             thresholds: thresholdRow ? normalizeThresholds(thresholdRow) : DEFAULT_THRESHOLDS,
           },
         });
@@ -164,20 +190,47 @@ export function AppProvider({ children }) {
     dispatch({ type: 'DELETE_CLIENT', id });
   }, []);
 
-  const saveCats = useCallback(async (cats) => {
-    for (const c of cats) await db.put('cats', c);
-    dispatch({ type: 'SET_CATS', payload: cats });
+  /** 覆寫整個 store：寫入現有項目並刪除已移除的（否則刪除的項目重整後會復活） */
+  const overwriteStore = useCallback(async (storeName, items) => {
+    for (const it of items) await db.put(storeName, it);
+    const existing = await db.getAll(storeName);
+    for (const e of existing) {
+      if (!items.some((it) => it.id === e.id)) await db.delete(storeName, e.id);
+    }
   }, []);
+
+  const saveCats = useCallback(async (cats) => {
+    dispatch({ type: 'SET_CATS', payload: cats });
+    await overwriteStore('cats', cats);
+  }, [overwriteStore]);
 
   const saveStages = useCallback(async (stages) => {
-    for (const s of stages) await db.put('stages', s);
     dispatch({ type: 'SET_STAGES', payload: stages });
-  }, []);
+    await overwriteStore('stages', stages);
+  }, [overwriteStore]);
 
   const saveCustomFields = useCallback(async (fields) => {
-    for (const f of fields) await db.put('customFields', f);
     dispatch({ type: 'SET_CUSTOM_FIELDS', payload: fields });
+    await overwriteStore('customFields', fields);
+  }, [overwriteStore]);
+
+  // ── Deals（成交歸檔／業績表）──────────────────────────────────────────────
+  const saveDeal = useCallback(async (deal) => {
+    const full = { createdAt: new Date().toISOString(), ...deal };
+    dispatch({ type: 'UPSERT_DEAL', payload: full });
+    await db.put('deals', full);
+    return full;
   }, []);
+
+  const deleteDeal = useCallback(async (id) => {
+    dispatch({ type: 'DELETE_DEAL', id });
+    await db.delete('deals', id);
+  }, []);
+
+  const saveDealFields = useCallback(async (fields) => {
+    dispatch({ type: 'SET_DEAL_FIELDS', payload: fields });
+    await overwriteStore('dealFields', fields);
+  }, [overwriteStore]);
 
   const saveThresholds = useCallback(async (t) => {
     const clean = normalizeThresholds(t);
@@ -199,11 +252,13 @@ export function AppProvider({ children }) {
 
   // ── Full reload (after import) ────────────────────────────────────────────
   const reloadAll = useCallback(async () => {
-    const [clients, cats, stages, customFields, timers, thresholdRow] = await Promise.all([
+    const [clients, cats, stages, customFields, deals, dealFields, timers, thresholdRow] = await Promise.all([
       db.getAll('clients'),
       db.getAll('cats'),
       db.getAll('stages'),
       db.getAll('customFields'),
+      db.getAll('deals'),
+      db.getAll('dealFields'),
       db.getAll('timers'),
       db.get('settings', 'crmThresholds').catch(() => null),
     ]);
@@ -214,6 +269,8 @@ export function AppProvider({ children }) {
         cats: cats.length > 0 ? cats : DEFAULT_CATS,
         stages: stages.length > 0 ? stages : DEFAULT_STAGES,
         customFields,
+        deals,
+        dealFields: dealFields.length > 0 ? dealFields : DEFAULT_DEAL_FIELDS,
         timers,
         thresholds: thresholdRow ? normalizeThresholds(thresholdRow) : DEFAULT_THRESHOLDS,
       },
@@ -229,6 +286,9 @@ export function AppProvider({ children }) {
     saveCats,
     saveStages,
     saveCustomFields,
+    saveDeal,
+    deleteDeal,
+    saveDealFields,
     saveThresholds,
     saveTimer,
     deleteTimer,
