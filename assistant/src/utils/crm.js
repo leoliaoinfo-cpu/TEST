@@ -115,3 +115,12 @@ export const QUICK_EVENT_KEYS = ['line', 'quote', 'visit', 'loan', 'order', 'del
 
 /** 交車後自動建立的售後回訪天數 */
 export const DELIVERY_FOLLOWUP_DAYS = [3, 7, 30];
+
+/** 簽約～交車常見待辦範本（可一鍵套用到簽約前待辦） */
+export const DELIVERY_TODO_TEMPLATE = [
+  '保險規劃確認',
+  '貸款對保 / 補件',
+  '監理站驗車領牌',
+  '配件安裝確認',
+  '交車前整備清潔',
+];

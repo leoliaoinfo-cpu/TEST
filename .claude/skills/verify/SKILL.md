@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Build, run, and drive the 卡旺業務助理 app (assistant/) end-to-end to verify changes.
+description: Build, run, and drive the 汽車銷售業務系統 app (assistant/) end-to-end to verify changes.
 ---
 
 # Verifying the assistant/ app
@@ -49,3 +49,7 @@ await page.reload();
   favicon 404 — environment noise, not app errors.
 - 記錄「交車」 overwrites nextDate to +3 days — if a test needs an overdue client,
   don't record delivery on that client.
+- Two `<nav>` elements exist (hidden desktop header nav + mobile bottom nav) — target
+  the bottom one with `nav.md\\:hidden >> text=…`.
+- Today page shows a backup-reminder banner when clients exist and lastBackupAt
+  (settings store) is missing or ≥7 days old; 立即備份 downloads `auto-sales-backup-*.json`.

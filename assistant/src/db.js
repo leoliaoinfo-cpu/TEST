@@ -46,6 +46,16 @@ const ALL_STORES = [
   'salaryMonths', 'timers', 'timerHistory', 'settings',
 ];
 
+export function downloadJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export const db = {
   async getAll(store) {
     return (await getDB()).getAll(store);
@@ -80,6 +90,20 @@ export const db = {
       data[store] = await db.getAll(store);
     }
     return data;
+  },
+
+  /** 匯出並下載備份，同時記錄最後備份時間（供備份提醒使用） */
+  async exportAndDownload() {
+    const data = await db.exportAll();
+    downloadJSON(data, `auto-sales-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    await db.put('settings', { key: 'lastBackupAt', value: new Date().toISOString() }).catch(() => {});
+    return data;
+  },
+
+  /** 最後備份時間（ISO 字串），從未備份回傳 null */
+  async getLastBackupAt() {
+    const row = await db.get('settings', 'lastBackupAt').catch(() => null);
+    return row?.value ?? null;
   },
 
   /** Full import — wipes existing data */

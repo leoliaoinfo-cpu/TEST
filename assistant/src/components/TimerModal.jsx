@@ -23,7 +23,7 @@ export default function TimerModal() {
       const fresh = allExpired.filter((t) => !notifiedIdsRef.current.has(t.id));
       if (fresh.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
         try {
-          new Notification('卡旺業務助理', {
+          new Notification('汽車銷售業務系統', {
             body: `您有 ${allExpired.length} 則提醒到期`,
             tag: 'assistant-timer',
           });

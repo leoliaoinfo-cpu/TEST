@@ -1,12 +1,29 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../../context';
+import { db } from '../../db';
 import { getClientStatus, STATUS_COLOR, CAT_COLORS, generateId } from '../../utils/crm';
 import { formatDate } from '../../utils/date';
 import dayjs from 'dayjs';
 
+const BACKUP_REMIND_DAYS = 7;
+
 export default function TodayPage({ onOpenClient }) {
   const { clients, cats, timers, updateClient, saveTimer, deleteTimer } = useApp();
   const todayStr = dayjs().format('YYYY-MM-DD');
+  const [lastBackupAt, setLastBackupAt] = useState(undefined); // undefined=載入中, null=從未備份
+
+  useEffect(() => {
+    db.getLastBackupAt().then(setLastBackupAt).catch(() => setLastBackupAt(null));
+  }, []);
+
+  const backupDays = lastBackupAt ? dayjs().diff(dayjs(lastBackupAt), 'day') : null;
+  const showBackupWarn = clients.length > 0 && lastBackupAt !== undefined
+    && (lastBackupAt === null || backupDays >= BACKUP_REMIND_DAYS);
+
+  async function handleQuickBackup() {
+    await db.exportAndDownload();
+    setLastBackupAt(new Date().toISOString());
+  }
 
   const overdue = useMemo(() =>
     clients
@@ -60,6 +77,18 @@ export default function TodayPage({ onOpenClient }) {
           <p className="text-sm text-ink-3 mt-0.5">{dayjs().format('YYYY年M月D日 dddd')}</p>
         </div>
       </div>
+
+      {/* 備份提醒：資料只存在此瀏覽器，太久沒備份就提醒 */}
+      {showBackupWarn && (
+        <div className="flex items-center gap-3 bg-danger/10 border border-danger/30 rounded-xl px-4 py-3">
+          <span className="text-lg shrink-0">💾</span>
+          <p className="flex-1 text-xs text-danger">
+            {lastBackupAt === null ? '尚未備份過資料' : `已 ${backupDays} 天未備份`}
+            ——客戶名單只存在這個瀏覽器，建議立即下載備份。
+          </p>
+          <button onClick={handleQuickBackup} className="btn-danger text-xs shrink-0">立即備份</button>
+        </div>
+      )}
 
       {/* 統計方塊 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

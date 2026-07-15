@@ -1,18 +1,38 @@
-# 卡旺業務助理 CRM
+# 汽車銷售業務系統
 
-個人貨車銷售業務使用的單機版業務系統。主程式在 `assistant/`（React + Vite + Tailwind），資料存在瀏覽器 IndexedDB，請定期到「設定 → 備份還原」匯出 JSON。
+貨車銷售業務（KIA K2500 等）使用的單機版工作系統。主程式在 `assistant/`（React + Vite + Tailwind），資料存在瀏覽器 IndexedDB。系統唯一目的：**不漏追蹤、報價跟得上、成交不掉單**。
+
+手機優先設計：底部導覽、單手可及、核心動作（撥號、記追蹤、標已聯繫）一鍵完成。
 
 ## 功能總覽
 
-- **☀️ 今日工作**：一頁看完逾期/今日追蹤客戶、到期提醒、即將簽約客戶與待辦進度，可直接撥號、標記已聯繫或跳轉客戶詳情。
-- **👥 客戶追蹤 CRM**：新增、搜尋、篩選（分類/進度/待聯繫/冷掉了）、排序、置頂；記錄已聯繫、未接電話（達 5 次提示考慮移除）、設定下次追蹤日期。
+- **☀️ 今日工作**（預設首頁）：一頁看完逾期/今日追蹤客戶、到期提醒、即將簽約客戶與待辦進度，可直接撥號、標記已聯繫或跳轉客戶詳情。超過 7 天未備份會在此提醒。
+- **👥 客戶追蹤 CRM**：新增、搜尋（姓名/電話/LINE ID/備註）、篩選（分類/進度/待聯繫/冷掉了）、排序、置頂；記錄已聯繫、未接電話（達 5 次提示考慮移除）、設定下次追蹤日期。客戶欄位含電話、LINE ID、Email、地址（一鍵開 Google Maps）、來源。
 - **🚛 業務進度記錄**：客戶時間軸支援 LINE 摘要、報價（含金額）、看車試乘、貸款補件、下訂（含金額）、交車、售後回訪。
 - **🔔 交車自動回訪**：記錄「交車」時自動建立交車後 3 / 7 / 30 天的售後回訪提醒。
-- **📌 即將簽約**：客戶可置頂、寫重點備註（價格底線、關鍵條件）、管理簽約前待辦清單。
+- **📌 即將簽約**：客戶可置頂、寫重點備註（價格底線、關鍵條件）、管理簽約前待辦清單，可一鍵套用交車待辦範本（保險/貸款對保/驗車領牌/配件/整備）。
 - **📓 工作日誌**：每日開發/提案追蹤、接通/未接統計與成交業績。
-- **💰 薪資計算**：輸入當月成交案件，依公式自動計算底薪與各項獎金。
 - **⏰ 計時提醒**：到期強制彈窗確認；瀏覽器通知只顯示提醒數量，不含客戶資料。
 - **💾 備份還原**：下載 JSON 備份、上傳還原；還原前會檢查格式、顯示摘要，並先自動下載目前資料的備份。支援舊版 `{ _v:1, crm, jnl, sal }` 格式匯入。
+
+預設業務進度採固定管道（可在設定自訂）：
+
+```
+新名單 → 已聯絡 → 拜訪中 → 試乘 → 報價 → 議價 → 成交 → 交車 → 售後
+```
+
+## 資料模型（IndexedDB：`business_assistant_v2`）
+
+| Store | Key | 主要欄位 |
+|---|---|---|
+| `clients` | `id` | name, phone, lineId, email, address, source, catId, stageId, intentLevel, notes, nextDate, lastContact, missedCalls, pinned, signingNote, todos[{id,text,done}], log[{id,date,type,text,amount?}], createdAt, updatedAt |
+| `cats` / `stages` | `id` | name, colorIdx, order（客戶分類 / 業務進度） |
+| `customFields` | `id` | name, type(text/number/date), colorIdx |
+| `journalEntries` / `archivedJournal` | `date` | 每日工作日誌 |
+| `timers` | `id` | clientId?, clientName?, note, triggerAt, confirmedAt |
+| `settings` | `key` | 例如 `lastBackupAt` |
+
+時間軸事件 `log.type`：`contact / missed / line / quote / visit / loan / order / delivery / aftercare`（quote、order 可帶 `amount`）。
 
 ## 本機啟動
 
@@ -47,8 +67,14 @@ Push 到指定分支後，GitHub Actions 會自動建置並部署到 GitHub Page
 ## 資料與隱私
 
 - 單機版資料存在各自瀏覽器的 IndexedDB；電腦和手機開同一個網址時**資料不會自動同步**，要同步需等雲端版。
+- 客戶名單是業務命脈：今日工作頁會在超過 7 天未備份時提醒，請養成定期下載備份的習慣。
 - 還原備份會完整覆蓋目前資料；請只匯入本系統匯出的 JSON，且不要把備份檔放在公開雲端連結。
 - 通知需要瀏覽器允許權限；部分手機瀏覽器需安裝成 PWA 後才支援通知。
+
+## 路線圖
+
+- **P1（下一步）**：雲端同步後端（Supabase 或 Cloudflare D1，擇一評估——解決多裝置同步與資料安全）、報價版本管理（版本/狀態：草稿/已發送/成交/未成）、管道看板視圖、全域搜尋、深色模式。
+- **P2（加分項）**：檔案/照片上傳、KPI 視覺化、AI 助理（話術/優先客戶分析，API key 一律走後端代理）。
 
 ## 其他檔案（歷史版本）
 

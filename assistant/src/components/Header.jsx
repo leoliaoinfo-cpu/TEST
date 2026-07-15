@@ -3,12 +3,11 @@ export default function Header({ tab, setTab, onSettings }) {
     { key: 'today', icon: '☀️', label: '今日工作' },
     { key: 'journal', icon: '📓', label: '工作日誌' },
     { key: 'crm', icon: '👥', label: '客戶追蹤' },
-    { key: 'salary', icon: '💰', label: '薪資計算' },
   ];
 
   return (
     <header className="hidden md:flex items-center bg-s1 border-b border-bdr px-4 h-14 sticky top-0 z-30 shadow-card">
-      <span className="font-bold text-accent mr-6 text-base tracking-tight">🚛 卡旺業務助理</span>
+      <span className="font-bold text-accent mr-6 text-base tracking-tight">🚛 汽車銷售業務系統</span>
       <nav className="flex gap-1 flex-1">
         {tabs.map((t) => (
           <button

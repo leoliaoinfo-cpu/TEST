@@ -4,7 +4,6 @@ import Header from './components/Header';
 import TodayPage from './components/today/TodayPage';
 import JournalPage from './components/journal/JournalPage';
 import CrmPage from './components/crm/CrmPage';
-import SalaryPage from './components/salary/SalaryPage';
 import SettingsPanel from './components/SettingsPanel';
 import TimerModal from './components/TimerModal';
 
@@ -90,7 +89,6 @@ function AppInner() {
           {tab === 'crm' && (
             <CrmPage focusId={crmFocusId} onFocusConsumed={() => setCrmFocusId(null)} />
           )}
-          {tab === 'salary' && <SalaryPage />}
         </div>
       </main>
 
@@ -100,7 +98,6 @@ function AppInner() {
           { key: 'today', icon: '☀️', label: '今日' },
           { key: 'journal', icon: '📓', label: '日誌' },
           { key: 'crm', icon: '👥', label: '客戶' },
-          { key: 'salary', icon: '💰', label: '薪資' },
         ].map((item) => (
           <button
             key={item.key}

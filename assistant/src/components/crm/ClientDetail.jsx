@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   getClientStatus, STATUS_COLOR, STATUS_LABEL, CAT_COLORS, FIELD_COLORS, generateId,
-  EVENT_TYPES, QUICK_EVENT_KEYS, DELIVERY_FOLLOWUP_DAYS,
+  EVENT_TYPES, QUICK_EVENT_KEYS, DELIVERY_FOLLOWUP_DAYS, DELIVERY_TODO_TEMPLATE,
 } from '../../utils/crm';
 import { today, formatDateFull, addDays, QUICK_DATES } from '../../utils/date';
 import { useApp } from '../../context';
@@ -145,6 +145,17 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
     }));
   }
 
+  /** 套用交車待辦範本（跳過已存在的同名項目） */
+  async function applyTodoTemplate() {
+    await updateClient(client.id, (c) => {
+      const existing = new Set((c.todos || []).map((td) => td.text));
+      const additions = DELIVERY_TODO_TEMPLATE
+        .filter((text) => !existing.has(text))
+        .map((text) => ({ id: generateId('todo'), text, done: false }));
+      return { ...c, todos: [...(c.todos || []), ...additions] };
+    });
+  }
+
   async function handleAddTimer() {
     if (!timerNote.trim() || !timerTime) return;
     await saveTimer({
@@ -225,7 +236,10 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
             <div className="space-y-2">
               <input value={form.name || ''} onChange={(e) => setField('name', e.target.value)} placeholder="姓名" className="w-full" />
               <input value={form.phone || ''} onChange={(e) => setField('phone', e.target.value)} placeholder="電話" className="w-full" />
+              <input value={form.lineId || ''} onChange={(e) => setField('lineId', e.target.value)} placeholder="LINE ID" className="w-full" />
               <input value={form.email || ''} onChange={(e) => setField('email', e.target.value)} placeholder="Email" className="w-full" />
+              <input value={form.address || ''} onChange={(e) => setField('address', e.target.value)} placeholder="地址（公司/交車地點）" className="w-full" />
+              <input value={form.source || ''} onChange={(e) => setField('source', e.target.value)} placeholder="來源（FB、路過、轉介紹…）" className="w-full" />
               <div className="grid grid-cols-2 gap-2">
                 <select value={form.catId || ''} onChange={(e) => setField('catId', e.target.value)} className="w-full">
                   {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -246,7 +260,17 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
                   ? <a href={`tel:${client.phone}`} className="text-accent underline">{client.phone}</a>
                   : '—'
               } />
+              <InfoRow label="LINE" value={client.lineId || '—'} />
               <InfoRow label="Email" value={client.email || '—'} />
+              <InfoRow label="地址" value={
+                client.address
+                  ? <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.address)}`}
+                      target="_blank" rel="noreferrer" className="text-accent underline"
+                    >{client.address} 🗺</a>
+                  : '—'
+              } />
+              <InfoRow label="來源" value={client.source || '—'} />
               <InfoRow label="分類" value={cat ? (
                 <span className="badge" style={{ background: CAT_COLORS[cat.colorIdx % 7] + '20', color: CAT_COLORS[cat.colorIdx % 7] }}>
                   {cat.name}
@@ -395,14 +419,19 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
               className="w-full resize-none text-sm"
             />
             <div>
-              <p className="text-xs font-medium text-ink-2 mb-1.5">
-                簽約前待辦
-                {(client.todos || []).length > 0 && (
-                  <span className="text-ink-3 font-normal ml-1">
-                    （{(client.todos || []).filter((td) => td.done).length}/{(client.todos || []).length}）
-                  </span>
-                )}
-              </p>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs font-medium text-ink-2">
+                  簽約前待辦
+                  {(client.todos || []).length > 0 && (
+                    <span className="text-ink-3 font-normal ml-1">
+                      （{(client.todos || []).filter((td) => td.done).length}/{(client.todos || []).length}）
+                    </span>
+                  )}
+                </p>
+                <button onClick={applyTodoTemplate} className="text-xs text-accent hover:underline">
+                  ＋套用交車待辦範本
+                </button>
+              </div>
               <div className="space-y-1">
                 {(client.todos || []).map((td) => (
                   <div key={td.id} className="flex items-center gap-2 text-sm group">

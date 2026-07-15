@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { db } from '../db';
+import { db, downloadJSON } from '../db';
 import { useApp } from '../context';
 import { CAT_COLORS, FIELD_COLORS, FIELD_COLOR_NAMES, generateId } from '../utils/crm';
 
@@ -11,9 +11,7 @@ const HELP_CARDS = [
   { icon: '📌', title: '即將簽約', desc: '置頂重點客戶，可寫重點備註並管理簽約前待辦清單。' },
   { icon: '💡', title: '客戶狀態', desc: '🟢追蹤中 / 🟡待聯繫（到期）/ 🟠逾半年 / 🔴逾一年。' },
   { icon: '⏰', title: '計時提醒', desc: '可在客戶詳情頁設定提醒，到期後強制彈出 Modal 確認。' },
-  { icon: '💰', title: '薪資計算', desc: '輸入當月成交案件，自動依公式計算底薪、各項獎金與總薪資。' },
-  { icon: '📊', title: '績效總覽', desc: '年度/月度視覺化圖表，一眼掌握業績趨勢。' },
-  { icon: '💾', title: '備份與還原', desc: '下載 JSON 備份所有資料，或上傳 JSON 檔案進行還原。' },
+  { icon: '💾', title: '備份與還原', desc: '下載 JSON 備份所有資料，或上傳 JSON 檔案進行還原。超過 7 天未備份會在今日工作頁提醒。' },
   { icon: '📦', title: '舊版資料匯入', desc: '支援匯入舊版格式 { _v:1, crm, jnl, sal } 的 JSON 備份。' },
 ];
 
@@ -55,16 +53,6 @@ function summarizeBackup(data) {
   throw new Error('無法辨識的備份格式（僅支援本系統匯出的 JSON）');
 }
 
-function downloadJSON(data, filename) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 export default function SettingsPanel({ onClose }) {
   const { cats, stages, customFields, saveCats, saveStages, saveCustomFields, reloadAll } = useApp();
   const [activeSection, setActiveSection] = useState('backup');
@@ -77,8 +65,7 @@ export default function SettingsPanel({ onClose }) {
   // ── Backup/Restore ──────────────────────────────────────────────────────
   async function handleExport() {
     try {
-      const data = await db.exportAll();
-      downloadJSON(data, `business-assistant-backup-${new Date().toISOString().slice(0, 10)}.json`);
+      await db.exportAndDownload();
       setStatus('✅ 備份下載成功');
     } catch (e) {
       setStatus('❌ 備份失敗：' + e.message);
@@ -193,7 +180,6 @@ export default function SettingsPanel({ onClose }) {
                       )}
                       <li>客戶：{pendingImport.summary.clients} 筆</li>
                       <li>日誌：{pendingImport.summary.journal} 筆</li>
-                      <li>薪資月份：{pendingImport.summary.salary} 筆</li>
                       <li>提醒：{pendingImport.summary.timers} 筆</li>
                     </ul>
                     <p className="text-xs text-danger">⚠️ 還原會完整覆蓋目前資料（會先自動下載目前資料備份）</p>
@@ -268,7 +254,7 @@ export default function SettingsPanel({ onClose }) {
                   </div>
                 </div>
               ))}
-              <p className="text-center text-xs text-ink-3 py-2">卡旺業務助理 v2.1 • 純單機版</p>
+              <p className="text-center text-xs text-ink-3 py-2">汽車銷售業務系統 v2.2 • 純單機版</p>
             </div>
           )}
         </div>

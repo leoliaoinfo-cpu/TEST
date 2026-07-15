@@ -67,6 +67,7 @@ export default function CrmPage({ focusId, onFocusConsumed }) {
       list = list.filter((c) =>
         c.name?.toLowerCase().includes(q) ||
         c.phone?.toLowerCase().includes(q) ||
+        c.lineId?.toLowerCase().includes(q) ||
         c.notes?.toLowerCase().includes(q)
       );
     }
@@ -330,7 +331,7 @@ function ClientRow({ client, cats, stages, selected, onClick }) {
 // ── NewClientModal ────────────────────────────────────────────────────────────
 function NewClientModal({ cats, stages, onClose, onCreate }) {
   const [form, setForm] = useState({
-    name: '', phone: '', catId: cats[0]?.id || '', stageId: stages[0]?.id || '',
+    name: '', phone: '', lineId: '', catId: cats[0]?.id || '', stageId: stages[0]?.id || '',
     intentLevel: 0, notes: '', nextDate: addDays(today(), 7),
   });
 
@@ -351,6 +352,7 @@ function NewClientModal({ cats, stages, onClose, onCreate }) {
           <form onSubmit={handleSubmit} className="space-y-3">
             <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="姓名 *" className="w-full" required />
             <input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="電話" className="w-full" />
+            <input value={form.lineId} onChange={(e) => set('lineId', e.target.value)} placeholder="LINE ID" className="w-full" />
             <div className="grid grid-cols-2 gap-2">
               <select value={form.catId} onChange={(e) => set('catId', e.target.value)} className="w-full">
                 {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

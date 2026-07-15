@@ -14,11 +14,17 @@ const DEFAULT_CATS = [
   { id: 'cat-3', name: '成交客戶', colorIdx: 2, order: 2 },
 ];
 
+// 貨車銷售固定管道：新名單 → 已聯絡 → 拜訪中 → 試乘 → 報價 → 議價 → 成交 → 交車 → 售後
 const DEFAULT_STAGES = [
-  { id: 'stage-1', name: '初次接觸', colorIdx: 0, order: 0 },
-  { id: 'stage-2', name: '有意願', colorIdx: 1, order: 1 },
-  { id: 'stage-3', name: '已傳資料', colorIdx: 2, order: 2 },
-  { id: 'stage-4', name: '已成交', colorIdx: 3, order: 3 },
+  { id: 'stage-1', name: '新名單', colorIdx: 6, order: 0 },
+  { id: 'stage-2', name: '已聯絡', colorIdx: 5, order: 1 },
+  { id: 'stage-3', name: '拜訪中', colorIdx: 2, order: 2 },
+  { id: 'stage-4', name: '試乘', colorIdx: 3, order: 3 },
+  { id: 'stage-5', name: '報價', colorIdx: 0, order: 4 },
+  { id: 'stage-6', name: '議價', colorIdx: 4, order: 5 },
+  { id: 'stage-7', name: '成交', colorIdx: 1, order: 6 },
+  { id: 'stage-8', name: '交車', colorIdx: 1, order: 7 },
+  { id: 'stage-9', name: '售後', colorIdx: 5, order: 8 },
 ];
 
 function makeEmptyJournalEntry(date) {
@@ -60,7 +66,6 @@ const initialState = {
   stages: DEFAULT_STAGES,
   customFields: [],
   journalEntries: {},
-  salaryMonths: {},
   timers: [],
 };
 
@@ -95,13 +100,6 @@ function reducer(state, action) {
       return {
         ...state,
         journalEntries: { ...state.journalEntries, [action.date]: action.payload },
-      };
-
-    // Salary
-    case 'SET_SALARY_MONTH':
-      return {
-        ...state,
-        salaryMonths: { ...state.salaryMonths, [action.key]: action.payload },
       };
 
     // Timers
@@ -237,20 +235,6 @@ export function AppProvider({ children }) {
     dispatch({ type: 'SET_CUSTOM_FIELDS', payload: fields });
   }, []);
 
-  // ── Salary ────────────────────────────────────────────────────────────────
-  const loadSalaryMonth = useCallback(async (key) => {
-    if (state.salaryMonths[key]) return state.salaryMonths[key];
-    let entry = await db.get('salaryMonths', key);
-    if (!entry) entry = { key, cases: [] };
-    dispatch({ type: 'SET_SALARY_MONTH', key, payload: entry });
-    return entry;
-  }, [state.salaryMonths]);
-
-  const saveSalaryMonth = useCallback((entry) => {
-    dispatch({ type: 'SET_SALARY_MONTH', key: entry.key, payload: entry });
-    debounceSave(`salary-${entry.key}`, 'salaryMonths', entry);
-  }, [debounceSave]);
-
   // ── Timers ────────────────────────────────────────────────────────────────
   const saveTimer = useCallback(async (timer) => {
     await db.put('timers', timer);
@@ -288,8 +272,6 @@ export function AppProvider({ children }) {
     saveCats,
     saveStages,
     saveCustomFields,
-    loadSalaryMonth,
-    saveSalaryMonth,
     saveTimer,
     deleteTimer,
     reloadAll,
