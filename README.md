@@ -11,7 +11,7 @@
 - **🚛 業務進度記錄**：客戶時間軸支援 LINE 摘要、報價（含金額）、看車試乘、貸款補件、下訂（含金額）、交車、售後回訪。
 - **🔔 交車自動回訪**：記錄「交車」時自動建立交車後 3 / 7 / 30 天的售後回訪提醒。
 - **📌 即將簽約**：客戶可置頂、寫重點備註（價格底線、關鍵條件）、管理簽約前待辦清單，可一鍵套用交車待辦範本（保險/貸款對保/驗車領牌/配件/整備）。
-- **📓 工作日誌**：每日開發/提案追蹤、接通/未接統計與成交業績。
+- **📊 本日成果**：自動從客戶時間軸統計今天記錄的聯繫/報價/試乘/下訂/交車數量與金額，不需手動填日報。
 - **⏰ 計時提醒**：到期強制彈窗確認；瀏覽器通知只顯示提醒數量，不含客戶資料。
 - **💾 備份還原**：下載 JSON 備份、上傳還原；還原前會檢查格式、顯示摘要，並先自動下載目前資料的備份。支援舊版 `{ _v:1, crm, jnl, sal }` 格式匯入。
 
@@ -28,7 +28,7 @@
 | `clients` | `id` | name, phone, lineId, email, address, source, catId, stageId, intentLevel, notes, nextDate, lastContact, missedCalls, pinned, signingNote, todos[{id,text,done}], log[{id,date,type,text,amount?}], createdAt, updatedAt |
 | `cats` / `stages` | `id` | name, colorIdx, order（客戶分類 / 業務進度） |
 | `customFields` | `id` | name, type(text/number/date), colorIdx |
-| `journalEntries` / `archivedJournal` | `date` | 每日工作日誌 |
+| `journalEntries` / `archivedJournal` / `salaryMonths` | — | 已下架功能的歷史資料，僅為舊備份匯入相容而保留 |
 | `timers` | `id` | clientId?, clientName?, note, triggerAt, confirmedAt |
 | `settings` | `key` | 例如 `lastBackupAt` |
 

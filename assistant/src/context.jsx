@@ -2,7 +2,7 @@ import {
   createContext, useContext, useReducer, useEffect, useCallback, useRef, useState,
 } from 'react';
 import { db } from './db';
-import { generateId, DEFAULT_THRESHOLDS, normalizeThresholds } from './utils/crm';
+import { DEFAULT_THRESHOLDS, normalizeThresholds } from './utils/crm';
 import { today } from './utils/date';
 import dayjs from 'dayjs';
 
@@ -27,45 +27,12 @@ const DEFAULT_STAGES = [
   { id: 'stage-9', name: '售後', colorIdx: 5, order: 8 },
 ];
 
-function makeEmptyJournalEntry(date) {
-  return {
-    date,
-    newDev: [],
-    oldDev: [],
-    findList: [],
-    fbProposal: [],
-    lineProposal: [],
-    emailProposal: [],
-    answered: 0,
-    rejected: 0,
-    noAnswer: 0,
-    dealAmount: 0,
-    dealCount: 0,
-    notes: '',
-    goal: { newDev: 30, oldDev: 20, findList: 20, will: 10, data: 10 },
-  };
-}
-
-export function makeWorkRow(name = '') {
-  return {
-    id: generateId('row'),
-    name,
-    done: false,
-    color: 0,
-    will: false,
-    data: false,
-    pin: false,
-    timer: null,
-  };
-}
-
 const initialState = {
   loading: true,
   clients: [],
   cats: DEFAULT_CATS,
   stages: DEFAULT_STAGES,
   customFields: [],
-  journalEntries: {},
   timers: [],
   thresholds: DEFAULT_THRESHOLDS,
 };
@@ -98,13 +65,6 @@ function reducer(state, action) {
     case 'SET_THRESHOLDS':
       return { ...state, thresholds: action.payload };
 
-    // Journal
-    case 'SET_JOURNAL_ENTRY':
-      return {
-        ...state,
-        journalEntries: { ...state.journalEntries, [action.date]: action.payload },
-      };
-
     // Timers
     case 'SET_TIMERS':
       return { ...state, timers: action.payload };
@@ -128,7 +88,6 @@ function reducer(state, action) {
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const saveDebounceRef = useRef({});
   // 同步鏡射 clients，讓快速連續的增量更新（updateClient）不會讀到過期快照
   const clientsRef = useRef(initialState.clients);
   clientsRef.current = state.clients;
@@ -177,28 +136,6 @@ export function AppProvider({ children }) {
     }
     loadAll();
   }, []);
-
-  // ── Debounced save helper ─────────────────────────────────────────────────
-  const debounceSave = useCallback((key, storeName, value) => {
-    if (saveDebounceRef.current[key]) clearTimeout(saveDebounceRef.current[key]);
-    saveDebounceRef.current[key] = setTimeout(() => {
-      db.put(storeName, value).catch(() => {});
-    }, 600);
-  }, []);
-
-  // ── Journal ───────────────────────────────────────────────────────────────
-  const loadJournalEntry = useCallback(async (date) => {
-    if (state.journalEntries[date]) return state.journalEntries[date];
-    let entry = await db.get('journalEntries', date);
-    if (!entry) entry = makeEmptyJournalEntry(date);
-    dispatch({ type: 'SET_JOURNAL_ENTRY', date, payload: entry });
-    return entry;
-  }, [state.journalEntries]);
-
-  const saveJournalEntry = useCallback((entry) => {
-    dispatch({ type: 'SET_JOURNAL_ENTRY', date: entry.date, payload: entry });
-    debounceSave(`journal-${entry.date}`, 'journalEntries', entry);
-  }, [debounceSave]);
 
   // ── CRM ───────────────────────────────────────────────────────────────────
   const saveClient = useCallback(async (client) => {
@@ -286,8 +223,6 @@ export function AppProvider({ children }) {
   const value = {
     ...state,
     dispatch,
-    loadJournalEntry,
-    saveJournalEntry,
     saveClient,
     updateClient,
     deleteClient,

@@ -151,20 +151,6 @@ export const db = {
     }
   },
 
-  /** Archive journal entries older than given cutoff date string (YYYY-MM-DD) */
-  async archiveJournalBefore(cutoffDate) {
-    const all = await db.getAll('journalEntries');
-    const toArchive = all.filter((e) => e.date < cutoffDate);
-    if (toArchive.length === 0) return 0;
-    await db.bulkPut('archivedJournal', toArchive);
-    const database = await getDB();
-    const tx = database.transaction('journalEntries', 'readwrite');
-    await Promise.all([
-      ...toArchive.map((e) => tx.store.delete(e.date)),
-      tx.done,
-    ]);
-    return toArchive.length;
-  },
 };
 
 export default db;

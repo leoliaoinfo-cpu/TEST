@@ -5,7 +5,7 @@ import { CAT_COLORS, FIELD_COLORS, FIELD_COLOR_NAMES, generateId } from '../util
 
 const HELP_CARDS = [
   { icon: '☀️', title: '今日工作', desc: '一眼看完今日/逾期追蹤、到期提醒與即將簽約客戶，點擊可直接開啟客戶。' },
-  { icon: '📓', title: '工作日誌', desc: '每日追蹤開發、提案進度，記錄接通/未接數量，計算成交業績。' },
+  { icon: '📊', title: '本日成果', desc: '自動統計今天記錄的聯繫、報價、試乘、下訂、交車數量與金額，不需手動填寫日報。' },
   { icon: '👥', title: '客戶追蹤 CRM', desc: '管理所有客戶聯繫狀態、分類、意願度與追蹤日期。' },
   { icon: '🚛', title: '業務進度記錄', desc: '在客戶詳情記錄 LINE 摘要、報價、看車試乘、貸款補件、下訂、交車、售後回訪；記錄交車會自動建立 3/7/30 天回訪提醒。' },
   { icon: '📌', title: '即將簽約', desc: '置頂重點客戶，可寫重點備註並管理簽約前待辦清單。' },
@@ -15,14 +15,13 @@ const HELP_CARDS = [
   { icon: '📦', title: '舊版資料匯入', desc: '支援匯入舊版格式 { _v:1, crm, jnl, sal } 的 JSON 備份。' },
 ];
 
-const SECTION_KEYS = ['backup', 'cats', 'stages', 'fields', 'rules', 'archive', 'help'];
+const SECTION_KEYS = ['backup', 'cats', 'stages', 'fields', 'rules', 'help'];
 const SECTION_LABELS = {
   backup: '💾 備份還原',
   cats: '🏷 客戶分類',
   stages: '📶 業務進度',
   fields: '✏️ 自訂欄位',
   rules: '⏱ 追蹤規則',
-  archive: '🗄 日誌封存',
   help: '📖 使用說明',
 };
 
@@ -61,7 +60,6 @@ export default function SettingsPanel({ onClose }) {
   } = useApp();
   const [activeSection, setActiveSection] = useState('backup');
   const [status, setStatus] = useState('');
-  const [archiveStatus, setArchiveStatus] = useState('');
   const [pendingImport, setPendingImport] = useState(null); // { data, summary }
   const fileRef = useRef(null);
   const legacyRef = useRef(null);
@@ -125,18 +123,6 @@ export default function SettingsPanel({ onClose }) {
     e.target.value = '';
   }
 
-  async function handleArchive() {
-    const cutoff = new Date();
-    cutoff.setMonth(cutoff.getMonth() - 3);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
-    try {
-      const count = await db.archiveJournalBefore(cutoffStr);
-      setArchiveStatus(`✅ 已封存 ${count} 筆舊日誌（${cutoffStr} 之前）`);
-    } catch (e) {
-      setArchiveStatus('❌ 封存失敗：' + e.message);
-    }
-  }
-
   return (
     <>
       <div className="overlay" onClick={onClose} />
@@ -183,7 +169,6 @@ export default function SettingsPanel({ onClose }) {
                         <li>匯出時間：{pendingImport.summary.exportedAt.slice(0, 16).replace('T', ' ')}</li>
                       )}
                       <li>客戶：{pendingImport.summary.clients} 筆</li>
-                      <li>日誌：{pendingImport.summary.journal} 筆</li>
                       <li>提醒：{pendingImport.summary.timers} 筆</li>
                     </ul>
                     <p className="text-xs text-danger">⚠️ 還原會完整覆蓋目前資料（會先自動下載目前資料備份）</p>
@@ -237,16 +222,6 @@ export default function SettingsPanel({ onClose }) {
           {/* ── Rules ── */}
           {activeSection === 'rules' && (
             <ThresholdEditor thresholds={thresholds} onSave={saveThresholds} />
-          )}
-
-          {/* ── Archive ── */}
-          {activeSection === 'archive' && (
-            <div className="card p-4 space-y-3">
-              <h3 className="font-semibold text-ink">日誌封存</h3>
-              <p className="text-xs text-ink-3">將 3 個月前的日誌封存到獨立儲存，減少首頁載入負擔，歷史查詢不受影響。</p>
-              <button onClick={handleArchive} className="btn-outline">封存 3 個月前日誌</button>
-              {archiveStatus && <p className="text-sm text-ink-2 bg-s2 rounded-lg px-3 py-2">{archiveStatus}</p>}
-            </div>
           )}
 
           {/* ── Help ── */}

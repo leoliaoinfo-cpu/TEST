@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../../context';
 import { db } from '../../db';
-import { getClientStatus, STATUS_COLOR, CAT_COLORS, generateId } from '../../utils/crm';
+import { getClientStatus, STATUS_COLOR, CAT_COLORS, generateId, EVENT_TYPES } from '../../utils/crm';
 import { formatDate } from '../../utils/date';
 import dayjs from 'dayjs';
 
@@ -50,6 +50,23 @@ export default function TodayPage({ onOpenClient }) {
     [clients, thresholds]);
 
   const allClear = overdue.length === 0 && dueToday.length === 0 && todayTimers.length === 0;
+
+  // 本日成果：從所有客戶時間軸自動統計今天記錄的事件，不需手動填日報
+  const todayResults = useMemo(() => {
+    const counts = {};
+    const amounts = {};
+    for (const c of clients) {
+      for (const entry of c.log || []) {
+        if (entry.date !== todayStr) continue;
+        counts[entry.type] = (counts[entry.type] || 0) + 1;
+        if (entry.amount > 0) amounts[entry.type] = (amounts[entry.type] || 0) + entry.amount;
+      }
+    }
+    const order = ['contact', 'line', 'quote', 'visit', 'loan', 'order', 'delivery', 'aftercare', 'missed'];
+    return order
+      .filter((type) => counts[type])
+      .map((type) => ({ type, ...EVENT_TYPES[type], count: counts[type], amount: amounts[type] }));
+  }, [clients, todayStr]);
 
   async function markContacted(client) {
     await updateClient(client.id, (c) => ({
@@ -154,6 +171,28 @@ export default function TodayPage({ onOpenClient }) {
               </div>
             );
           })}
+        </Section>
+      )}
+
+      {/* 本日成果：自動從客戶時間軸統計 */}
+      {todayResults.length > 0 && (
+        <Section title="📊 本日成果" titleColor="#2a8a50">
+          <div className="flex flex-wrap gap-2 px-3 py-3">
+            {todayResults.map((r) => (
+              <div key={r.type} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5"
+                style={{ background: r.color + '14' }}>
+                <span className="text-sm">{r.icon}</span>
+                <span className="text-xs font-medium" style={{ color: r.color }}>
+                  {r.label} × {r.count}
+                </span>
+                {r.amount > 0 && (
+                  <span className="text-[10px] font-semibold" style={{ color: r.color }}>
+                    NT$ {r.amount.toLocaleString('zh-TW')}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
         </Section>
       )}
 

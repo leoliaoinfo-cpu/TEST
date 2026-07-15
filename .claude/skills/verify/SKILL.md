@@ -31,7 +31,10 @@ await page.reload();
 
 ## Flows worth driving
 
-- Today page is the default tab; empty state shows 「今天沒有待辦事項」.
+- Only two tabs exist: 今日工作 (default) and 客戶追蹤 — 薪資計算 and 工作日誌 were
+  removed on purpose; their IndexedDB stores remain for old-backup import compat.
+- Today page: empty state shows 「今天沒有待辦事項」; recording events on clients makes
+  an auto-computed 「📊 本日成果」 section appear (counts + NT$ amounts from timeline).
 - CRM: 新增 client → detail → 業務進度記錄 quick-event buttons (報價 has amount field);
   記錄「交車」 must create 3 timers (floating `⏱ 3` button) and set nextDate +3 days.
 - Pin (📌 button in detail header) → 即將簽約 section (note + todos) → shows on Today page.

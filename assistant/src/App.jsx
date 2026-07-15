@@ -2,7 +2,6 @@ import { useState, Component } from 'react';
 import { useApp } from './context';
 import Header from './components/Header';
 import TodayPage from './components/today/TodayPage';
-import JournalPage from './components/journal/JournalPage';
 import CrmPage from './components/crm/CrmPage';
 import SettingsPanel from './components/SettingsPanel';
 import TimerModal from './components/TimerModal';
@@ -85,7 +84,6 @@ function AppInner() {
       <main className="pb-20 md:pb-0">
         <div className="anim-fade-in" key={tab}>
           {tab === 'today' && <TodayPage onOpenClient={openClient} />}
-          {tab === 'journal' && <JournalPage />}
           {tab === 'crm' && (
             <CrmPage focusId={crmFocusId} onFocusConsumed={() => setCrmFocusId(null)} />
           )}
@@ -96,7 +94,6 @@ function AppInner() {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-s1 border-t border-bdr flex z-30 pb-safe">
         {[
           { key: 'today', icon: '☀️', label: '今日' },
-          { key: 'journal', icon: '📓', label: '日誌' },
           { key: 'crm', icon: '👥', label: '客戶' },
         ].map((item) => (
           <button
