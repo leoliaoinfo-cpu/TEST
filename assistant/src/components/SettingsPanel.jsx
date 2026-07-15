@@ -5,6 +5,8 @@ import { CAT_COLORS, FIELD_COLORS, FIELD_COLOR_NAMES, generateId } from '../util
 
 const HELP_CARDS = [
   { icon: '☀️', title: '今日工作', desc: '一眼看完今日/逾期追蹤、到期提醒與即將簽約客戶，點擊可直接開啟客戶。' },
+  { icon: '📅', title: '行事曆', desc: '月曆總覽追蹤、提醒與成交事件；點日期看當天清單，點事件直接跳到該客戶。' },
+  { icon: '🌙', title: '深/淺色主題', desc: '預設深色，可在設定右上角切換，選擇會記在此裝置。' },
   { icon: '📊', title: '本日成果', desc: '自動統計今天記錄的聯繫、報價、試乘、下訂、交車數量與金額，不需手動填寫日報。' },
   { icon: '👥', title: '客戶追蹤 CRM', desc: '管理所有客戶聯繫狀態、分類、意願度與追蹤日期。' },
   { icon: '🚛', title: '業務進度記錄', desc: '在客戶詳情記錄 LINE 摘要、報價、看車試乘、貸款補件、下訂、交車、售後回訪；記錄交車會自動建立 3/7/30 天回訪提醒。' },
@@ -64,6 +66,16 @@ export default function SettingsPanel({ onClose }) {
   const [activeSection, setActiveSection] = useState('backup');
   const [status, setStatus] = useState('');
   const [pendingImport, setPendingImport] = useState(null); // { data, summary }
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('theme') || 'dark'; } catch { return 'dark'; }
+  });
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    try { localStorage.setItem('theme', next); } catch { /* 隱私模式忽略 */ }
+    document.documentElement.classList.toggle('dark', next === 'dark');
+  }
   const fileRef = useRef(null);
   const legacyRef = useRef(null);
 
@@ -133,7 +145,12 @@ export default function SettingsPanel({ onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-bdr shrink-0">
           <h2 className="font-bold text-lg text-ink">⚙️ 設定</h2>
-          <button onClick={onClose} className="btn-ghost text-xl leading-none px-2 py-1">✕</button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={toggleTheme} className="btn-outline text-xs" title="切換深/淺色主題">
+              {theme === 'dark' ? '🌙 深色' : '☀️ 淺色'}
+            </button>
+            <button onClick={onClose} className="btn-ghost text-xl leading-none px-2 py-1">✕</button>
+          </div>
         </div>
 
         {/* Section tabs */}

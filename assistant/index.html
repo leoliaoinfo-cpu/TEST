@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>汽車銷售業務系統</title>
+    <script>
+      // 在 React 載入前套用主題，避免閃色（預設深色）
+      try {
+        var t = localStorage.getItem('theme') || 'dark';
+        if (t === 'dark') document.documentElement.classList.add('dark');
+      } catch (e) {}
+    </script>
+    <style>
+      body { background: #fdf6ee; }
+      html.dark body { background: #15110d; }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap"

@@ -3,27 +3,63 @@
 @tailwind utilities;
 
 @layer base {
+  /* 淺色主題（RGB channel 形式，供 tailwind alpha 混色） */
+  :root {
+    --c-bg: 253 246 238;
+    --c-s1: 255 250 244;
+    --c-s2: 254 240 220;
+    --c-s3: 253 232 200;
+    --c-bdr: 240 217 184;
+    --c-accent: 201 103 10;
+    --c-danger: 192 48 48;
+    --c-ok: 42 138 80;
+    --c-ink: 44 26 8;
+    --c-ink2: 122 80 48;
+    --c-ink3: 184 136 96;
+  }
+  /* 深色主題（預設）：暖棕暗色，保留品牌調性 */
+  html.dark {
+    --c-bg: 21 17 13;
+    --c-s1: 32 26 20;
+    --c-s2: 44 36 28;
+    --c-s3: 56 46 35;
+    --c-bdr: 72 59 45;
+    --c-accent: 236 148 58;
+    --c-danger: 235 105 105;
+    --c-ok: 92 190 130;
+    --c-ink: 244 234 222;
+    --c-ink2: 203 182 158;
+    --c-ink3: 152 131 108;
+  }
+
   html { font-family: 'Noto Sans TC', 'PingFang TC', system-ui, sans-serif; }
-  body { background-color: #fdf6ee; color: #2c1a08; }
+  body { background-color: rgb(var(--c-bg)); color: rgb(var(--c-ink)); }
   * { box-sizing: border-box; }
   input, textarea, select {
-    background-color: #fef0dc;
-    border: 1px solid #f0d9b8;
+    background-color: rgb(var(--c-s2));
+    border: 1px solid rgb(var(--c-bdr));
     border-radius: 6px;
     padding: 4px 8px;
     font-size: 0.875rem;
-    color: #2c1a08;
+    color: rgb(var(--c-ink));
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
+    color-scheme: light;
+  }
+  html.dark input, html.dark textarea, html.dark select {
+    color-scheme: dark;
   }
   input:focus, textarea:focus, select:focus {
-    border-color: #c9670a;
-    box-shadow: 0 0 0 2px rgba(201,103,10,0.15);
+    border-color: rgb(var(--c-accent));
+    box-shadow: 0 0 0 2px rgb(var(--c-accent) / 0.2);
+  }
+  input::placeholder, textarea::placeholder {
+    color: rgb(var(--c-ink3));
   }
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #f0d9b8; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #e0c098; }
+  ::-webkit-scrollbar-thumb { background: rgb(var(--c-bdr)); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--c-ink3)); }
 }
 
 @layer components {

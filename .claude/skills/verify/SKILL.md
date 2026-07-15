@@ -31,8 +31,14 @@ await page.reload();
 
 ## Flows worth driving
 
-- Three tabs exist: 今日工作 (default), 客戶追蹤, 業績表 — 薪資計算 and 工作日誌 were
-  removed on purpose; their IndexedDB stores remain for old-backup import compat.
+- Four tabs exist: 今日工作 (default), 行事曆, 客戶追蹤, 業績表 — 薪資計算 and 工作日誌
+  were removed on purpose; their IndexedDB stores remain for old-backup import compat.
+- Theme: dark by default via `html.dark` + CSS variables (`--c-*` in index.css);
+  localStorage key `theme` ('dark'|'light'), toggle button in settings header.
+  Wipe localStorage 'theme' for a deterministic theme test.
+- 行事曆: events = client nextDate (追蹤), unconfirmed timers (提醒), deals (成交);
+  click a day → event list; click an event row → jumps to the client in CRM;
+  追蹤 rows have an inline 已聯繫 button that clears nextDate.
 - 業績表: archive a deal via client detail 「＋ 歸檔到業績表」 (amount prefills from the
   latest quote/order event); 單月 view shows per-field totals, 總表 groups by month.
   Deal fields are editable in 設定 → 🏆 業績欄位. Deleting a deal keeps the client's

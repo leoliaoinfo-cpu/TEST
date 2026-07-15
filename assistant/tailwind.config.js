@@ -1,38 +1,37 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        bg: '#fdf6ee',
-        s1: '#fffaf4',
-        s2: '#fef0dc',
-        s3: '#fde8c8',
-        bdr: '#f0d9b8',
+        // 所有主題色走 CSS 變數（:root 淺色 / html.dark 深色），見 index.css
+        bg: 'rgb(var(--c-bg) / <alpha-value>)',
+        s1: 'rgb(var(--c-s1) / <alpha-value>)',
+        s2: 'rgb(var(--c-s2) / <alpha-value>)',
+        s3: 'rgb(var(--c-s3) / <alpha-value>)',
+        bdr: 'rgb(var(--c-bdr) / <alpha-value>)',
         accent: {
-          DEFAULT: '#c9670a',
-          light: '#fef0dc',
+          DEFAULT: 'rgb(var(--c-accent) / <alpha-value>)',
         },
         danger: {
-          DEFAULT: '#c03030',
-          light: '#fdeaea',
+          DEFAULT: 'rgb(var(--c-danger) / <alpha-value>)',
         },
         ok: {
-          DEFAULT: '#2a8a50',
-          light: '#e6f5ec',
+          DEFAULT: 'rgb(var(--c-ok) / <alpha-value>)',
         },
         ink: {
-          DEFAULT: '#2c1a08',
-          2: '#7a5030',
-          3: '#b88860',
+          DEFAULT: 'rgb(var(--c-ink) / <alpha-value>)',
+          2: 'rgb(var(--c-ink2) / <alpha-value>)',
+          3: 'rgb(var(--c-ink3) / <alpha-value>)',
         },
       },
       fontFamily: {
         sans: ['"Noto Sans TC"', '"PingFang TC"', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        card: '0 1px 4px rgba(44,26,8,0.08)',
-        panel: '0 4px 20px rgba(44,26,8,0.12)',
+        card: '0 1px 4px rgba(0,0,0,0.15)',
+        panel: '0 4px 20px rgba(0,0,0,0.3)',
       },
     },
   },

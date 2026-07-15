@@ -2,6 +2,7 @@ import { useState, Component } from 'react';
 import { useApp } from './context';
 import Header from './components/Header';
 import TodayPage from './components/today/TodayPage';
+import CalendarPage from './components/calendar/CalendarPage';
 import CrmPage from './components/crm/CrmPage';
 import DealsPage from './components/deals/DealsPage';
 import SettingsPanel from './components/SettingsPanel';
@@ -19,19 +20,19 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: '2rem', fontFamily: 'sans-serif', background: '#fdf6ee', minHeight: '100vh' }}>
-          <h2 style={{ color: '#c03030' }}>⚠️ 發生錯誤，請重新整理頁面</h2>
-          <pre style={{ background: '#fdeaea', padding: '1rem', borderRadius: 8, fontSize: 12, overflowX: 'auto' }}>
+        <div className="min-h-screen bg-bg p-8 font-sans">
+          <h2 className="text-danger font-bold text-lg mb-3">⚠️ 發生錯誤，請重新整理頁面</h2>
+          <pre className="bg-danger/10 text-ink-2 p-4 rounded-lg text-xs overflow-x-auto">
             {String(this.state.error)}
             {'\n'}
             {this.state.error?.stack}
           </pre>
-          <p style={{ color: '#7a5030', fontSize: 14 }}>
+          <p className="text-ink-2 text-sm mt-3">
             若持續出現，請按 F12 → Console 截圖後回報。
           </p>
           <button
             onClick={() => this.setState({ error: null })}
-            style={{ marginTop: 16, padding: '8px 20px', background: '#c9670a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}
+            className="mt-4 px-5 py-2 bg-accent text-white rounded-lg cursor-pointer border-none"
           >
             重試
           </button>
@@ -56,14 +57,13 @@ function AppInner() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#fdf6ee' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: 48, height: 48, borderRadius: '50%',
-            border: '4px solid #f0d9b8', borderTopColor: '#c9670a',
-            animation: 'spin 0.8s linear infinite', margin: '0 auto 16px',
-          }} />
-          <p style={{ color: '#b88860', fontSize: 14 }}>載入中…</p>
+      <div className="flex items-center justify-center min-h-screen bg-bg">
+        <div className="text-center">
+          <div
+            className="w-12 h-12 rounded-full border-4 border-s3 border-t-accent mx-auto mb-4"
+            style={{ animation: 'spin 0.8s linear infinite' }}
+          />
+          <p className="text-ink-3 text-sm">載入中…</p>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       </div>
@@ -74,7 +74,7 @@ function AppInner() {
     <div className="min-h-screen bg-bg font-sans text-ink">
       {/* DB 不可用提示（隱私模式 / file:// 限制）*/}
       {dbUnavailable && (
-        <div style={{ background: '#fff5e8', borderBottom: '1px solid #f0d9b8', padding: '6px 16px', fontSize: 12, color: '#7a5030' }}>
+        <div className="bg-s2 border-b border-bdr px-4 py-1.5 text-xs text-ink-2">
           ⚠️ 儲存功能受限（瀏覽器安全設定）。資料不會被保存。建議改用
           <strong> http://localhost</strong> 方式開啟，或啟用 GitHub Pages。
         </div>
@@ -85,6 +85,7 @@ function AppInner() {
       <main className="pb-20 md:pb-0">
         <div className="anim-fade-in" key={tab}>
           {tab === 'today' && <TodayPage onOpenClient={openClient} />}
+          {tab === 'calendar' && <CalendarPage onOpenClient={openClient} />}
           {tab === 'crm' && (
             <CrmPage focusId={crmFocusId} onFocusConsumed={() => setCrmFocusId(null)} />
           )}
@@ -96,6 +97,7 @@ function AppInner() {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-s1 border-t border-bdr flex z-30 pb-safe">
         {[
           { key: 'today', icon: '☀️', label: '今日' },
+          { key: 'calendar', icon: '📅', label: '行事曆' },
           { key: 'crm', icon: '👥', label: '客戶' },
           { key: 'deals', icon: '📈', label: '業績' },
         ].map((item) => (
