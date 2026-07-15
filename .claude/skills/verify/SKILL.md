@@ -33,9 +33,18 @@ await page.reload();
 
 - Four tabs exist: 今日工作 (default), 行事曆, 客戶追蹤, 業績表 — 薪資計算 and 工作日誌
   were removed on purpose; their IndexedDB stores remain for old-backup import compat.
-- Theme: dark by default via `html.dark` + CSS variables (`--c-*` in index.css);
+- Theme: Morandi blue-grey, dark by default via `html.dark` + CSS variables (`--c-*`
+  in index.css; dark body bg = rgb(23,28,33), light = rgb(236,240,243));
   localStorage key `theme` ('dark'|'light'), toggle button in settings header.
   Wipe localStorage 'theme' for a deterministic theme test.
+- 記錄「交車」 creates 5 timers by default: 3/7/30-day aftercare + 2 adjustable annual
+  reminders (保險續保/驗車, prefilled +11 months, each can be unchecked).
+- Date-type custom fields support recurrence (每年/一次性/連續N年) — occurrences show
+  grouped-by-field on Today and as 🎉 events on the calendar.
+- 報價單產生器: client detail → 🧾 報價單; signature persists via settings
+  'quoteProfile' (loads async — wait for the input value, don't read immediately).
+- When settings panel is open over the CRM page, scope button selectors with
+  `.anim-slide-right` — the CRM toolbar also has a "+ 新增" button behind the overlay.
 - 行事曆: events = client nextDate (追蹤), unconfirmed timers (提醒), deals (成交);
   click a day → event list; click an event row → jumps to the client in CRM;
   追蹤 rows have an inline 已聯繫 button that clears nextDate.

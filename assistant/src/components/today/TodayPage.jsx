@@ -1,14 +1,17 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../../context';
 import { db } from '../../db';
-import { getClientStatus, STATUS_COLOR, CAT_COLORS, generateId, EVENT_TYPES } from '../../utils/crm';
+import {
+  getClientStatus, STATUS_COLOR, CAT_COLORS, FIELD_COLORS, generateId,
+  EVENT_TYPES, getOccasionsOnDate,
+} from '../../utils/crm';
 import { formatDate } from '../../utils/date';
 import dayjs from 'dayjs';
 
 const BACKUP_REMIND_DAYS = 7;
 
 export default function TodayPage({ onOpenClient }) {
-  const { clients, cats, timers, thresholds, updateClient, saveTimer, deleteTimer } = useApp();
+  const { clients, cats, customFields, timers, thresholds, updateClient, saveTimer, deleteTimer } = useApp();
   const todayStr = dayjs().format('YYYY-MM-DD');
   const [lastBackupAt, setLastBackupAt] = useState(undefined); // undefined=載入中, null=從未備份
 
@@ -49,7 +52,18 @@ export default function TodayPage({ onOpenClient }) {
     clients.filter((c) => ['hot', 'cold'].includes(getClientStatus(c, thresholds))).length,
     [clients, thresholds]);
 
-  const allClear = overdue.length === 0 && dueToday.length === 0 && todayTimers.length === 0;
+  // 今日紀念日（生日、交車週年…）：依欄位分組，同一種欄位放一起
+  const occasionGroups = useMemo(() => {
+    const list = getOccasionsOnDate(clients, customFields, todayStr);
+    const groups = {};
+    for (const o of list) {
+      (groups[o.field.id] = groups[o.field.id] || { field: o.field, items: [] }).items.push(o);
+    }
+    return Object.values(groups);
+  }, [clients, customFields, todayStr]);
+
+  const allClear = overdue.length === 0 && dueToday.length === 0
+    && todayTimers.length === 0 && occasionGroups.length === 0;
 
   // 本日成果：從所有客戶時間軸自動統計今天記錄的事件，不需手動填日報
   const todayResults = useMemo(() => {
@@ -77,6 +91,19 @@ export default function TodayPage({ onOpenClient }) {
       log: [
         ...(c.log || []),
         { id: generateId('log'), date: todayStr, text: '已聯繫', type: 'contact' },
+      ],
+    }));
+  }
+
+  /** 紀念日問候：記錄聯繫但保留原本排程的下次追蹤日期 */
+  async function logGreeting(client, label) {
+    await updateClient(client.id, (c) => ({
+      ...c,
+      lastContact: todayStr,
+      missedCalls: 0,
+      log: [
+        ...(c.log || []),
+        { id: generateId('log'), date: todayStr, text: `${label}問候`, type: 'contact' },
       ],
     }));
   }
@@ -109,10 +136,10 @@ export default function TodayPage({ onOpenClient }) {
 
       {/* 統計方塊 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <StatTile label="逾期追蹤" value={overdue.length} color={overdue.length > 0 ? '#c03030' : '#2a8a50'} />
-        <StatTile label="今日追蹤" value={dueToday.length} color="#c9670a" />
-        <StatTile label="即將簽約" value={pinnedClients.length} color="#1a60a8" />
-        <StatTile label="久未聯繫" value={coldCount} color={coldCount > 0 ? '#e04000' : '#2a8a50'} />
+        <StatTile label="逾期追蹤" value={overdue.length} color={overdue.length > 0 ? '#b26b6b' : '#7d9b76'} />
+        <StatTile label="今日追蹤" value={dueToday.length} color="#bf8a5e" />
+        <StatTile label="即將簽約" value={pinnedClients.length} color="#7291a8" />
+        <StatTile label="久未聯繫" value={coldCount} color={coldCount > 0 ? '#c0764f' : '#7d9b76'} />
       </div>
 
       {allClear && pinnedClients.length === 0 && (
@@ -125,10 +152,10 @@ export default function TodayPage({ onOpenClient }) {
 
       {/* 逾期追蹤 */}
       {overdue.length > 0 && (
-        <Section title={`⚠️ 逾期追蹤（${overdue.length}）`} titleColor="#c03030">
+        <Section title={`⚠️ 逾期追蹤（${overdue.length}）`} titleColor="#b26b6b">
           {overdue.map((c) => (
             <ClientTaskRow key={c.id} client={c} cats={cats}
-              tag={`逾期 ${dayjs(todayStr).diff(dayjs(c.nextDate), 'day')} 天`} tagColor="#c03030"
+              tag={`逾期 ${dayjs(todayStr).diff(dayjs(c.nextDate), 'day')} 天`} tagColor="#b26b6b"
               onOpen={() => onOpenClient(c.id)} onDone={() => markContacted(c)} />
           ))}
         </Section>
@@ -136,18 +163,50 @@ export default function TodayPage({ onOpenClient }) {
 
       {/* 今日追蹤 */}
       {dueToday.length > 0 && (
-        <Section title={`📅 今日追蹤（${dueToday.length}）`} titleColor="#c9670a">
+        <Section title={`📅 今日追蹤（${dueToday.length}）`} titleColor="#bf8a5e">
           {dueToday.map((c) => (
             <ClientTaskRow key={c.id} client={c} cats={cats}
-              tag="今日" tagColor="#c9670a"
+              tag="今日" tagColor="#bf8a5e"
               onOpen={() => onOpenClient(c.id)} onDone={() => markContacted(c)} />
           ))}
         </Section>
       )}
 
+      {/* 今日紀念日：依欄位分組（生日、交車週年…），不與追蹤混在一起 */}
+      {occasionGroups.map(({ field, items }) => {
+        const color = FIELD_COLORS[(field.colorIdx || 0) % FIELD_COLORS.length];
+        return (
+          <Section key={field.id} title={`🎉 ${field.name}（${items.length}）`} titleColor={color}>
+            {items.map(({ client: c, years }) => (
+              <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-bdr/50 last:border-0">
+                <span className="w-1 self-stretch rounded-full shrink-0" style={{ background: color }} />
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onOpenClient(c.id)}>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-medium text-sm text-ink">{c.name}</span>
+                    {years > 0 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full"
+                        style={{ background: color + '20', color }}>
+                        滿 {years} 年
+                      </span>
+                    )}
+                  </div>
+                  {c.phone && <p className="text-xs text-ink-3 mt-0.5">{c.phone}</p>}
+                </div>
+                {c.phone && (
+                  <a href={`tel:${c.phone}`} className="btn-outline text-xs shrink-0" onClick={(e) => e.stopPropagation()}>
+                    📞
+                  </a>
+                )}
+                <button onClick={() => logGreeting(c, field.name)} className="btn-primary text-xs shrink-0">已問候</button>
+              </div>
+            ))}
+          </Section>
+        );
+      })}
+
       {/* 今日提醒 */}
       {todayTimers.length > 0 && (
-        <Section title={`⏰ 提醒（${todayTimers.length}）`} titleColor="#9030a0">
+        <Section title={`⏰ 提醒（${todayTimers.length}）`} titleColor="#9382a5">
           {todayTimers.map((t) => {
             const past = dayjs(t.triggerAt).isBefore(dayjs());
             return (
@@ -176,7 +235,7 @@ export default function TodayPage({ onOpenClient }) {
 
       {/* 本日成果：自動從客戶時間軸統計 */}
       {todayResults.length > 0 && (
-        <Section title="📊 本日成果" titleColor="#2a8a50">
+        <Section title="📊 本日成果" titleColor="#7d9b76">
           <div className="flex flex-wrap gap-2 px-3 py-3">
             {todayResults.map((r) => (
               <div key={r.type} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5"
@@ -198,7 +257,7 @@ export default function TodayPage({ onOpenClient }) {
 
       {/* 即將簽約 */}
       {pinnedClients.length > 0 && (
-        <Section title={`📌 即將簽約（${pinnedClients.length}）`} titleColor="#1a60a8">
+        <Section title={`📌 即將簽約（${pinnedClients.length}）`} titleColor="#7291a8">
           {pinnedClients.map((c) => {
             const todos = c.todos || [];
             const doneCount = todos.filter((td) => td.done).length;

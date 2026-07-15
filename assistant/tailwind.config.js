@@ -14,6 +14,7 @@ export default {
         accent: {
           DEFAULT: 'rgb(var(--c-accent) / <alpha-value>)',
         },
+        'on-accent': 'rgb(var(--c-on-accent) / <alpha-value>)',
         danger: {
           DEFAULT: 'rgb(var(--c-danger) / <alpha-value>)',
         },

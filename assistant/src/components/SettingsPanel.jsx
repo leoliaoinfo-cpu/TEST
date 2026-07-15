@@ -6,7 +6,9 @@ import { CAT_COLORS, FIELD_COLORS, FIELD_COLOR_NAMES, generateId } from '../util
 const HELP_CARDS = [
   { icon: '☀️', title: '今日工作', desc: '一眼看完今日/逾期追蹤、到期提醒與即將簽約客戶，點擊可直接開啟客戶。' },
   { icon: '📅', title: '行事曆', desc: '月曆總覽追蹤、提醒與成交事件；點日期看當天清單，點事件直接跳到該客戶。' },
-  { icon: '🌙', title: '深/淺色主題', desc: '預設深色，可在設定右上角切換，選擇會記在此裝置。' },
+  { icon: '🌙', title: '莫蘭迪主題', desc: '低彩度藍灰色調，預設深色，可在設定右上角切換深/淺色，選擇會記在此裝置。' },
+  { icon: '🎉', title: '紀念日提醒', desc: '日期型自訂欄位可設每年/一次性/連續N年提醒，到期出現在今日工作（依欄位分組）與行事曆。' },
+  { icon: '🧾', title: '報價單產生器', desc: '客戶詳情按「報價單」填車型與項目，即時產生可截圖的美觀報價單並記錄報價事件。' },
   { icon: '📊', title: '本日成果', desc: '自動統計今天記錄的聯繫、報價、試乘、下訂、交車數量與金額，不需手動填寫日報。' },
   { icon: '👥', title: '客戶追蹤 CRM', desc: '管理所有客戶聯繫狀態、分類、意願度與追蹤日期。' },
   { icon: '🚛', title: '業務進度記錄', desc: '在客戶詳情記錄 LINE 摘要、報價、看車試乘、貸款補件、下訂、交車、售後回訪；記錄交車會自動建立 3/7/30 天回訪提醒。' },
@@ -473,6 +475,38 @@ function CustomFieldEditor({ fields, onChange }) {
             </select>
             <button onClick={() => deleteField(field.id)} className="text-danger/50 hover:text-danger text-sm shrink-0">✕</button>
           </div>
+
+          {/* 日期欄位的紀念日提醒設定（生日、交車週年…） */}
+          {field.type === 'date' && (
+            <div className="flex items-center gap-2 text-xs text-ink-2 pl-7 flex-wrap">
+              <span className="shrink-0">🔔 提醒：</span>
+              <select
+                value={field.recur || 'none'}
+                onChange={(e) => updateField(field.id, { recur: e.target.value })}
+                className="text-xs py-1"
+              >
+                <option value="none">不提醒</option>
+                <option value="yearly">每年重複</option>
+                <option value="once">一次性</option>
+                <option value="count">連續 N 年</option>
+              </select>
+              {field.recur === 'count' && (
+                <label className="flex items-center gap-1">
+                  共
+                  <input
+                    type="number" min="1"
+                    value={field.recurCount || 1}
+                    onChange={(e) => updateField(field.id, { recurCount: Math.max(1, Number(e.target.value) || 1) })}
+                    className="w-14 text-xs"
+                  />
+                  次
+                </label>
+              )}
+              {field.recur && field.recur !== 'none' && (
+                <span className="text-ink-3">到期日會出現在今日工作與行事曆</span>
+              )}
+            </div>
+          )}
         </div>
       ))}
     </div>

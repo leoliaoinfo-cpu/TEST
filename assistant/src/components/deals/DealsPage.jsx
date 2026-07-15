@@ -57,11 +57,11 @@ export default function DealsPage({ onOpenClient }) {
         <h1 className="text-xl font-bold text-ink">📈 業績表</h1>
         <div className="flex rounded-lg border border-bdr overflow-hidden">
           <button onClick={() => setView('month')}
-            className={`px-3 py-1.5 text-sm font-medium ${view === 'month' ? 'bg-accent text-white' : 'text-ink-2 hover:bg-s2'}`}>
+            className={`px-3 py-1.5 text-sm font-medium ${view === 'month' ? 'bg-accent text-on-accent' : 'text-ink-2 hover:bg-s2'}`}>
             單月
           </button>
           <button onClick={() => setView('all')}
-            className={`px-3 py-1.5 text-sm font-medium ${view === 'all' ? 'bg-accent text-white' : 'text-ink-2 hover:bg-s2'}`}>
+            className={`px-3 py-1.5 text-sm font-medium ${view === 'all' ? 'bg-accent text-on-accent' : 'text-ink-2 hover:bg-s2'}`}>
             總表
           </button>
         </div>

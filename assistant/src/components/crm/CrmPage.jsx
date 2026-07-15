@@ -144,7 +144,7 @@ export default function CrmPage({ focusId, onFocusConsumed }) {
           <div>
             <p className="section-title">快速篩選</p>
             {[
-              { key: 'all', label: '全部', count: clients.length, color: '#7a5030' },
+              { key: 'all', label: '全部', count: clients.length, color: '#8f7a68' },
               { key: 'pending', label: '待聯繫', count: pendingCount, color: STATUS_COLOR.warn },
               { key: 'cold', label: '冷掉了', count: coldCount, color: STATUS_COLOR.cold },
             ].map((f) => (

@@ -1,10 +1,11 @@
 import dayjs from 'dayjs';
 
+// 莫蘭迪色調（低彩度，深淺主題皆可讀）
 export const STATUS_COLOR = {
-  ok: '#2a8a50',
-  warn: '#c9670a',
-  hot: '#e04000',
-  cold: '#c03030',
+  ok: '#7d9b76',
+  warn: '#bf8a5e',
+  hot: '#c0764f',
+  cold: '#b26b6b',
 };
 
 export const STATUS_LABEL = {
@@ -91,14 +92,14 @@ export function sortClients(clients, sortKey) {
 }
 
 export const CAT_COLORS = [
-  '#c9670a', '#2a8a50', '#1a60a8', '#9030a0',
-  '#c04060', '#2080a0', '#808020',
+  '#bf8a5e', '#7d9b76', '#7291a8', '#9382a5',
+  '#b58a96', '#6f9a9c', '#9a9a6f',
 ];
 
 export const FIELD_COLORS = [
-  '#c9670a', '#2a8a50', '#1a60a8', '#9030a0',
-  '#c03030', '#2080a0', '#808020', '#c04060',
-  '#7a4010', '#505060',
+  '#bf8a5e', '#7d9b76', '#7291a8', '#9382a5',
+  '#b26b6b', '#6f9a9c', '#9a9a6f', '#b58a96',
+  '#8f7a68', '#8a919b',
 ];
 
 export const FIELD_COLOR_NAMES = [
@@ -111,16 +112,17 @@ export function generateId(prefix = 'id') {
 
 // ── 業務流程事件（客戶時間軸）────────────────────────────────────────────────
 export const EVENT_TYPES = {
-  contact:   { icon: '✅', label: '已聯繫',   color: '#2a8a50' },
-  missed:    { icon: '📵', label: '未接',     color: '#c03030' },
-  line:      { icon: '💬', label: 'LINE 摘要', color: '#2080a0' },
-  quote:     { icon: '💲', label: '報價',     color: '#c9670a', hasAmount: true },
-  visit:     { icon: '🚚', label: '看車試乘', color: '#1a60a8' },
-  loan:      { icon: '🏦', label: '貸款補件', color: '#9030a0' },
-  order:     { icon: '📝', label: '下訂',     color: '#e04000', hasAmount: true },
-  delivery:  { icon: '🔑', label: '交車',     color: '#2a8a50' },
-  aftercare: { icon: '🤝', label: '售後回訪', color: '#808020' },
-  deal:      { icon: '🏆', label: '成交歸檔', color: '#8a6a00' },
+  contact:   { icon: '✅', label: '已聯繫',   color: '#7d9b76' },
+  missed:    { icon: '📵', label: '未接',     color: '#b26b6b' },
+  line:      { icon: '💬', label: 'LINE 摘要', color: '#6f9a9c' },
+  quote:     { icon: '💲', label: '報價',     color: '#bf8a5e', hasAmount: true },
+  visit:     { icon: '🚚', label: '看車試乘', color: '#7291a8' },
+  loan:      { icon: '🏦', label: '貸款補件', color: '#9382a5' },
+  order:     { icon: '📝', label: '下訂',     color: '#c0764f', hasAmount: true },
+  delivery:  { icon: '🔑', label: '交車',     color: '#7d9b76' },
+  aftercare: { icon: '🤝', label: '售後回訪', color: '#9a9a6f' },
+  deal:      { icon: '🏆', label: '成交歸檔', color: '#a99760' },
+  occasion:  { icon: '🎉', label: '紀念日',   color: '#b58a96' },
 };
 
 /** 客戶詳情頁快速記錄事件的按鈕順序（已聯繫/未接另有專屬按鈕） */
@@ -128,6 +130,37 @@ export const QUICK_EVENT_KEYS = ['line', 'quote', 'visit', 'loan', 'order', 'del
 
 /** 交車後自動建立的售後回訪天數 */
 export const DELIVERY_FOLLOWUP_DAYS = [3, 7, 30];
+
+/**
+ * 自訂日期欄位的紀念日提醒。
+ * 欄位（type='date'）可設 recur：'yearly' 每年重複｜'once' 一次性｜'count' 從該日期起連續 N 年。
+ * 回傳指定日期當天到期的 [{ field, client, years }]，years = 距原日期的年數。
+ */
+export function getOccasionsOnDate(clients, customFields, dateStr) {
+  const out = [];
+  const dateFields = customFields.filter(
+    (f) => f.type === 'date' && f.recur && f.recur !== 'none'
+  );
+  if (dateFields.length === 0) return out;
+  const year = Number(dateStr.slice(0, 4));
+  const monthDay = dateStr.slice(5);
+  for (const f of dateFields) {
+    for (const c of clients) {
+      const v = c.customFieldValues?.[f.id];
+      if (!v || v.length < 10) continue;
+      if (f.recur === 'once') {
+        if (v === dateStr) out.push({ field: f, client: c, years: 0 });
+        continue;
+      }
+      if (v.slice(5) !== monthDay) continue;
+      const years = year - Number(v.slice(0, 4));
+      if (years < 0) continue;
+      if (f.recur === 'count' && years >= Math.max(1, Number(f.recurCount) || 1)) continue;
+      out.push({ field: f, client: c, years });
+    }
+  }
+  return out;
+}
 
 /** 業績表金額加總 */
 export function sumDeals(deals, dealFields) {

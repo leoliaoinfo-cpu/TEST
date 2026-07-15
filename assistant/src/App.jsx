@@ -32,7 +32,7 @@ class ErrorBoundary extends Component {
           </p>
           <button
             onClick={() => this.setState({ error: null })}
-            className="mt-4 px-5 py-2 bg-accent text-white rounded-lg cursor-pointer border-none"
+            className="mt-4 px-5 py-2 bg-accent text-on-accent rounded-lg cursor-pointer border-none"
           >
             重試
           </button>

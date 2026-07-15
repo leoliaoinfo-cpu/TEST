@@ -1,18 +1,19 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../../context';
-import { getClientStatus, STATUS_COLOR, formatMoney, generateId } from '../../utils/crm';
+import { getClientStatus, STATUS_COLOR, formatMoney, generateId, getOccasionsOnDate } from '../../utils/crm';
 import { today } from '../../utils/date';
 import dayjs from 'dayjs';
 
-// 行事曆事件型別（追蹤 / 提醒 / 成交）
+// 行事曆事件型別（追蹤 / 提醒 / 成交 / 紀念日）
 const EV = {
-  follow: { icon: '📅', label: '追蹤', color: '#e08430' },
-  timer:  { icon: '⏰', label: '提醒', color: '#b070c8' },
-  deal:   { icon: '🏆', label: '成交', color: '#c8a020' },
+  follow:   { icon: '📅', label: '追蹤', color: '#bf8a5e' },
+  timer:    { icon: '⏰', label: '提醒', color: '#9382a5' },
+  deal:     { icon: '🏆', label: '成交', color: '#a99760' },
+  occasion: { icon: '🎉', label: '紀念日', color: '#b58a96' },
 };
 
 export default function CalendarPage({ onOpenClient }) {
-  const { clients, timers, deals, updateClient, thresholds } = useApp();
+  const { clients, timers, deals, customFields, updateClient, thresholds } = useApp();
   const todayStr = today();
   const [monthKey, setMonthKey] = useState(dayjs().format('YYYY-MM'));
   const [selectedDate, setSelectedDate] = useState(todayStr);
@@ -67,13 +68,38 @@ export default function CalendarPage({ onOpenClient }) {
     return out;
   }, [monthKey]);
 
+  // 紀念日（自訂日期欄位）：僅需計算目前顯示的月曆範圍
+  const occasionsByDate = useMemo(() => {
+    const map = {};
+    for (const week of weeks) {
+      for (const d of week) {
+        const ds = d.format('YYYY-MM-DD');
+        const os = getOccasionsOnDate(clients, customFields, ds);
+        for (const o of os) {
+          (map[ds] = map[ds] || []).push({
+            type: 'occasion',
+            clientId: o.client.id,
+            title: `${o.field.name}｜${o.client.name}`,
+            sub: o.years > 0 ? `滿 ${o.years} 年` : '',
+          });
+        }
+      }
+    }
+    return map;
+  }, [weeks, clients, customFields]);
+
+  const getEvents = (dateStr) => [
+    ...(eventsByDate[dateStr] || []),
+    ...(occasionsByDate[dateStr] || []),
+  ];
+
   const weekdayLabels = useMemo(() => {
     // 依 locale 的週起始日排列（zh-tw 週一開始）
     const start = dayjs().startOf('week');
     return Array.from({ length: 7 }, (_, i) => start.add(i, 'day').format('dd'));
   }, []);
 
-  const selectedEvents = eventsByDate[selectedDate] || [];
+  const selectedEvents = getEvents(selectedDate);
 
   function shiftMonth(n) {
     setMonthKey(dayjs(monthKey + '-01').add(n, 'month').format('YYYY-MM'));
@@ -136,7 +162,7 @@ export default function CalendarPage({ onOpenClient }) {
               const inMonth = d.format('YYYY-MM') === monthKey;
               const isToday = dateStr === todayStr;
               const isSelected = dateStr === selectedDate;
-              const evs = eventsByDate[dateStr] || [];
+              const evs = getEvents(dateStr);
               const hasOverdueFollow = evs.some((e) => e.type === 'follow' && dateStr < todayStr);
               return (
                 <button
@@ -147,7 +173,7 @@ export default function CalendarPage({ onOpenClient }) {
                   } ${inMonth ? '' : 'opacity-35'}`}
                 >
                   <span className={`inline-flex items-center justify-center w-6 h-6 text-xs rounded-full ${
-                    isToday ? 'bg-accent text-white font-bold' : hasOverdueFollow ? 'text-danger font-bold' : 'text-ink-2'
+                    isToday ? 'bg-accent text-on-accent font-bold' : hasOverdueFollow ? 'text-danger font-bold' : 'text-ink-2'
                   }`}>
                     {d.date()}
                   </span>

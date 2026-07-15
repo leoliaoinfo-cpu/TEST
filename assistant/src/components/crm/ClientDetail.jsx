@@ -6,10 +6,11 @@ import {
 import { today, formatDateFull, addDays, QUICK_DATES } from '../../utils/date';
 import { useApp } from '../../context';
 import DealModal from '../deals/DealModal';
+import QuoteModal from '../quote/QuoteModal';
 import dayjs from 'dayjs';
 
 const INTENT_LABELS = ['未評估', '低', '中', '高', '非常高'];
-const INTENT_COLORS = ['#b88860', '#808020', '#2080a0', '#2a8a50', '#c9670a'];
+const INTENT_COLORS = ['#8a919b', '#9a9a6f', '#6f9a9c', '#7d9b76', '#bf8a5e'];
 
 export default function ClientDetail({ client, cats, stages, onClose, onSave, onDelete }) {
   const {
@@ -26,9 +27,15 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
   const [eventType, setEventType] = useState(null);
   const [eventNote, setEventNote] = useState('');
   const [eventAmount, setEventAmount] = useState('');
+  // 交車年度商機提醒（保險續保 / 驗車），日期可調，預設 11 個月後（到期前一個月）
+  const [annualReminders, setAnnualReminders] = useState({
+    insurance: { on: true, date: '' },
+    inspection: { on: true, date: '' },
+  });
   const [signingNote, setSigningNote] = useState(client.signingNote || '');
   const [todoInput, setTodoInput] = useState('');
   const [showDealModal, setShowDealModal] = useState(false);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
 
   const clientDeals = deals
     .filter((d) => d.clientId === client.id)
@@ -93,6 +100,8 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
     const amount = Number(eventAmount);
     if (def.hasAmount && amount > 0) entry.amount = amount;
 
+    const annual = annualReminders;
+
     // 先關閉表單再儲存：避免連點重複記錄、避免儲存期間的輸入被清掉
     setEventType(null);
     setEventNote('');
@@ -108,6 +117,23 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
           clientName: client.name,
           note: `交車後 ${n} 天售後回訪`,
           triggerAt: dayjs().add(n, 'day').hour(9).minute(0).second(0).toISOString(),
+          confirmedAt: null,
+        });
+      }
+      // 年度商機提醒：保險續保 / 驗車到期（續保佣金、回廠、換車的再接觸點）
+      const annualDefs = [
+        { key: 'insurance', note: '保險續保回訪（交車滿一年）' },
+        { key: 'inspection', note: '驗車到期回訪' },
+      ];
+      for (const def2 of annualDefs) {
+        const r = annual[def2.key];
+        if (!r.on || !r.date) continue;
+        await saveTimer({
+          id: generateId('timer'),
+          clientId: client.id,
+          clientName: client.name,
+          note: def2.note,
+          triggerAt: dayjs(r.date).hour(9).minute(0).second(0).toISOString(),
           confirmedAt: null,
         });
       }
@@ -389,7 +415,12 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
 
         {/* 業務流程事件 */}
         <section className="card p-4 space-y-3">
-          <h3 className="font-semibold text-sm text-ink-2">🚛 業務進度記錄</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-sm text-ink-2">🚛 業務進度記錄</h3>
+            <button onClick={() => setShowQuoteModal(true)} className="btn-outline text-xs">
+              🧾 報價單
+            </button>
+          </div>
           <div className="flex gap-1.5 flex-wrap">
             {QUICK_EVENT_KEYS.map((key) => {
               const def = EVENT_TYPES[key];
@@ -397,7 +428,18 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
               return (
                 <button
                   key={key}
-                  onClick={() => { setEventType(active ? null : key); setEventNote(''); setEventAmount(''); }}
+                  onClick={() => {
+                    setEventType(active ? null : key);
+                    setEventNote('');
+                    setEventAmount('');
+                    if (key === 'delivery' && !active) {
+                      const in11mo = dayjs().add(11, 'month').format('YYYY-MM-DD');
+                      setAnnualReminders({
+                        insurance: { on: true, date: in11mo },
+                        inspection: { on: true, date: in11mo },
+                      });
+                    }
+                  }}
                   className={`btn text-xs px-2 py-1 border ${active ? 'text-white' : ''}`}
                   style={active
                     ? { background: def.color, borderColor: def.color }
@@ -428,9 +470,36 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
                 />
               )}
               {eventType === 'delivery' && (
-                <p className="text-xs text-ink-3">
-                  🔔 記錄交車後會自動建立 {DELIVERY_FOLLOWUP_DAYS.join(' / ')} 天售後回訪提醒
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xs text-ink-3">
+                    🔔 記錄交車後會自動建立 {DELIVERY_FOLLOWUP_DAYS.join(' / ')} 天售後回訪提醒
+                  </p>
+                  <p className="text-xs font-medium text-ink-2">年度商機提醒（日期可調）：</p>
+                  {[
+                    { key: 'insurance', label: '🛡 保險續保' },
+                    { key: 'inspection', label: '🔧 驗車到期' },
+                  ].map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 text-xs text-ink-2">
+                      <input
+                        type="checkbox"
+                        checked={annualReminders[key].on}
+                        onChange={(e) => setAnnualReminders((a) => ({
+                          ...a, [key]: { ...a[key], on: e.target.checked },
+                        }))}
+                      />
+                      <span className="w-20 shrink-0">{label}</span>
+                      <input
+                        type="date"
+                        value={annualReminders[key].date}
+                        disabled={!annualReminders[key].on}
+                        onChange={(e) => setAnnualReminders((a) => ({
+                          ...a, [key]: { ...a[key], date: e.target.value },
+                        }))}
+                        className="flex-1 text-xs disabled:opacity-40"
+                      />
+                    </label>
+                  ))}
+                </div>
               )}
               <button onClick={handleAddEvent} className="btn-primary text-xs w-full">
                 {EVENT_TYPES[eventType].icon} 記錄「{EVENT_TYPES[eventType].label}」
@@ -581,6 +650,25 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
               })}
             </div>
           </section>
+        )}
+
+        {showQuoteModal && (
+          <QuoteModal
+            client={client}
+            onClose={() => setShowQuoteModal(false)}
+            onSaveQuote={async ({ total, text }) => {
+              setShowQuoteModal(false);
+              const t = today();
+              await updateClient(client.id, (c) => ({
+                ...c,
+                lastContact: t,
+                missedCalls: 0,
+                log: [...(c.log || []), {
+                  id: generateId('log'), date: t, type: 'quote', text, amount: total,
+                }],
+              }));
+            }}
+          />
         )}
 
         {showDealModal && (

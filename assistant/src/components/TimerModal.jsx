@@ -58,7 +58,7 @@ export default function TimerModal() {
       {pendingTimers.length > 0 && !expiredTimer && (
         <button
           onClick={() => setShowList(true)}
-          className="fixed bottom-24 right-4 md:bottom-6 bg-accent text-white rounded-full px-3 py-2 text-sm font-medium shadow-panel z-40 flex items-center gap-1.5"
+          className="fixed bottom-24 right-4 md:bottom-6 bg-accent text-on-accent rounded-full px-3 py-2 text-sm font-medium shadow-panel z-40 flex items-center gap-1.5"
         >
           ⏱ {pendingTimers.length}
         </button>
