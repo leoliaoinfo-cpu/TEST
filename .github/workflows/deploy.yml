@@ -5,7 +5,9 @@ on:
     branches:
       - 'claude/ai-searchable-notebook-Q13Vw'   # 預設分支
       - 'claude/refactor-assistant-system-Ay3HM' # 開發分支
-      - 'claude/caravan-truck-business-system-ul6st3' # 卡旺業務系統開發分支
+      # 注意：汽車銷售業務系統（claude/caravan-truck-business-system-ul6st3）
+      # 刻意不在此清單——這個 repo 的 Pages 網址由上面的分支使用，
+      # 新系統需要獨立網址（另開 repo）或子路徑部署，避免互相覆蓋。
     paths:
       - 'assistant/**'
       - '.github/workflows/deploy.yml'
