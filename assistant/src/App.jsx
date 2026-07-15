@@ -1,6 +1,7 @@
 import { useState, Component } from 'react';
 import { useApp } from './context';
 import Header from './components/Header';
+import TodayPage from './components/today/TodayPage';
 import JournalPage from './components/journal/JournalPage';
 import CrmPage from './components/crm/CrmPage';
 import SalaryPage from './components/salary/SalaryPage';
@@ -45,8 +46,14 @@ class ErrorBoundary extends Component {
 // ── Main App ──────────────────────────────────────────────────────────────────
 function AppInner() {
   const { loading, dbUnavailable } = useApp();
-  const [tab, setTab] = useState('crm');
+  const [tab, setTab] = useState('today');
   const [showSettings, setShowSettings] = useState(false);
+  const [crmFocusId, setCrmFocusId] = useState(null);
+
+  function openClient(id) {
+    setCrmFocusId(id);
+    setTab('crm');
+  }
 
   if (loading) {
     return (
@@ -78,8 +85,11 @@ function AppInner() {
 
       <main className="pb-20 md:pb-0">
         <div className="anim-fade-in" key={tab}>
+          {tab === 'today' && <TodayPage onOpenClient={openClient} />}
           {tab === 'journal' && <JournalPage />}
-          {tab === 'crm' && <CrmPage />}
+          {tab === 'crm' && (
+            <CrmPage focusId={crmFocusId} onFocusConsumed={() => setCrmFocusId(null)} />
+          )}
           {tab === 'salary' && <SalaryPage />}
         </div>
       </main>
@@ -87,9 +97,10 @@ function AppInner() {
       {/* Mobile bottom navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-s1 border-t border-bdr flex z-30 pb-safe">
         {[
-          { key: 'journal', icon: '📓', label: '工作日誌' },
-          { key: 'crm', icon: '👥', label: '客戶追蹤' },
-          { key: 'salary', icon: '💰', label: '薪資計算' },
+          { key: 'today', icon: '☀️', label: '今日' },
+          { key: 'journal', icon: '📓', label: '日誌' },
+          { key: 'crm', icon: '👥', label: '客戶' },
+          { key: 'salary', icon: '💰', label: '薪資' },
         ].map((item) => (
           <button
             key={item.key}

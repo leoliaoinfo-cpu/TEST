@@ -128,6 +128,9 @@ function reducer(state, action) {
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const saveDebounceRef = useRef({});
+  // 同步鏡射 clients，讓快速連續的增量更新（updateClient）不會讀到過期快照
+  const clientsRef = useRef(initialState.clients);
+  clientsRef.current = state.clients;
 
   // ── Startup load ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -196,12 +199,25 @@ export function AppProvider({ children }) {
   const saveClient = useCallback(async (client) => {
     const now = new Date().toISOString();
     const full = { createdAt: now, ...client, updatedAt: now };
-    await db.put('clients', full);
+    // 先同步更新鏡射，再等待寫入，避免同一 tick 內的連續更新彼此覆蓋
+    const idx = clientsRef.current.findIndex((c) => c.id === full.id);
+    clientsRef.current = idx === -1
+      ? [...clientsRef.current, full]
+      : clientsRef.current.map((c) => (c.id === full.id ? full : c));
     dispatch({ type: 'UPSERT_CLIENT', payload: full });
+    await db.put('clients', full);
     return full;
   }, []);
 
+  /** 以最新狀態做增量更新：updater 收到當前 client、回傳新 client */
+  const updateClient = useCallback(async (id, updater) => {
+    const current = clientsRef.current.find((c) => c.id === id);
+    if (!current) return null;
+    return saveClient(updater(current));
+  }, [saveClient]);
+
   const deleteClient = useCallback(async (id) => {
+    clientsRef.current = clientsRef.current.filter((c) => c.id !== id);
     await db.delete('clients', id);
     dispatch({ type: 'DELETE_CLIENT', id });
   }, []);
@@ -267,6 +283,7 @@ export function AppProvider({ children }) {
     loadJournalEntry,
     saveJournalEntry,
     saveClient,
+    updateClient,
     deleteClient,
     saveCats,
     saveStages,

@@ -8,15 +8,28 @@ export default function TimerModal() {
   const [expiredTimer, setExpiredTimer] = useState(null);
   const [showList, setShowList] = useState(false);
   const intervalRef = useRef(null);
+  const notifiedIdsRef = useRef(new Set());
 
   // Check for expired timers every 15 seconds
   useEffect(() => {
     function check() {
       const now = dayjs();
-      const expired = timers.find(
+      const allExpired = timers.filter(
         (t) => !t.confirmedAt && dayjs(t.triggerAt).isBefore(now)
       );
-      if (expired && !expiredTimer) setExpiredTimer(expired);
+      if (allExpired.length > 0 && !expiredTimer) setExpiredTimer(allExpired[0]);
+
+      // 瀏覽器通知：只顯示數量，不含客戶資料（隱私考量），每筆只通知一次
+      const fresh = allExpired.filter((t) => !notifiedIdsRef.current.has(t.id));
+      if (fresh.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification('卡旺業務助理', {
+            body: `您有 ${allExpired.length} 則提醒到期`,
+            tag: 'assistant-timer',
+          });
+        } catch { /* 部分行動瀏覽器需安裝 PWA 才支援通知 */ }
+        fresh.forEach((t) => notifiedIdsRef.current.add(t.id));
+      }
     }
     check();
     intervalRef.current = setInterval(check, 15000);

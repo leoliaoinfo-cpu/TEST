@@ -5,6 +5,7 @@ on:
     branches:
       - 'claude/ai-searchable-notebook-Q13Vw'   # 預設分支
       - 'claude/refactor-assistant-system-Ay3HM' # 開發分支
+      - 'claude/caravan-truck-business-system-ul6st3' # 卡旺業務系統開發分支
     paths:
       - 'assistant/**'
       - '.github/workflows/deploy.yml'

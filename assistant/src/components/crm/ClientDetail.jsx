@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   getClientStatus, STATUS_COLOR, STATUS_LABEL, CAT_COLORS, FIELD_COLORS, generateId,
+  EVENT_TYPES, QUICK_EVENT_KEYS, DELIVERY_FOLLOWUP_DAYS,
 } from '../../utils/crm';
 import { today, formatDateFull, addDays, QUICK_DATES } from '../../utils/date';
 import { useApp } from '../../context';
@@ -10,7 +11,7 @@ const INTENT_LABELS = ['未評估', '低', '中', '高', '非常高'];
 const INTENT_COLORS = ['#b88860', '#808020', '#2080a0', '#2a8a50', '#c9670a'];
 
 export default function ClientDetail({ client, cats, stages, onClose, onSave, onDelete }) {
-  const { customFields, saveTimer, timers } = useApp();
+  const { customFields, saveTimer, timers, updateClient } = useApp();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...client });
   const [logInput, setLogInput] = useState('');
@@ -18,6 +19,11 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
   const [showAddTimer, setShowAddTimer] = useState(false);
   const [timerNote, setTimerNote] = useState('');
   const [timerTime, setTimerTime] = useState('');
+  const [eventType, setEventType] = useState(null);
+  const [eventNote, setEventNote] = useState('');
+  const [eventAmount, setEventAmount] = useState('');
+  const [signingNote, setSigningNote] = useState(client.signingNote || '');
+  const [todoInput, setTodoInput] = useState('');
 
   const status = getClientStatus(client);
   const cat = cats.find((c) => c.id === client.catId);
@@ -43,26 +49,100 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
       text: logInput.trim() || '已聯繫',
       type: 'contact',
     };
-    const updated = {
-      ...client,
+    await updateClient(client.id, (c) => ({
+      ...c,
       lastContact: t,
       missedCalls: 0,
-      log: [...(client.log || []), logEntry],
-    };
-    await onSave(updated);
+      log: [...(c.log || []), logEntry],
+    }));
     setLogInput('');
   }
 
   async function handleMissedCall() {
-    const updated = {
-      ...client,
-      missedCalls: (client.missedCalls || 0) + 1,
+    await updateClient(client.id, (c) => ({
+      ...c,
+      missedCalls: (c.missedCalls || 0) + 1,
       log: [
-        ...(client.log || []),
+        ...(c.log || []),
         { id: generateId('log'), date: today(), text: '致電未接', type: 'missed' },
       ],
+    }));
+  }
+
+  // ── 業務流程事件（報價/看車試乘/貸款補件/下訂/交車/售後回訪/LINE 摘要）──────
+  async function handleAddEvent() {
+    if (!eventType) return;
+    const t = today();
+    const def = EVENT_TYPES[eventType];
+    const entry = {
+      id: generateId('log'),
+      date: t,
+      type: eventType,
+      text: eventNote.trim() || def.label,
     };
-    await onSave(updated);
+    const amount = Number(eventAmount);
+    if (def.hasAmount && amount > 0) entry.amount = amount;
+
+    // 交車：自動建立 3 / 7 / 30 天售後回訪提醒，並把下次追蹤設為 3 天後
+    const isDelivery = eventType === 'delivery';
+    if (isDelivery) {
+      for (const n of DELIVERY_FOLLOWUP_DAYS) {
+        await saveTimer({
+          id: generateId('timer'),
+          clientId: client.id,
+          clientName: client.name,
+          note: `交車後 ${n} 天售後回訪`,
+          triggerAt: dayjs().add(n, 'day').hour(9).minute(0).second(0).toISOString(),
+          confirmedAt: null,
+        });
+      }
+    }
+
+    await updateClient(client.id, (c) => ({
+      ...c,
+      lastContact: t,
+      missedCalls: 0,
+      log: [...(c.log || []), entry],
+      ...(isDelivery ? { nextDate: addDays(t, DELIVERY_FOLLOWUP_DAYS[0]) } : {}),
+    }));
+    setEventType(null);
+    setEventNote('');
+    setEventAmount('');
+  }
+
+  // ── 即將簽約：置頂 / 重點備註 / 簽約前待辦 ─────────────────────────────────
+  async function togglePinned() {
+    await updateClient(client.id, (c) => ({ ...c, pinned: !c.pinned }));
+  }
+
+  async function saveSigningNote() {
+    if ((client.signingNote || '') !== signingNote) {
+      await updateClient(client.id, (c) => ({ ...c, signingNote }));
+    }
+  }
+
+  async function addTodo() {
+    const text = todoInput.trim();
+    if (!text) return;
+    await updateClient(client.id, (c) => ({
+      ...c,
+      todos: [...(c.todos || []), { id: generateId('todo'), text, done: false }],
+    }));
+    setTodoInput('');
+  }
+
+  async function toggleTodo(id) {
+    await updateClient(client.id, (c) => ({
+      ...c,
+      todos: (c.todos || []).map((td) => td.id === id ? { ...td, done: !td.done } : td),
+    }));
+  }
+
+  async function removeTodo(id) {
+    await updateClient(client.id, (c) => ({
+      ...c,
+      todos: (c.todos || []).filter((td) => td.id !== id),
+    }));
   }
 
   async function handleAddTimer() {
@@ -94,6 +174,13 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
           <p className="text-xs" style={{ color: STATUS_COLOR[status] }}>{STATUS_LABEL[status]}</p>
         </div>
         <div className="flex gap-1.5">
+          <button
+            onClick={togglePinned}
+            title={client.pinned ? '取消置頂' : '置頂（即將簽約）'}
+            className={`btn text-xs ${client.pinned ? 'bg-accent/15 text-accent' : 'btn-outline'}`}
+          >
+            📌{client.pinned ? '已置頂' : ''}
+          </button>
           {editing ? (
             <>
               <button onClick={handleSave} className="btn-primary text-xs">儲存</button>
@@ -243,6 +330,102 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
           )}
         </section>
 
+        {/* 業務流程事件 */}
+        <section className="card p-4 space-y-3">
+          <h3 className="font-semibold text-sm text-ink-2">🚛 業務進度記錄</h3>
+          <div className="flex gap-1.5 flex-wrap">
+            {QUICK_EVENT_KEYS.map((key) => {
+              const def = EVENT_TYPES[key];
+              const active = eventType === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => { setEventType(active ? null : key); setEventNote(''); setEventAmount(''); }}
+                  className={`btn text-xs px-2 py-1 border ${active ? 'text-white' : ''}`}
+                  style={active
+                    ? { background: def.color, borderColor: def.color }
+                    : { borderColor: def.color + '60', color: def.color }}
+                >
+                  {def.icon} {def.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {eventType && (
+            <div className="space-y-2 bg-s2 rounded-lg p-3 anim-fade-in">
+              <textarea
+                value={eventNote}
+                onChange={(e) => setEventNote(e.target.value)}
+                placeholder={`${EVENT_TYPES[eventType].label}內容（車型、條件、結果…）`}
+                rows={2}
+                className="w-full resize-none text-sm"
+              />
+              {EVENT_TYPES[eventType].hasAmount && (
+                <input
+                  type="number"
+                  value={eventAmount}
+                  onChange={(e) => setEventAmount(e.target.value)}
+                  placeholder="金額（元，選填）"
+                  className="w-full text-sm"
+                />
+              )}
+              {eventType === 'delivery' && (
+                <p className="text-xs text-ink-3">
+                  🔔 記錄交車後會自動建立 {DELIVERY_FOLLOWUP_DAYS.join(' / ')} 天售後回訪提醒
+                </p>
+              )}
+              <button onClick={handleAddEvent} className="btn-primary text-xs w-full">
+                {EVENT_TYPES[eventType].icon} 記錄「{EVENT_TYPES[eventType].label}」
+              </button>
+            </div>
+          )}
+        </section>
+
+        {/* 即將簽約：重點備註 + 簽約前待辦 */}
+        {client.pinned && (
+          <section className="card p-4 space-y-3 border-accent/40">
+            <h3 className="font-semibold text-sm text-accent">📌 即將簽約</h3>
+            <textarea
+              value={signingNote}
+              onChange={(e) => setSigningNote(e.target.value)}
+              onBlur={saveSigningNote}
+              placeholder="重點備註（價格底線、關鍵條件、注意事項…）"
+              rows={2}
+              className="w-full resize-none text-sm"
+            />
+            <div>
+              <p className="text-xs font-medium text-ink-2 mb-1.5">
+                簽約前待辦
+                {(client.todos || []).length > 0 && (
+                  <span className="text-ink-3 font-normal ml-1">
+                    （{(client.todos || []).filter((td) => td.done).length}/{(client.todos || []).length}）
+                  </span>
+                )}
+              </p>
+              <div className="space-y-1">
+                {(client.todos || []).map((td) => (
+                  <div key={td.id} className="flex items-center gap-2 text-sm group">
+                    <input type="checkbox" checked={td.done} onChange={() => toggleTodo(td.id)} className="shrink-0" />
+                    <span className={`flex-1 ${td.done ? 'line-through text-ink-3' : 'text-ink-2'}`}>{td.text}</span>
+                    <button onClick={() => removeTodo(td.id)} className="text-danger/40 hover:text-danger text-xs">✕</button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-2">
+                <input
+                  value={todoInput}
+                  onChange={(e) => setTodoInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') addTodo(); }}
+                  placeholder="新增待辦（保險、車貸文件…）"
+                  className="flex-1 text-sm"
+                />
+                <button onClick={addTodo} className="btn-outline text-xs">加入</button>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Timer section */}
         <section className="card p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -282,22 +465,38 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
           ))}
         </section>
 
-        {/* Contact log */}
+        {/* 互動時間軸 */}
         {(client.log || []).length > 0 && (
           <section className="card p-4">
-            <h3 className="font-semibold text-sm text-ink-2 mb-3">聯繫記錄</h3>
-            <div className="space-y-2">
-              {[...(client.log || [])].reverse().slice(0, 20).map((entry) => (
-                <div key={entry.id} className="flex items-start gap-2 text-sm">
-                  <span className={`text-xs mt-0.5 shrink-0 ${entry.type === 'missed' ? 'text-danger' : 'text-ok'}`}>
-                    {entry.type === 'missed' ? '📵' : '✅'}
-                  </span>
-                  <div>
-                    <p className="text-ink-2">{entry.text}</p>
-                    <p className="text-[10px] text-ink-3">{formatDateFull(entry.date)}</p>
+            <h3 className="font-semibold text-sm text-ink-2 mb-3">📜 互動時間軸</h3>
+            <div className="space-y-0">
+              {[...(client.log || [])].reverse().slice(0, 50).map((entry, idx, arr) => {
+                const def = EVENT_TYPES[entry.type] || EVENT_TYPES.contact;
+                return (
+                  <div key={entry.id} className="flex gap-3 text-sm relative">
+                    {/* Timeline rail */}
+                    <div className="flex flex-col items-center shrink-0 w-6">
+                      <span className="text-sm leading-none mt-0.5">{def.icon}</span>
+                      {idx < arr.length - 1 && <div className="w-px flex-1 bg-bdr my-1" />}
+                    </div>
+                    <div className="pb-3 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                          style={{ background: def.color + '18', color: def.color }}>
+                          {def.label}
+                        </span>
+                        <span className="text-[10px] text-ink-3">{formatDateFull(entry.date)}</span>
+                        {entry.amount > 0 && (
+                          <span className="text-[10px] font-semibold text-accent">
+                            NT$ {entry.amount.toLocaleString('zh-TW')}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-ink-2 mt-0.5 whitespace-pre-wrap break-words">{entry.text}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}

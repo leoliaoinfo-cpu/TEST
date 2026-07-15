@@ -42,7 +42,7 @@ function useVirtualList(items, containerRef, itemHeight = ITEM_HEIGHT) {
   return { visibleItems, totalHeight, offsetY };
 }
 
-export default function CrmPage() {
+export default function CrmPage({ focusId, onFocusConsumed }) {
   const { clients, cats, stages, saveClient, deleteClient } = useApp();
   const [filter, setFilter] = useState('all');
   const [sortKey, setSortKey] = useState('createdAt');
@@ -51,6 +51,14 @@ export default function CrmPage() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
   const listRef = useRef(null);
+
+  // 從「今日工作」頁跳轉過來時，直接打開指定客戶
+  useEffect(() => {
+    if (focusId) {
+      setSelectedId(focusId);
+      onFocusConsumed?.();
+    }
+  }, [focusId, onFocusConsumed]);
 
   const filteredSorted = useMemo(() => {
     let list = clients.filter((c) => clientMatchesFilter(c, filter, cats, stages));
@@ -147,7 +155,7 @@ export default function CrmPage() {
           {/* Categories */}
           <div>
             <p className="section-title">客戶分類</p>
-            {cats.sort((a, b) => a.order - b.order).map((cat, idx) => (
+            {[...cats].sort((a, b) => a.order - b.order).map((cat) => (
               <SidebarItem key={cat.id} active={filter === `cat:${cat.id}`}
                 color={CAT_COLORS[cat.colorIdx % CAT_COLORS.length]}
                 label={cat.name} count={catCounts[cat.id] || 0}
@@ -158,7 +166,7 @@ export default function CrmPage() {
           {/* Stages */}
           <div>
             <p className="section-title">業務進度</p>
-            {stages.sort((a, b) => a.order - b.order).map((stage) => (
+            {[...stages].sort((a, b) => a.order - b.order).map((stage) => (
               <SidebarItem key={stage.id} active={filter === `stage:${stage.id}`}
                 color={CAT_COLORS[stage.colorIdx % CAT_COLORS.length]}
                 label={stage.name} count={stageCounts[stage.id] || 0}
@@ -223,6 +231,7 @@ export default function CrmPage() {
           {selectedClient && (
             <div className="flex-1 border-l border-bdr overflow-y-auto">
               <ClientDetail
+                key={selectedClient.id}
                 client={selectedClient}
                 cats={cats}
                 stages={stages}

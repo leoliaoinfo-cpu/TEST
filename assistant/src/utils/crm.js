@@ -96,3 +96,22 @@ export const FIELD_COLOR_NAMES = [
 export function generateId(prefix = 'id') {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
+
+// ── 業務流程事件（客戶時間軸）────────────────────────────────────────────────
+export const EVENT_TYPES = {
+  contact:   { icon: '✅', label: '已聯繫',   color: '#2a8a50' },
+  missed:    { icon: '📵', label: '未接',     color: '#c03030' },
+  line:      { icon: '💬', label: 'LINE 摘要', color: '#2080a0' },
+  quote:     { icon: '💲', label: '報價',     color: '#c9670a', hasAmount: true },
+  visit:     { icon: '🚚', label: '看車試乘', color: '#1a60a8' },
+  loan:      { icon: '🏦', label: '貸款補件', color: '#9030a0' },
+  order:     { icon: '📝', label: '下訂',     color: '#e04000', hasAmount: true },
+  delivery:  { icon: '🔑', label: '交車',     color: '#2a8a50' },
+  aftercare: { icon: '🤝', label: '售後回訪', color: '#808020' },
+};
+
+/** 客戶詳情頁快速記錄事件的按鈕順序（已聯繫/未接另有專屬按鈕） */
+export const QUICK_EVENT_KEYS = ['line', 'quote', 'visit', 'loan', 'order', 'delivery', 'aftercare'];
+
+/** 交車後自動建立的售後回訪天數 */
+export const DELIVERY_FOLLOWUP_DAYS = [3, 7, 30];

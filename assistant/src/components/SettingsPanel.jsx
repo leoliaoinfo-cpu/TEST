@@ -4,8 +4,11 @@ import { useApp } from '../context';
 import { CAT_COLORS, FIELD_COLORS, FIELD_COLOR_NAMES, generateId } from '../utils/crm';
 
 const HELP_CARDS = [
+  { icon: '☀️', title: '今日工作', desc: '一眼看完今日/逾期追蹤、到期提醒與即將簽約客戶，點擊可直接開啟客戶。' },
   { icon: '📓', title: '工作日誌', desc: '每日追蹤開發、提案進度，記錄接通/未接數量，計算成交業績。' },
   { icon: '👥', title: '客戶追蹤 CRM', desc: '管理所有客戶聯繫狀態、分類、意願度與追蹤日期。' },
+  { icon: '🚛', title: '業務進度記錄', desc: '在客戶詳情記錄 LINE 摘要、報價、看車試乘、貸款補件、下訂、交車、售後回訪；記錄交車會自動建立 3/7/30 天回訪提醒。' },
+  { icon: '📌', title: '即將簽約', desc: '置頂重點客戶，可寫重點備註並管理簽約前待辦清單。' },
   { icon: '💡', title: '客戶狀態', desc: '🟢追蹤中 / 🟡待聯繫（到期）/ 🟠逾半年 / 🔴逾一年。' },
   { icon: '⏰', title: '計時提醒', desc: '可在客戶詳情頁設定提醒，到期後強制彈出 Modal 確認。' },
   { icon: '💰', title: '薪資計算', desc: '輸入當月成交案件，自動依公式計算底薪、各項獎金與總薪資。' },
@@ -24,11 +27,50 @@ const SECTION_LABELS = {
   help: '📖 使用說明',
 };
 
+// 檢查備份格式並產生摘要；格式不對會 throw
+function summarizeBackup(data) {
+  if (data == null || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('無法辨識的備份格式');
+  }
+  if (data._v === 1) {
+    if (!data.crm && !data.jnl && !data.sal) throw new Error('舊版備份缺少 crm / jnl / sal 資料');
+    return {
+      version: 'v1（舊版）',
+      clients: data.crm?.clients?.length ?? 0,
+      journal: Array.isArray(data.jnl) ? data.jnl.length : Object.keys(data.jnl || {}).length,
+      salary: Array.isArray(data.sal) ? data.sal.length : Object.keys(data.sal || {}).length,
+      timers: 0,
+    };
+  }
+  if (data._v === 2 && Array.isArray(data.clients)) {
+    return {
+      version: 'v2',
+      exportedAt: data.exportedAt,
+      clients: data.clients.length,
+      journal: (data.journalEntries || []).length + (data.archivedJournal || []).length,
+      salary: (data.salaryMonths || []).length,
+      timers: (data.timers || []).length,
+    };
+  }
+  throw new Error('無法辨識的備份格式（僅支援本系統匯出的 JSON）');
+}
+
+function downloadJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function SettingsPanel({ onClose }) {
   const { cats, stages, customFields, saveCats, saveStages, saveCustomFields, reloadAll } = useApp();
   const [activeSection, setActiveSection] = useState('backup');
   const [status, setStatus] = useState('');
   const [archiveStatus, setArchiveStatus] = useState('');
+  const [pendingImport, setPendingImport] = useState(null); // { data, summary }
   const fileRef = useRef(null);
   const legacyRef = useRef(null);
 
@@ -36,33 +78,45 @@ export default function SettingsPanel({ onClose }) {
   async function handleExport() {
     try {
       const data = await db.exportAll();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `business-assistant-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadJSON(data, `business-assistant-backup-${new Date().toISOString().slice(0, 10)}.json`);
       setStatus('✅ 備份下載成功');
     } catch (e) {
       setStatus('❌ 備份失敗：' + e.message);
     }
   }
 
+  // 第一步：選檔後只檢查格式、顯示摘要，等使用者確認
   async function handleImport(e) {
     const file = e.target.files[0];
     if (!file) return;
     try {
       const text = await file.text();
       const data = JSON.parse(text);
+      const summary = summarizeBackup(data);
+      setPendingImport({ data, summary });
+      setStatus('');
+    } catch (err) {
+      setPendingImport(null);
+      setStatus('❌ 無法讀取備份：' + err.message);
+    }
+    e.target.value = '';
+  }
+
+  // 第二步：確認後先自動下載目前資料備份，再覆蓋還原
+  async function confirmImport() {
+    if (!pendingImport) return;
+    try {
+      const current = await db.exportAll();
+      downloadJSON(current, `pre-restore-backup-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`);
+      const { data } = pendingImport;
       if (data._v === 1) await db.importLegacy(data);
       else await db.importAll(data);
       await reloadAll();
-      setStatus('✅ 還原成功，已重新載入資料');
+      setPendingImport(null);
+      setStatus('✅ 還原成功，已重新載入資料（原資料已自動下載備份）');
     } catch (err) {
       setStatus('❌ 還原失敗：' + err.message);
     }
-    e.target.value = '';
   }
 
   async function handleLegacyImport(e) {
@@ -128,7 +182,27 @@ export default function SettingsPanel({ onClose }) {
                   <button onClick={() => fileRef.current?.click()} className="btn-outline">⬆️ 上傳還原</button>
                   <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
                 </div>
-                <p className="text-xs text-ink-3">還原會覆蓋現有所有資料，請先下載備份。</p>
+                <p className="text-xs text-ink-3">還原前會自動下載目前資料的備份，再覆蓋現有所有資料。</p>
+                {pendingImport && (
+                  <div className="bg-s2 border border-accent/30 rounded-lg p-3 space-y-2">
+                    <p className="text-sm font-medium text-ink">確認還原這份備份？</p>
+                    <ul className="text-xs text-ink-2 space-y-0.5">
+                      <li>格式：{pendingImport.summary.version}</li>
+                      {pendingImport.summary.exportedAt && (
+                        <li>匯出時間：{pendingImport.summary.exportedAt.slice(0, 16).replace('T', ' ')}</li>
+                      )}
+                      <li>客戶：{pendingImport.summary.clients} 筆</li>
+                      <li>日誌：{pendingImport.summary.journal} 筆</li>
+                      <li>薪資月份：{pendingImport.summary.salary} 筆</li>
+                      <li>提醒：{pendingImport.summary.timers} 筆</li>
+                    </ul>
+                    <p className="text-xs text-danger">⚠️ 還原會完整覆蓋目前資料（會先自動下載目前資料備份）</p>
+                    <div className="flex gap-2">
+                      <button onClick={confirmImport} className="btn-danger text-xs flex-1">確認還原</button>
+                      <button onClick={() => setPendingImport(null)} className="btn-outline text-xs flex-1">取消</button>
+                    </div>
+                  </div>
+                )}
                 {status && <p className="text-sm text-ink-2 bg-s2 rounded-lg px-3 py-2">{status}</p>}
               </div>
               <div className="card p-4 space-y-3">
@@ -194,7 +268,7 @@ export default function SettingsPanel({ onClose }) {
                   </div>
                 </div>
               ))}
-              <p className="text-center text-xs text-ink-3 py-2">業務助理 v2.0 • 純單機版</p>
+              <p className="text-center text-xs text-ink-3 py-2">卡旺業務助理 v2.1 • 純單機版</p>
             </div>
           )}
         </div>
@@ -221,7 +295,7 @@ function ListEditor({ title, items, colors, colorCount, onChange }) {
   }
 
   function moveItem(id, dir) {
-    const list = [...sorted];
+    const list = sorted.map((it) => ({ ...it }));
     const idx = list.findIndex((it) => it.id === id);
     const swapIdx = idx + dir;
     if (swapIdx < 0 || swapIdx >= list.length) return;

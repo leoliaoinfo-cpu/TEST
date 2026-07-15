@@ -1,0 +1,51 @@
+---
+name: verify
+description: Build, run, and drive the 卡旺業務助理 app (assistant/) end-to-end to verify changes.
+---
+
+# Verifying the assistant/ app
+
+## Build & serve
+
+```bash
+cd assistant
+npm ci            # Node 20+
+npm run build     # single-file dist/index.html (must run INSIDE assistant/, root has no package.json)
+npm run preview -- --port 4173 &   # serves dist/ — closest to GitHub Pages production
+```
+
+## Drive with Playwright
+
+Chromium executable (remote env): `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`
+(NOT `/opt/pw-browsers/chromium/chrome`). Install `playwright-core` in a scratch dir.
+
+Wipe state for a clean run:
+
+```js
+await page.evaluate(() => new Promise((res) => {
+  const r = indexedDB.deleteDatabase('business_assistant_v2');
+  r.onsuccess = r.onerror = r.onblocked = () => res();
+}));
+await page.reload();
+```
+
+## Flows worth driving
+
+- Today page is the default tab; empty state shows 「今天沒有待辦事項」.
+- CRM: 新增 client → detail → 業務進度記錄 quick-event buttons (報價 has amount field);
+  記錄「交車」 must create 3 timers (floating `⏱ 3` button) and set nextDate +3 days.
+- Pin (📌 button in detail header) → 即將簽約 section (note + todos) → shows on Today page.
+- Settings → 備份還原: upload garbage JSON → 「無法讀取備份」; upload real export →
+  summary confirm card, confirming triggers a `pre-restore-backup-*.json` download first.
+- Reload page → data persists (IndexedDB).
+
+## Gotchas
+
+- Text 「逾期追蹤」 matches both the stat tile (always present) and the section title —
+  assert on `⚠️ 逾期追蹤` for the section.
+- Checkboxes are controlled inputs updated after an async save — use `.click()` +
+  wait for the count text, not Playwright `.check()`.
+- Console shows ERR_CONNECTION_RESET for fonts.googleapis.com (sandbox proxy) and a
+  favicon 404 — environment noise, not app errors.
+- 記錄「交車」 overwrites nextDate to +3 days — if a test needs an overdue client,
+  don't record delivery on that client.

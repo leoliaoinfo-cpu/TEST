@@ -1,4 +1,7 @@
 import dayjs from 'dayjs';
+import 'dayjs/locale/zh-tw';
+
+dayjs.locale('zh-tw');
 
 export function today() {
   return dayjs().format('YYYY-MM-DD');
