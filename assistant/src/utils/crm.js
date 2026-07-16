@@ -162,6 +162,37 @@ export function getOccasionsOnDate(clients, customFields, dateStr) {
   return out;
 }
 
+// ── 商用車報價：車體配備 / 補助折抵預設選單（設定可編輯）與貸款試算 ─────────
+export const DEFAULT_QUOTE_PRESETS = {
+  addons: [
+    { id: 'qa-1', name: '框式車斗', price: 60000 },
+    { id: 'qa-2', name: '篷式車斗', price: 90000 },
+    { id: 'qa-3', name: '冷凍廂', price: 250000 },
+    { id: 'qa-4', name: '升降尾門', price: 65000 },
+    { id: 'qa-5', name: '貨斗加高', price: 25000 },
+  ],
+  subsidies: [
+    { id: 'qs-1', name: '汰舊換新補助', amount: 50000 },
+    { id: 'qs-2', name: '貨物稅減免', amount: 50000 },
+  ],
+};
+
+/** 產業標籤建議（決定推什麼車斗） */
+export const INDUSTRY_SUGGESTIONS = [
+  '水電', '市場攤商', '物流貨運', '營造工程', '資源回收', '餐飲', '農牧', '園藝造景',
+];
+
+/** 本息平均攤還月付金；annualRate 為年利率 %（0 = 無息分期） */
+export function calcMonthlyPayment(principal, annualRate, months) {
+  const p = Number(principal) || 0;
+  const n = Math.round(Number(months)) || 0;
+  if (p <= 0 || n <= 0) return 0;
+  const r = (Number(annualRate) || 0) / 100 / 12;
+  if (r <= 0) return Math.round(p / n);
+  const f = Math.pow(1 + r, n);
+  return Math.round((p * r * f) / (f - 1));
+}
+
 /** 業績表金額加總 */
 export function sumDeals(deals, dealFields) {
   const totals = { count: deals.length, amount: 0, fields: {} };

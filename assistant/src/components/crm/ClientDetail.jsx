@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   getClientStatus, STATUS_COLOR, STATUS_LABEL, CAT_COLORS, FIELD_COLORS, generateId,
-  EVENT_TYPES, QUICK_EVENT_KEYS, DELIVERY_FOLLOWUP_DAYS, formatMoney,
+  EVENT_TYPES, QUICK_EVENT_KEYS, DELIVERY_FOLLOWUP_DAYS, formatMoney, INDUSTRY_SUGGESTIONS,
 } from '../../utils/crm';
 import { today, formatDateFull, addDays, QUICK_DATES } from '../../utils/date';
 import { useApp } from '../../context';
@@ -14,7 +14,7 @@ const INTENT_COLORS = ['#8a919b', '#9a9a6f', '#6f9a9c', '#7d9b76', '#bf8a5e'];
 
 export default function ClientDetail({ client, cats, stages, onClose, onSave, onDelete }) {
   const {
-    customFields, saveTimer, timers, updateClient, thresholds,
+    clients, customFields, saveTimer, timers, updateClient, thresholds,
     deals, dealFields, saveDeal, todoTemplate,
   } = useApp();
   const [editing, setEditing] = useState(false);
@@ -27,10 +27,11 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
   const [eventType, setEventType] = useState(null);
   const [eventNote, setEventNote] = useState('');
   const [eventAmount, setEventAmount] = useState('');
-  // 交車年度商機提醒（保險續保 / 驗車），日期可調，預設 11 個月後（到期前一個月）
+  // 交車年度商機提醒（保險續保 / 驗車 / 舊換新預測），日期可調
   const [annualReminders, setAnnualReminders] = useState({
     insurance: { on: true, date: '' },
     inspection: { on: true, date: '' },
+    replace: { on: true, date: '' },
   });
   const [signingNote, setSigningNote] = useState(client.signingNote || '');
   const [todoInput, setTodoInput] = useState('');
@@ -43,6 +44,10 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
   const clientDeals = deals
     .filter((d) => d.clientId === client.id)
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  // 轉介紹：介紹人與此客戶介紹出去的名單
+  const referrer = client.referrerId ? clients.find((c) => c.id === client.referrerId) : null;
+  const referredClients = clients.filter((c) => c.referrerId === client.id);
 
   const status = getClientStatus(client, thresholds);
   const cat = cats.find((c) => c.id === client.catId);
@@ -127,6 +132,7 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
       const annualDefs = [
         { key: 'insurance', note: '保險續保回訪（交車滿一年）' },
         { key: 'inspection', note: '驗車到期回訪' },
+        { key: 'replace', note: '舊換新評估（車齡近 5 年，談換車）' },
       ];
       for (const def2 of annualDefs) {
         const r = annual[def2.key];
@@ -194,7 +200,10 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
     await updateClient(client.id, (c) => {
       const quotes = [...(c.quotes || [])];
       const idx = quotes.findIndex((x) => x.id === q.id);
-      const record = { id: q.id, date: q.date, model: q.model, items: q.items, note: q.note, total: q.total };
+      const record = {
+        id: q.id, date: q.date, model: q.model, items: q.items,
+        note: q.note, total: q.total, loan: q.loan,
+      };
       if (idx === -1) quotes.push(record);
       else quotes[idx] = record;
       let log = c.log || [];
@@ -358,12 +367,68 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
           <h3 className="font-semibold text-sm text-ink-2">基本資料</h3>
           {editing ? (
             <div className="space-y-2">
-              <input value={form.name || ''} onChange={(e) => setField('name', e.target.value)} placeholder="姓名" className="w-full" />
+              <input value={form.name || ''} onChange={(e) => setField('name', e.target.value)} placeholder="姓名 / 公司名" className="w-full" />
+              <div className="grid grid-cols-2 gap-2">
+                <select value={form.clientType || 'personal'} onChange={(e) => setField('clientType', e.target.value)} className="w-full">
+                  <option value="personal">個人戶</option>
+                  <option value="company">公司戶</option>
+                </select>
+                {form.clientType === 'company' ? (
+                  <input value={form.taxId || ''} onChange={(e) => setField('taxId', e.target.value)} placeholder="統編" className="w-full" />
+                ) : <span />}
+              </div>
+              <input
+                list="industry-options"
+                value={form.industry || ''}
+                onChange={(e) => setField('industry', e.target.value)}
+                placeholder="產業（水電、物流、市場…決定推什麼車斗）"
+                className="w-full"
+              />
+              <datalist id="industry-options">
+                {INDUSTRY_SUGGESTIONS.map((s) => <option key={s} value={s} />)}
+              </datalist>
               <input value={form.phone || ''} onChange={(e) => setField('phone', e.target.value)} placeholder="電話" className="w-full" />
               <input value={form.lineId || ''} onChange={(e) => setField('lineId', e.target.value)} placeholder="LINE ID" className="w-full" />
               <input value={form.email || ''} onChange={(e) => setField('email', e.target.value)} placeholder="Email" className="w-full" />
               <input value={form.address || ''} onChange={(e) => setField('address', e.target.value)} placeholder="地址（公司/交車地點）" className="w-full" />
               <input value={form.source || ''} onChange={(e) => setField('source', e.target.value)} placeholder="來源（FB、路過、轉介紹…）" className="w-full" />
+
+              {/* 多聯絡人：老闆 / 採購 / 司機分開存 */}
+              <div className="space-y-1.5">
+                <p className="text-xs text-ink-3">聯絡人（老闆/採購/司機…）</p>
+                {(form.contacts || []).map((ct) => (
+                  <div key={ct.id} className="flex gap-1.5">
+                    <input value={ct.role} placeholder="角色"
+                      onChange={(e) => setField('contacts', form.contacts.map((x) => x.id === ct.id ? { ...x, role: e.target.value } : x))}
+                      className="w-16 shrink-0 text-sm" />
+                    <input value={ct.name} placeholder="姓名"
+                      onChange={(e) => setField('contacts', form.contacts.map((x) => x.id === ct.id ? { ...x, name: e.target.value } : x))}
+                      className="w-20 text-sm" />
+                    <input value={ct.phone} placeholder="電話"
+                      onChange={(e) => setField('contacts', form.contacts.map((x) => x.id === ct.id ? { ...x, phone: e.target.value } : x))}
+                      className="flex-1 min-w-0 text-sm" />
+                    <button type="button"
+                      onClick={() => setField('contacts', form.contacts.filter((x) => x.id !== ct.id))}
+                      className="text-danger/50 hover:text-danger shrink-0">✕</button>
+                  </div>
+                ))}
+                <button type="button"
+                  onClick={() => setField('contacts', [...(form.contacts || []), { id: generateId('ct'), role: '', name: '', phone: '' }])}
+                  className="btn-outline text-xs">＋ 聯絡人</button>
+              </div>
+
+              {/* 轉介紹 */}
+              <div className="grid grid-cols-2 gap-2">
+                <select value={form.referrerId || ''} onChange={(e) => setField('referrerId', e.target.value || null)} className="w-full">
+                  <option value="">無介紹人</option>
+                  {clients.filter((c) => c.id !== client.id).map((c) => (
+                    <option key={c.id} value={c.id}>介紹人：{c.name}</option>
+                  ))}
+                </select>
+                <input type="number" min="0" value={form.referralFee ?? ''}
+                  onChange={(e) => setField('referralFee', e.target.value === '' ? null : Number(e.target.value))}
+                  placeholder="介紹金（元）" className="w-full" />
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <select value={form.catId || ''} onChange={(e) => setField('catId', e.target.value)} className="w-full">
                   {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -379,6 +444,24 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
             </div>
           ) : (
             <div className="space-y-1.5 text-sm">
+              <InfoRow label="類型" value={
+                <span className="flex items-center gap-1.5 flex-wrap">
+                  <span className="badge" style={{
+                    background: (client.clientType === 'company' ? '#7291a8' : '#8a919b') + '20',
+                    color: client.clientType === 'company' ? '#7291a8' : '#8a919b',
+                  }}>
+                    {client.clientType === 'company' ? '🏢 公司戶' : '👤 個人戶'}
+                  </span>
+                  {client.clientType === 'company' && client.taxId && (
+                    <span className="text-ink-3 text-xs">統編 {client.taxId}</span>
+                  )}
+                  {client.industry && (
+                    <span className="badge" style={{ background: '#9a9a6f20', color: '#9a9a6f' }}>
+                      {client.industry}
+                    </span>
+                  )}
+                </span>
+              } />
               <InfoRow label="電話" value={
                 client.phone
                   ? <a href={`tel:${client.phone}`} className="text-accent underline">{client.phone}</a>
@@ -395,6 +478,38 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
                   : '—'
               } />
               <InfoRow label="來源" value={client.source || '—'} />
+              {(client.contacts || []).length > 0 && (
+                <InfoRow label="聯絡人" value={
+                  <span className="space-y-0.5 block">
+                    {client.contacts.map((ct) => (
+                      <span key={ct.id} className="block">
+                        {ct.role && <span className="text-ink-3 text-xs mr-1">[{ct.role}]</span>}
+                        {ct.name}
+                        {ct.phone && (
+                          <a href={`tel:${ct.phone}`} className="text-accent underline ml-1.5 text-xs">{ct.phone}</a>
+                        )}
+                      </span>
+                    ))}
+                  </span>
+                } />
+              )}
+              {(referrer || client.referralFee > 0) && (
+                <InfoRow label="轉介紹" value={
+                  <span>
+                    {referrer ? `由 ${referrer.name} 介紹` : '—'}
+                    {client.referralFee > 0 && (
+                      <span className="text-accent font-medium ml-1.5">介紹金 NT$ {formatMoney(client.referralFee)}</span>
+                    )}
+                  </span>
+                } />
+              )}
+              {referredClients.length > 0 && (
+                <InfoRow label="介紹名單" value={
+                  <span className="text-ink-2">
+                    介紹了 {referredClients.length} 位：{referredClients.map((c) => c.name).join('、')}
+                  </span>
+                } />
+              )}
               <InfoRow label="分類" value={cat ? (
                 <span className="badge" style={{ background: CAT_COLORS[cat.colorIdx % 7] + '20', color: CAT_COLORS[cat.colorIdx % 7] }}>
                   {cat.name}
@@ -494,9 +609,12 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
                     setEventAmount('');
                     if (key === 'delivery' && !active) {
                       const in11mo = dayjs().add(11, 'month').format('YYYY-MM-DD');
+                      // 舊換新預測：車齡近 5 年前半年進場談換車
+                      const in54mo = dayjs().add(54, 'month').format('YYYY-MM-DD');
                       setAnnualReminders({
                         insurance: { on: true, date: in11mo },
                         inspection: { on: true, date: in11mo },
+                        replace: { on: true, date: in54mo },
                       });
                     }
                   }}
@@ -538,6 +656,7 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
                   {[
                     { key: 'insurance', label: '🛡 保險續保' },
                     { key: 'inspection', label: '🔧 驗車到期' },
+                    { key: 'replace', label: '🔄 舊換新評估' },
                   ].map(({ key, label }) => (
                     <label key={key} className="flex items-center gap-2 text-xs text-ink-2">
                       <input

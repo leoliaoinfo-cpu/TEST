@@ -37,8 +37,14 @@ await page.reload();
   in index.css; dark body bg = rgb(23,28,33), light = rgb(236,240,243));
   localStorage key `theme` ('dark'|'light'), toggle button in settings header.
   Wipe localStorage 'theme' for a deterministic theme test.
-- 記錄「交車」 creates 5 timers by default: 3/7/30-day aftercare + 2 adjustable annual
-  reminders (保險續保/驗車, prefilled +11 months, each can be unchecked).
+- 記錄「交車」 creates 6 timers by default: 3/7/30-day aftercare + 3 adjustable annual
+  reminders (保險續保/驗車 +11 months, 舊換新評估 +54 months; each can be unchecked).
+- New-client modal name placeholder is 「姓名 / 公司名 *」 — match with
+  `input[placeholder*="姓名"]`. Clients have clientType/taxId/industry/contacts[]/
+  referrerId/referralFee; search also matches industry, taxId, contact name/phone.
+- Quote generator has preset chips (addons + negative subsidies, editable at
+  設定 → 🚚 報價選單) and a loan block (down/months/rate/monthly-revenue →
+  月付 + 每月淨賺 shown on the sheet). quote.loan persists — check edit mode keeps it.
 - Date-type custom fields support recurrence (每年/一次性/連續N年) — occurrences show
   grouped-by-field on Today and as 🎉 events on the calendar.
 - 報價單產生器: client detail → 「＋ 建立報價單」; quotes are saved on client.quotes

@@ -8,7 +8,8 @@ const HELP_CARDS = [
   { icon: '📅', title: '行事曆', desc: '月曆總覽追蹤、提醒與成交事件；點日期看當天清單，點事件直接跳到該客戶。' },
   { icon: '🌙', title: '莫蘭迪主題', desc: '低彩度藍灰色調，預設深色，可在設定右上角切換深/淺色，選擇會記在此裝置。' },
   { icon: '🎉', title: '紀念日提醒', desc: '日期型自訂欄位可設每年/一次性/連續N年提醒，到期出現在今日工作（依欄位分組）與行事曆。' },
-  { icon: '🧾', title: '報價單產生器', desc: '客戶詳情「建立報價單」填車型與項目，產生可截圖的報價單並記錄事件；存檔後可隨時編輯。' },
+  { icon: '🧾', title: '商用車報價器', desc: '一鍵帶入車體配備與補助折抵（選單可自訂），貸款試算月付金並對比每月營收算出淨賺；存檔後可隨時編輯。' },
+  { icon: '🏢', title: '公司戶/轉介紹', desc: '客戶分個人/公司戶（統編）、產業標籤、多聯絡人；轉介紹記錄誰介紹誰與介紹金。' },
   { icon: '📋', title: '中央待辦', desc: '今日工作頁直接新增/勾銷雜事待辦；各客戶簽約前待辦也集中在「客戶待辦」區逐一處理。範本可在「待辦範本」編輯。' },
   { icon: '📊', title: '本日成果', desc: '自動統計今天記錄的聯繫、報價、試乘、下訂、交車數量與金額，不需手動填寫日報。' },
   { icon: '👥', title: '客戶追蹤 CRM', desc: '管理所有客戶聯繫狀態、分類、意願度與追蹤日期。' },
@@ -21,7 +22,7 @@ const HELP_CARDS = [
   { icon: '📦', title: '舊版資料匯入', desc: '支援匯入舊版格式 { _v:1, crm, jnl, sal } 的 JSON 備份。' },
 ];
 
-const SECTION_KEYS = ['backup', 'cats', 'stages', 'fields', 'dealFields', 'template', 'rules', 'help'];
+const SECTION_KEYS = ['backup', 'cats', 'stages', 'fields', 'dealFields', 'template', 'quoteMenu', 'rules', 'help'];
 const SECTION_LABELS = {
   backup: '💾 備份還原',
   cats: '🏷 客戶分類',
@@ -29,6 +30,7 @@ const SECTION_LABELS = {
   fields: '✏️ 自訂欄位',
   dealFields: '🏆 業績欄位',
   template: '📋 待辦範本',
+  quoteMenu: '🚚 報價選單',
   rules: '⏱ 追蹤規則',
   help: '📖 使用說明',
 };
@@ -64,9 +66,9 @@ function summarizeBackup(data) {
 
 export default function SettingsPanel({ onClose }) {
   const {
-    cats, stages, customFields, dealFields, thresholds, todoTemplate,
+    cats, stages, customFields, dealFields, thresholds, todoTemplate, quotePresets,
     saveCats, saveStages, saveCustomFields, saveDealFields, saveThresholds,
-    saveTodoTemplate, reloadAll,
+    saveTodoTemplate, saveQuotePresets, reloadAll,
   } = useApp();
   const [activeSection, setActiveSection] = useState('backup');
   const [status, setStatus] = useState('');
@@ -267,6 +269,27 @@ export default function SettingsPanel({ onClose }) {
             <TodoTemplateEditor items={todoTemplate} onChange={saveTodoTemplate} />
           )}
 
+          {/* ── Quote presets ── */}
+          {activeSection === 'quoteMenu' && (
+            <div className="space-y-5">
+              <PresetEditor
+                title="🚚 車體配備選單"
+                desc="報價單一鍵帶入的車體/配件（框式、篷式、冷凍廂、尾門…），價格可改。"
+                items={quotePresets.addons}
+                newName="新配備"
+                onChange={(addons) => saveQuotePresets({ ...quotePresets, addons })}
+              />
+              <PresetEditor
+                title="🏛 補助折抵選單"
+                desc="報價單一鍵帶入的折抵項（汰舊換新、貨物稅減免…），以負數扣抵總價。"
+                items={quotePresets.subsidies}
+                newName="新補助"
+                amountKey="amount"
+                onChange={(subsidies) => saveQuotePresets({ ...quotePresets, subsidies })}
+              />
+            </div>
+          )}
+
           {/* ── Rules ── */}
           {activeSection === 'rules' && (
             <ThresholdEditor thresholds={thresholds} onSave={saveThresholds} />
@@ -292,6 +315,48 @@ export default function SettingsPanel({ onClose }) {
         </div>
       </div>
     </>
+  );
+}
+
+// ── PresetEditor（報價選單：車體配備 / 補助折抵，名稱＋金額）──────────────────
+function PresetEditor({ title, desc, items, newName, amountKey = 'price', onChange }) {
+  function update(id, patch) {
+    onChange(items.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  }
+  function remove(id) {
+    onChange(items.filter((it) => it.id !== id));
+  }
+  function add() {
+    onChange([...items, { id: generateId('preset'), name: newName, [amountKey]: 0 }]);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-ink text-sm">{title}</h3>
+          <p className="text-xs text-ink-3 mt-0.5">{desc}</p>
+        </div>
+        <button onClick={add} className="btn-primary text-xs shrink-0">+ 新增</button>
+      </div>
+      {items.length === 0 && <p className="text-center text-ink-3 text-sm py-4">尚無項目</p>}
+      {items.map((it) => (
+        <div key={it.id} className="card p-3 flex items-center gap-2">
+          <input
+            value={it.name}
+            onChange={(e) => update(it.id, { name: e.target.value })}
+            className="flex-1 text-sm min-w-0"
+          />
+          <input
+            type="number" min="0"
+            value={it[amountKey] ?? 0}
+            onChange={(e) => update(it.id, { [amountKey]: Number(e.target.value) || 0 })}
+            className="w-28 text-sm shrink-0"
+          />
+          <button onClick={() => remove(it.id)} className="text-danger/50 hover:text-danger text-sm shrink-0">✕</button>
+        </div>
+      ))}
+    </div>
   );
 }
 

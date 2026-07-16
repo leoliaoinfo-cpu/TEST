@@ -2,7 +2,9 @@ import {
   createContext, useContext, useReducer, useEffect, useCallback, useRef, useState,
 } from 'react';
 import { db } from './db';
-import { DEFAULT_THRESHOLDS, normalizeThresholds, DEFAULT_TODO_TEMPLATE } from './utils/crm';
+import {
+  DEFAULT_THRESHOLDS, normalizeThresholds, DEFAULT_TODO_TEMPLATE, DEFAULT_QUOTE_PRESETS,
+} from './utils/crm';
 import { today } from './utils/date';
 import dayjs from 'dayjs';
 
@@ -43,6 +45,7 @@ const initialState = {
   dealFields: DEFAULT_DEAL_FIELDS,
   tasks: [],
   todoTemplate: DEFAULT_TODO_TEMPLATE,
+  quotePresets: DEFAULT_QUOTE_PRESETS,
   timers: [],
   thresholds: DEFAULT_THRESHOLDS,
 };
@@ -100,6 +103,8 @@ function reducer(state, action) {
       return { ...state, tasks: state.tasks.filter((t) => t.id !== action.id) };
     case 'SET_TODO_TEMPLATE':
       return { ...state, todoTemplate: action.payload };
+    case 'SET_QUOTE_PRESETS':
+      return { ...state, quotePresets: action.payload };
 
     // Timers
     case 'SET_TIMERS':
@@ -132,7 +137,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     async function loadAll() {
       try {
-        const [clients, cats, stages, customFields, deals, dealFields, tasks, timers, thresholdRow, templateRow] = await Promise.all([
+        const [clients, cats, stages, customFields, deals, dealFields, tasks, timers, thresholdRow, templateRow, presetsRow] = await Promise.all([
           db.getAll('clients'),
           db.getAll('cats'),
           db.getAll('stages'),
@@ -143,6 +148,7 @@ export function AppProvider({ children }) {
           db.getAll('timers'),
           db.get('settings', 'crmThresholds').catch(() => null),
           db.get('settings', 'todoTemplate').catch(() => null),
+          db.get('settings', 'quotePresets').catch(() => null),
         ]);
 
         const resolvedCats = cats.length > 0 ? cats : DEFAULT_CATS;
@@ -160,6 +166,7 @@ export function AppProvider({ children }) {
             deals, dealFields: resolvedDealFields, tasks, timers,
             thresholds: thresholdRow ? normalizeThresholds(thresholdRow) : DEFAULT_THRESHOLDS,
             todoTemplate: Array.isArray(templateRow?.items) ? templateRow.items : DEFAULT_TODO_TEMPLATE,
+            quotePresets: presetsRow?.addons ? presetsRow : DEFAULT_QUOTE_PRESETS,
           },
         });
       } catch (err) {
@@ -269,6 +276,12 @@ export function AppProvider({ children }) {
     await db.put('settings', { key: 'todoTemplate', items }).catch(() => {});
   }, []);
 
+  // ── 報價選單（車體配備 / 補助折抵，設定頁可編輯）────────────────────────
+  const saveQuotePresets = useCallback(async (presets) => {
+    dispatch({ type: 'SET_QUOTE_PRESETS', payload: presets });
+    await db.put('settings', { key: 'quotePresets', ...presets }).catch(() => {});
+  }, []);
+
   const saveThresholds = useCallback(async (t) => {
     const clean = normalizeThresholds(t);
     await db.put('settings', { key: 'crmThresholds', ...clean }).catch(() => {});
@@ -289,7 +302,7 @@ export function AppProvider({ children }) {
 
   // ── Full reload (after import) ────────────────────────────────────────────
   const reloadAll = useCallback(async () => {
-    const [clients, cats, stages, customFields, deals, dealFields, tasks, timers, thresholdRow, templateRow] = await Promise.all([
+    const [clients, cats, stages, customFields, deals, dealFields, tasks, timers, thresholdRow, templateRow, presetsRow] = await Promise.all([
       db.getAll('clients'),
       db.getAll('cats'),
       db.getAll('stages'),
@@ -300,6 +313,7 @@ export function AppProvider({ children }) {
       db.getAll('timers'),
       db.get('settings', 'crmThresholds').catch(() => null),
       db.get('settings', 'todoTemplate').catch(() => null),
+      db.get('settings', 'quotePresets').catch(() => null),
     ]);
     dispatch({
       type: 'RELOAD_ALL',
@@ -314,6 +328,7 @@ export function AppProvider({ children }) {
         timers,
         thresholds: thresholdRow ? normalizeThresholds(thresholdRow) : DEFAULT_THRESHOLDS,
         todoTemplate: Array.isArray(templateRow?.items) ? templateRow.items : DEFAULT_TODO_TEMPLATE,
+        quotePresets: presetsRow?.addons ? presetsRow : DEFAULT_QUOTE_PRESETS,
       },
     });
   }, []);
@@ -333,6 +348,7 @@ export function AppProvider({ children }) {
     saveTask,
     deleteTask,
     saveTodoTemplate,
+    saveQuotePresets,
     saveThresholds,
     saveTimer,
     deleteTimer,

@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useApp } from '../../context';
 import {
   getClientStatus, clientMatchesFilter, sortClients,
-  CAT_COLORS, STATUS_COLOR, STATUS_LABEL, generateId,
+  CAT_COLORS, STATUS_COLOR, STATUS_LABEL, generateId, INDUSTRY_SUGGESTIONS,
 } from '../../utils/crm';
 import { today, formatDate, formatDateFull, addDays, QUICK_DATES } from '../../utils/date';
 import ClientDetail from './ClientDetail';
@@ -68,7 +68,12 @@ export default function CrmPage({ focusId, onFocusConsumed }) {
         c.name?.toLowerCase().includes(q) ||
         c.phone?.toLowerCase().includes(q) ||
         c.lineId?.toLowerCase().includes(q) ||
-        c.notes?.toLowerCase().includes(q)
+        c.notes?.toLowerCase().includes(q) ||
+        c.industry?.toLowerCase().includes(q) ||
+        c.taxId?.toLowerCase().includes(q) ||
+        (c.contacts || []).some((ct) =>
+          ct.name?.toLowerCase().includes(q) || ct.phone?.toLowerCase().includes(q)
+        )
       );
     }
     return sortClients(list, sortKey);
@@ -314,6 +319,12 @@ function ClientRow({ client, cats, stages, selected, onClick }) {
               {cat.name}
             </span>
           )}
+          {client.industry && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0"
+              style={{ background: '#9a9a6f20', color: '#9a9a6f' }}>
+              {client.industry}
+            </span>
+          )}
         </div>
       </div>
 
@@ -332,7 +343,8 @@ function ClientRow({ client, cats, stages, selected, onClick }) {
 // ── NewClientModal ────────────────────────────────────────────────────────────
 function NewClientModal({ cats, stages, onClose, onCreate }) {
   const [form, setForm] = useState({
-    name: '', phone: '', lineId: '', catId: cats[0]?.id || '', stageId: stages[0]?.id || '',
+    name: '', phone: '', lineId: '', clientType: 'personal', industry: '',
+    catId: cats[0]?.id || '', stageId: stages[0]?.id || '',
     intentLevel: 0, notes: '', nextDate: addDays(today(), 7),
   });
 
@@ -351,7 +363,23 @@ function NewClientModal({ cats, stages, onClose, onCreate }) {
         <div className="bg-s1 rounded-2xl shadow-panel border border-bdr w-full max-w-sm p-5 anim-scale-in z-50">
           <h3 className="font-bold text-lg text-ink mb-4">新增客戶</h3>
           <form onSubmit={handleSubmit} className="space-y-3">
-            <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="姓名 *" className="w-full" required />
+            <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="姓名 / 公司名 *" className="w-full" required />
+            <div className="grid grid-cols-2 gap-2">
+              <select value={form.clientType} onChange={(e) => set('clientType', e.target.value)} className="w-full">
+                <option value="personal">👤 個人戶</option>
+                <option value="company">🏢 公司戶</option>
+              </select>
+              <input
+                list="industry-options-new"
+                value={form.industry}
+                onChange={(e) => set('industry', e.target.value)}
+                placeholder="產業"
+                className="w-full"
+              />
+              <datalist id="industry-options-new">
+                {INDUSTRY_SUGGESTIONS.map((s) => <option key={s} value={s} />)}
+              </datalist>
+            </div>
             <input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="電話" className="w-full" />
             <input value={form.lineId} onChange={(e) => set('lineId', e.target.value)} placeholder="LINE ID" className="w-full" />
             <div className="grid grid-cols-2 gap-2">
