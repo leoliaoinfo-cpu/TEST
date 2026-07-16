@@ -1,7 +1,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'business_assistant_v2';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise = null;
 
@@ -42,6 +42,9 @@ function getDB() {
         }
         if (!database.objectStoreNames.contains('dealFields'))
           database.createObjectStore('dealFields', { keyPath: 'id' });
+        // v3：中央待辦（雜事）
+        if (!database.objectStoreNames.contains('tasks'))
+          database.createObjectStore('tasks', { keyPath: 'id' });
       },
     });
   }
@@ -50,7 +53,7 @@ function getDB() {
 
 const ALL_STORES = [
   'clients', 'cats', 'stages', 'customFields',
-  'deals', 'dealFields',
+  'deals', 'dealFields', 'tasks',
   'journalEntries', 'archivedJournal',
   'salaryMonths', 'timers', 'timerHistory', 'settings',
 ];

@@ -8,7 +8,8 @@ const HELP_CARDS = [
   { icon: '📅', title: '行事曆', desc: '月曆總覽追蹤、提醒與成交事件；點日期看當天清單，點事件直接跳到該客戶。' },
   { icon: '🌙', title: '莫蘭迪主題', desc: '低彩度藍灰色調，預設深色，可在設定右上角切換深/淺色，選擇會記在此裝置。' },
   { icon: '🎉', title: '紀念日提醒', desc: '日期型自訂欄位可設每年/一次性/連續N年提醒，到期出現在今日工作（依欄位分組）與行事曆。' },
-  { icon: '🧾', title: '報價單產生器', desc: '客戶詳情按「報價單」填車型與項目，即時產生可截圖的美觀報價單並記錄報價事件。' },
+  { icon: '🧾', title: '報價單產生器', desc: '客戶詳情「建立報價單」填車型與項目，產生可截圖的報價單並記錄事件；存檔後可隨時編輯。' },
+  { icon: '📋', title: '中央待辦', desc: '今日工作頁直接新增/勾銷雜事待辦；各客戶簽約前待辦也集中在「客戶待辦」區逐一處理。範本可在「待辦範本」編輯。' },
   { icon: '📊', title: '本日成果', desc: '自動統計今天記錄的聯繫、報價、試乘、下訂、交車數量與金額，不需手動填寫日報。' },
   { icon: '👥', title: '客戶追蹤 CRM', desc: '管理所有客戶聯繫狀態、分類、意願度與追蹤日期。' },
   { icon: '🚛', title: '業務進度記錄', desc: '在客戶詳情記錄 LINE 摘要、報價、看車試乘、貸款補件、下訂、交車、售後回訪；記錄交車會自動建立 3/7/30 天回訪提醒。' },
@@ -20,13 +21,14 @@ const HELP_CARDS = [
   { icon: '📦', title: '舊版資料匯入', desc: '支援匯入舊版格式 { _v:1, crm, jnl, sal } 的 JSON 備份。' },
 ];
 
-const SECTION_KEYS = ['backup', 'cats', 'stages', 'fields', 'dealFields', 'rules', 'help'];
+const SECTION_KEYS = ['backup', 'cats', 'stages', 'fields', 'dealFields', 'template', 'rules', 'help'];
 const SECTION_LABELS = {
   backup: '💾 備份還原',
   cats: '🏷 客戶分類',
   stages: '📶 業務進度',
   fields: '✏️ 自訂欄位',
   dealFields: '🏆 業績欄位',
+  template: '📋 待辦範本',
   rules: '⏱ 追蹤規則',
   help: '📖 使用說明',
 };
@@ -62,8 +64,9 @@ function summarizeBackup(data) {
 
 export default function SettingsPanel({ onClose }) {
   const {
-    cats, stages, customFields, dealFields, thresholds,
-    saveCats, saveStages, saveCustomFields, saveDealFields, saveThresholds, reloadAll,
+    cats, stages, customFields, dealFields, thresholds, todoTemplate,
+    saveCats, saveStages, saveCustomFields, saveDealFields, saveThresholds,
+    saveTodoTemplate, reloadAll,
   } = useApp();
   const [activeSection, setActiveSection] = useState('backup');
   const [status, setStatus] = useState('');
@@ -259,6 +262,11 @@ export default function SettingsPanel({ onClose }) {
             </div>
           )}
 
+          {/* ── Todo template ── */}
+          {activeSection === 'template' && (
+            <TodoTemplateEditor items={todoTemplate} onChange={saveTodoTemplate} />
+          )}
+
           {/* ── Rules ── */}
           {activeSection === 'rules' && (
             <ThresholdEditor thresholds={thresholds} onSave={saveThresholds} />
@@ -284,6 +292,56 @@ export default function SettingsPanel({ onClose }) {
         </div>
       </div>
     </>
+  );
+}
+
+// ── TodoTemplateEditor（交車待辦範本，客戶詳情一鍵套用）───────────────────────
+function TodoTemplateEditor({ items, onChange }) {
+  function updateItem(idx, text) {
+    onChange(items.map((s, i) => (i === idx ? text : s)));
+  }
+  function removeItem(idx) {
+    onChange(items.filter((_, i) => i !== idx));
+  }
+  function moveItem(idx, dir) {
+    const next = [...items];
+    const swap = idx + dir;
+    if (swap < 0 || swap >= next.length) return;
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    onChange(next);
+  }
+  function addItem() {
+    onChange([...items, '新待辦項目']);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-ink">待辦範本</h3>
+          <p className="text-xs text-ink-3 mt-0.5">客戶詳情「套用交車待辦範本」帶入的項目，可自行增減修改。</p>
+        </div>
+        <button onClick={addItem} className="btn-primary text-xs">+ 新增</button>
+      </div>
+      {items.length === 0 && (
+        <p className="text-center text-ink-3 text-sm py-6">尚無範本項目</p>
+      )}
+      {items.map((text, idx) => (
+        <div key={idx} className="card p-3 flex items-center gap-2">
+          <span className="text-ink-3 text-xs w-5 shrink-0">{idx + 1}.</span>
+          <input
+            value={text}
+            onChange={(e) => updateItem(idx, e.target.value)}
+            className="flex-1 text-sm min-w-0"
+          />
+          <button onClick={() => moveItem(idx, -1)} disabled={idx === 0}
+            className="text-ink-3 hover:text-ink disabled:opacity-20 text-xs px-1">↑</button>
+          <button onClick={() => moveItem(idx, 1)} disabled={idx === items.length - 1}
+            className="text-ink-3 hover:text-ink disabled:opacity-20 text-xs px-1">↓</button>
+          <button onClick={() => removeItem(idx)} className="text-danger/50 hover:text-danger text-sm ml-1">✕</button>
+        </div>
+      ))}
+    </div>
   );
 }
 

@@ -5,12 +5,17 @@ import dayjs from 'dayjs';
 
 /**
  * 報價單產生器：填車型與項目價格 → 產生美觀的報價單（固定淺色，方便截圖給客人）。
- * 「記錄報價」會把總額寫入該客戶時間軸的報價事件。
+ * 新增模式（quote=null）會把總額寫入客戶時間軸；傳入既有 quote 則為編輯模式。
  */
-export default function QuoteModal({ client, onSaveQuote, onClose }) {
-  const [model, setModel] = useState('');
-  const [items, setItems] = useState([{ id: generateId('qi'), name: '車輛售價', price: '' }]);
-  const [note, setNote] = useState('');
+export default function QuoteModal({ client, quote, onSaveQuote, onClose }) {
+  const isEdit = !!quote;
+  const [model, setModel] = useState(quote?.model || '');
+  const [items, setItems] = useState(() =>
+    quote?.items?.length
+      ? quote.items.map((it) => ({ ...it, price: String(it.price) }))
+      : [{ id: generateId('qi'), name: '車輛售價', price: '' }]
+  );
+  const [note, setNote] = useState(quote?.note || '');
   const [profile, setProfile] = useState({ name: '', phone: '' });
 
   // 業務署名記在本機，下次自動帶入
@@ -42,6 +47,11 @@ export default function QuoteModal({ client, onSaveQuote, onClose }) {
 
   async function handleRecord() {
     await onSaveQuote({
+      id: quote?.id || generateId('quote'),
+      date: quote?.date || dayjs().format('YYYY-MM-DD'),
+      model: model.trim(),
+      items: validItems.map((it) => ({ id: it.id, name: it.name.trim(), price: Number(it.price) })),
+      note: note.trim(),
       total,
       text: `報價單：${model.trim() || '未填車型'}｜${validItems.map((i) => i.name.trim()).join('、')}`,
     });
@@ -53,7 +63,7 @@ export default function QuoteModal({ client, onSaveQuote, onClose }) {
       <div className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-start justify-center">
         <div className="bg-s1 rounded-2xl shadow-panel border border-bdr w-full max-w-md p-4 anim-scale-in my-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-lg text-ink">🧾 報價單產生器</h3>
+            <h3 className="font-bold text-lg text-ink">🧾 {isEdit ? '編輯報價單' : '報價單產生器'}</h3>
             <button onClick={onClose} className="btn-ghost text-xl leading-none px-2 py-1">✕</button>
           </div>
 
@@ -88,7 +98,7 @@ export default function QuoteModal({ client, onSaveQuote, onClose }) {
             <div style={{ background: '#5f7f96', padding: '14px 20px' }}>
               <p style={{ color: '#ffffff', fontSize: 18, fontWeight: 700, letterSpacing: 6 }}>報 價 單</p>
               <p style={{ color: '#d7e2ea', fontSize: 11, marginTop: 2 }}>
-                {dayjs().format('YYYY 年 M 月 D 日')}
+                {dayjs(quote?.date || undefined).format('YYYY 年 M 月 D 日')}
               </p>
             </div>
             <div style={{ padding: '16px 20px' }}>
@@ -144,7 +154,7 @@ export default function QuoteModal({ client, onSaveQuote, onClose }) {
             <button onClick={onClose} className="btn-outline flex-1">關閉</button>
             <button onClick={handleRecord} disabled={total <= 0}
               className="btn-primary flex-1 disabled:opacity-40">
-              💲 記錄報價（NT$ {formatMoney(total)}）
+              💲 {isEdit ? '儲存修改' : '記錄報價'}（NT$ {formatMoney(total)}）
             </button>
           </div>
         </div>

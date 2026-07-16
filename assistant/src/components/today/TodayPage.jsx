@@ -11,9 +11,13 @@ import dayjs from 'dayjs';
 const BACKUP_REMIND_DAYS = 7;
 
 export default function TodayPage({ onOpenClient }) {
-  const { clients, cats, customFields, timers, thresholds, updateClient, saveTimer, deleteTimer } = useApp();
+  const {
+    clients, cats, customFields, timers, tasks, thresholds,
+    updateClient, saveTimer, deleteTimer, saveTask, deleteTask,
+  } = useApp();
   const todayStr = dayjs().format('YYYY-MM-DD');
   const [lastBackupAt, setLastBackupAt] = useState(undefined); // undefined=載入中, null=從未備份
+  const [taskInput, setTaskInput] = useState('');
 
   useEffect(() => {
     db.getLastBackupAt().then(setLastBackupAt).catch(() => setLastBackupAt(null));
@@ -62,8 +66,47 @@ export default function TodayPage({ onOpenClient }) {
     return Object.values(groups);
   }, [clients, customFields, todayStr]);
 
+  // 中央待辦：未完成的都顯示；今天剛勾完的保留（劃線），可反悔取消勾選
+  const visibleTasks = useMemo(() =>
+    tasks
+      .filter((t) => !t.done || t.doneAt === todayStr)
+      .sort((a, b) => (a.done === b.done ? (a.createdAt || '').localeCompare(b.createdAt || '') : a.done ? 1 : -1)),
+    [tasks, todayStr]);
+
+  const undoneTaskCount = useMemo(() => tasks.filter((t) => !t.done).length, [tasks]);
+
+  // 客戶待辦：所有客戶簽約前待辦中未完成的，集中到今日工作逐一處理
+  const clientTodos = useMemo(() => {
+    const out = [];
+    for (const c of clients) {
+      for (const td of c.todos || []) {
+        if (!td.done) out.push({ client: c, todo: td });
+      }
+    }
+    return out;
+  }, [clients]);
+
   const allClear = overdue.length === 0 && dueToday.length === 0
-    && todayTimers.length === 0 && occasionGroups.length === 0;
+    && todayTimers.length === 0 && occasionGroups.length === 0
+    && undoneTaskCount === 0 && clientTodos.length === 0;
+
+  async function addTask() {
+    const text = taskInput.trim();
+    if (!text) return;
+    setTaskInput(''); // 先清空再儲存，避免儲存期間輸入的下一筆被清掉
+    await saveTask({ id: generateId('task'), text, done: false, doneAt: null });
+  }
+
+  async function toggleTask(t) {
+    await saveTask({ ...t, done: !t.done, doneAt: !t.done ? todayStr : null });
+  }
+
+  async function toggleClientTodo(client, todoId) {
+    await updateClient(client.id, (c) => ({
+      ...c,
+      todos: (c.todos || []).map((td) => (td.id === todoId ? { ...td, done: !td.done } : td)),
+    }));
+  }
 
   // 本日成果：從所有客戶時間軸自動統計今天記錄的事件，不需手動填日報
   const todayResults = useMemo(() => {
@@ -230,6 +273,50 @@ export default function TodayPage({ onOpenClient }) {
               </div>
             );
           })}
+        </Section>
+      )}
+
+      {/* 中央待辦：直接記錄與處理雜事 */}
+      <Section title={`📋 待辦事項${undoneTaskCount > 0 ? `（${undoneTaskCount}）` : ''}`} titleColor="#7291a8">
+        <div className="flex gap-2 px-3 py-2.5 border-b border-bdr/50">
+          <input
+            value={taskInput}
+            onChange={(e) => setTaskInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addTask(); }}
+            placeholder="新增待辦（回報主管、送文件、訂配件…）"
+            className="flex-1 text-sm min-w-0"
+          />
+          <button onClick={addTask} className="btn-primary text-xs shrink-0">加入</button>
+        </div>
+        {visibleTasks.length === 0 && (
+          <p className="text-center text-ink-3 text-xs py-4">沒有待辦，輸入上方欄位新增</p>
+        )}
+        {visibleTasks.map((t) => (
+          <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 border-b border-bdr/50 last:border-0">
+            <input type="checkbox" checked={!!t.done} onChange={() => toggleTask(t)} className="shrink-0" />
+            <span className={`flex-1 text-sm min-w-0 break-words ${t.done ? 'line-through text-ink-3' : 'text-ink'}`}>
+              {t.text}
+            </span>
+            <button onClick={() => deleteTask(t.id)} className="text-danger/40 hover:text-danger text-xs shrink-0">✕</button>
+          </div>
+        ))}
+      </Section>
+
+      {/* 客戶待辦：各客戶簽約前待辦集中處理 */}
+      {clientTodos.length > 0 && (
+        <Section title={`👤 客戶待辦（${clientTodos.length}）`} titleColor="#9382a5">
+          {clientTodos.map(({ client: c, todo: td }) => (
+            <div key={td.id} className="flex items-center gap-2.5 px-3 py-2 border-b border-bdr/50 last:border-0">
+              <input type="checkbox" checked={false} onChange={() => toggleClientTodo(c, td.id)} className="shrink-0" />
+              <span className="flex-1 text-sm text-ink min-w-0 break-words">{td.text}</span>
+              <button
+                onClick={() => onOpenClient(c.id)}
+                className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/12 text-accent shrink-0 hover:bg-accent/20"
+              >
+                {c.name} ›
+              </button>
+            </div>
+          ))}
         </Section>
       )}
 

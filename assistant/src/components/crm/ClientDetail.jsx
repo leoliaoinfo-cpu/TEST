@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   getClientStatus, STATUS_COLOR, STATUS_LABEL, CAT_COLORS, FIELD_COLORS, generateId,
-  EVENT_TYPES, QUICK_EVENT_KEYS, DELIVERY_FOLLOWUP_DAYS, DELIVERY_TODO_TEMPLATE, formatMoney,
+  EVENT_TYPES, QUICK_EVENT_KEYS, DELIVERY_FOLLOWUP_DAYS, formatMoney,
 } from '../../utils/crm';
 import { today, formatDateFull, addDays, QUICK_DATES } from '../../utils/date';
 import { useApp } from '../../context';
@@ -15,7 +15,7 @@ const INTENT_COLORS = ['#8a919b', '#9a9a6f', '#6f9a9c', '#7d9b76', '#bf8a5e'];
 export default function ClientDetail({ client, cats, stages, onClose, onSave, onDelete }) {
   const {
     customFields, saveTimer, timers, updateClient, thresholds,
-    deals, dealFields, saveDeal,
+    deals, dealFields, saveDeal, todoTemplate,
   } = useApp();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...client });
@@ -35,7 +35,10 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
   const [signingNote, setSigningNote] = useState(client.signingNote || '');
   const [todoInput, setTodoInput] = useState('');
   const [showDealModal, setShowDealModal] = useState(false);
-  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [quoteModal, setQuoteModal] = useState(null); // null=關閉, 'new'=新增, quote物件=編輯
+  const [confirmDeleteQuoteId, setConfirmDeleteQuoteId] = useState(null);
+  const [editingLog, setEditingLog] = useState(null); // { id, date, text, amount }
+  const [confirmDeleteLogId, setConfirmDeleteLogId] = useState(null);
 
   const clientDeals = deals
     .filter((d) => d.clientId === client.id)
@@ -183,6 +186,67 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
     }));
   }
 
+  /** 報價單：新增寫入 quotes + 時間軸事件；編輯同步更新對應事件的金額與說明 */
+  async function handleSaveQuote(q) {
+    const isEdit = quoteModal && quoteModal !== 'new';
+    setQuoteModal(null);
+    const t = today();
+    await updateClient(client.id, (c) => {
+      const quotes = [...(c.quotes || [])];
+      const idx = quotes.findIndex((x) => x.id === q.id);
+      const record = { id: q.id, date: q.date, model: q.model, items: q.items, note: q.note, total: q.total };
+      if (idx === -1) quotes.push(record);
+      else quotes[idx] = record;
+      let log = c.log || [];
+      if (isEdit) {
+        log = log.map((e) => (e.quoteId === q.id ? { ...e, text: q.text, amount: q.total } : e));
+      } else {
+        log = [...log, {
+          id: generateId('log'), date: t, type: 'quote', quoteId: q.id, text: q.text, amount: q.total,
+        }];
+      }
+      return {
+        ...c,
+        quotes,
+        log,
+        ...(isEdit ? {} : { lastContact: t, missedCalls: 0 }),
+      };
+    });
+  }
+
+  async function removeQuote(id) {
+    setConfirmDeleteQuoteId(null);
+    // 只刪報價單存檔，時間軸的報價事件保留為歷史
+    await updateClient(client.id, (c) => ({
+      ...c,
+      quotes: (c.quotes || []).filter((q) => q.id !== id),
+    }));
+  }
+
+  /** 時間軸事件：編輯 / 刪除 */
+  async function saveLogEdit() {
+    const { id, date, text, amount } = editingLog;
+    setEditingLog(null);
+    await updateClient(client.id, (c) => ({
+      ...c,
+      log: (c.log || []).map((e) => {
+        if (e.id !== id) return e;
+        const next = { ...e, date: date || e.date, text: text.trim() || e.text };
+        delete next.amount;
+        if (Number(amount) > 0) next.amount = Number(amount);
+        return next;
+      }),
+    }));
+  }
+
+  async function deleteLogEntry(id) {
+    setConfirmDeleteLogId(null);
+    await updateClient(client.id, (c) => ({
+      ...c,
+      log: (c.log || []).filter((e) => e.id !== id),
+    }));
+  }
+
   /** 成交歸檔：寫入業績表 + 客戶時間軸 */
   async function handleArchiveDeal(deal) {
     setShowDealModal(false);
@@ -201,12 +265,13 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
     }));
   }
 
-  /** 套用交車待辦範本（跳過已存在的同名項目） */
+  /** 套用交車待辦範本（設定頁可編輯內容；跳過空項與已存在的同名項目） */
   async function applyTodoTemplate() {
     await updateClient(client.id, (c) => {
       const existing = new Set((c.todos || []).map((td) => td.text));
-      const additions = DELIVERY_TODO_TEMPLATE
-        .filter((text) => !existing.has(text))
+      const additions = todoTemplate
+        .map((s) => s.trim())
+        .filter((text) => text && !existing.has(text))
         .map((text) => ({ id: generateId('todo'), text, done: false }));
       return { ...c, todos: [...(c.todos || []), ...additions] };
     });
@@ -415,12 +480,7 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
 
         {/* 業務流程事件 */}
         <section className="card p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-sm text-ink-2">🚛 業務進度記錄</h3>
-            <button onClick={() => setShowQuoteModal(true)} className="btn-outline text-xs">
-              🧾 報價單
-            </button>
-          </div>
+          <h3 className="font-semibold text-sm text-ink-2">🚛 業務進度記錄</h3>
           <div className="flex gap-1.5 flex-wrap">
             {QUICK_EVENT_KEYS.map((key) => {
               const def = EVENT_TYPES[key];
@@ -506,6 +566,35 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
               </button>
             </div>
           )}
+        </section>
+
+        {/* 報價單（可回頭編輯） */}
+        <section className="card p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-sm text-ink-2">🧾 報價單</h3>
+            <button onClick={() => setQuoteModal('new')} className="btn-primary text-xs">
+              ＋ 建立報價單
+            </button>
+          </div>
+          {(client.quotes || []).length === 0 && (
+            <p className="text-xs text-ink-3">填車型與項目價格，產生可截圖的報價單；建立後可隨時回來編輯。</p>
+          )}
+          {[...(client.quotes || [])].reverse().map((q) => (
+            <div key={q.id} className="flex items-center gap-2 text-xs bg-s2 rounded-lg px-3 py-2">
+              <span className="text-ink-3 font-mono shrink-0">{dayjs(q.date).format('MM/DD')}</span>
+              <span className="flex-1 truncate text-ink-2">{q.model || '未填車型'}</span>
+              <span className="font-semibold text-accent shrink-0">NT$ {formatMoney(q.total)}</span>
+              <button onClick={() => setQuoteModal(q)} className="text-ink-3 hover:text-ink shrink-0">✏️</button>
+              {confirmDeleteQuoteId === q.id ? (
+                <span className="flex gap-1 shrink-0">
+                  <button onClick={() => removeQuote(q.id)} className="btn-danger text-[10px] px-1.5 py-0.5">刪除</button>
+                  <button onClick={() => setConfirmDeleteQuoteId(null)} className="btn-outline text-[10px] px-1.5 py-0.5">取消</button>
+                </span>
+              ) : (
+                <button onClick={() => setConfirmDeleteQuoteId(q.id)} className="text-danger/40 hover:text-danger shrink-0">✕</button>
+              )}
+            </div>
+          ))}
         </section>
 
         {/* 成交歸檔 */}
@@ -623,27 +712,69 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
             <div className="space-y-0">
               {[...(client.log || [])].reverse().slice(0, 50).map((entry, idx, arr) => {
                 const def = EVENT_TYPES[entry.type] || EVENT_TYPES.contact;
+                const isEditing = editingLog?.id === entry.id;
                 return (
-                  <div key={entry.id} className="flex gap-3 text-sm relative">
+                  <div key={entry.id} className="flex gap-3 text-sm relative group">
                     {/* Timeline rail */}
                     <div className="flex flex-col items-center shrink-0 w-6">
                       <span className="text-sm leading-none mt-0.5">{def.icon}</span>
                       {idx < arr.length - 1 && <div className="w-px flex-1 bg-bdr my-1" />}
                     </div>
                     <div className="pb-3 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-                          style={{ background: def.color + '18', color: def.color }}>
-                          {def.label}
-                        </span>
-                        <span className="text-[10px] text-ink-3">{formatDateFull(entry.date)}</span>
-                        {entry.amount > 0 && (
-                          <span className="text-[10px] font-semibold text-accent">
-                            NT$ {entry.amount.toLocaleString('zh-TW')}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-ink-2 mt-0.5 whitespace-pre-wrap break-words">{entry.text}</p>
+                      {isEditing ? (
+                        <div className="space-y-1.5 bg-s2 rounded-lg p-2">
+                          <div className="flex gap-1.5 flex-wrap">
+                            <input type="date" value={editingLog.date}
+                              onChange={(e) => setEditingLog((v) => ({ ...v, date: e.target.value }))}
+                              className="text-xs" />
+                            <input type="number" min="0" value={editingLog.amount}
+                              onChange={(e) => setEditingLog((v) => ({ ...v, amount: e.target.value }))}
+                              placeholder="金額（留空移除）" className="text-xs w-32" />
+                          </div>
+                          <textarea value={editingLog.text}
+                            onChange={(e) => setEditingLog((v) => ({ ...v, text: e.target.value }))}
+                            rows={2} className="w-full resize-none text-xs" />
+                          <div className="flex gap-1.5">
+                            <button onClick={saveLogEdit} className="btn-primary text-[10px] px-2 py-0.5">儲存</button>
+                            <button onClick={() => setEditingLog(null)} className="btn-outline text-[10px] px-2 py-0.5">取消</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                              style={{ background: def.color + '18', color: def.color }}>
+                              {def.label}
+                            </span>
+                            <span className="text-[10px] text-ink-3">{formatDateFull(entry.date)}</span>
+                            {entry.amount > 0 && (
+                              <span className="text-[10px] font-semibold text-accent">
+                                NT$ {entry.amount.toLocaleString('zh-TW')}
+                              </span>
+                            )}
+                            <span className="ml-auto flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => setEditingLog({
+                                  id: entry.id, date: entry.date,
+                                  text: entry.text, amount: entry.amount ? String(entry.amount) : '',
+                                })}
+                                className="text-ink-3 hover:text-ink text-[11px]">✏️</button>
+                              {confirmDeleteLogId === entry.id ? (
+                                <>
+                                  <button onClick={() => deleteLogEntry(entry.id)}
+                                    className="btn-danger text-[10px] px-1.5 py-0.5">刪除</button>
+                                  <button onClick={() => setConfirmDeleteLogId(null)}
+                                    className="btn-outline text-[10px] px-1.5 py-0.5">取消</button>
+                                </>
+                              ) : (
+                                <button onClick={() => setConfirmDeleteLogId(entry.id)}
+                                  className="text-danger/40 hover:text-danger text-[11px]">✕</button>
+                              )}
+                            </span>
+                          </div>
+                          <p className="text-ink-2 mt-0.5 whitespace-pre-wrap break-words">{entry.text}</p>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -652,22 +783,12 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
           </section>
         )}
 
-        {showQuoteModal && (
+        {quoteModal && (
           <QuoteModal
             client={client}
-            onClose={() => setShowQuoteModal(false)}
-            onSaveQuote={async ({ total, text }) => {
-              setShowQuoteModal(false);
-              const t = today();
-              await updateClient(client.id, (c) => ({
-                ...c,
-                lastContact: t,
-                missedCalls: 0,
-                log: [...(c.log || []), {
-                  id: generateId('log'), date: t, type: 'quote', text, amount: total,
-                }],
-              }));
-            }}
+            quote={quoteModal === 'new' ? null : quoteModal}
+            onClose={() => setQuoteModal(null)}
+            onSaveQuote={handleSaveQuote}
           />
         )}
 

@@ -177,8 +177,8 @@ export function formatMoney(n) {
   return (Number(n) || 0).toLocaleString('zh-TW');
 }
 
-/** 簽約～交車常見待辦範本（可一鍵套用到簽約前待辦） */
-export const DELIVERY_TODO_TEMPLATE = [
+/** 簽約～交車常見待辦範本預設值（可在設定編輯，存於 settings.todoTemplate） */
+export const DEFAULT_TODO_TEMPLATE = [
   '保險規劃確認',
   '貸款對保 / 補件',
   '監理站驗車領牌',

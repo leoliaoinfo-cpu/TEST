@@ -41,8 +41,16 @@ await page.reload();
   reminders (保險續保/驗車, prefilled +11 months, each can be unchecked).
 - Date-type custom fields support recurrence (每年/一次性/連續N年) — occurrences show
   grouped-by-field on Today and as 🎉 events on the calendar.
-- 報價單產生器: client detail → 🧾 報價單; signature persists via settings
+- 報價單產生器: client detail → 「＋ 建立報價單」; quotes are saved on client.quotes
+  and editable afterwards (✏️ in the 🧾 報價單 section; timeline amount syncs on edit;
+  deleting a quote keeps its timeline event). Signature persists via settings
   'quoteProfile' (loads async — wait for the input value, don't read immediately).
+- Today page has 📋 待辦事項 (central tasks, quick-add input, tasks store) and
+  👤 客戶待辦 (undone client todos across all clients). Checking a client-todo row
+  removes it — use .click() not .check(): Playwright check() retries on the
+  controlled checkbox and will tick EVERY row one by one.
+- Timeline entries are editable (✏️ inline form) and deletable (two-step ✕).
+- 交車待辦範本 is editable at 設定 → 📋 待辦範本 (settings key 'todoTemplate').
 - When settings panel is open over the CRM page, scope button selectors with
   `.anim-slide-right` — the CRM toolbar also has a "+ 新增" button behind the overlay.
 - 行事曆: events = client nextDate (追蹤), unconfirmed timers (提醒), deals (成交);
