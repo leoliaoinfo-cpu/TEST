@@ -242,7 +242,6 @@ export default function CrmPage({ focusId, onFocusConsumed }) {
                 cats={cats}
                 stages={stages}
                 onClose={() => setSelectedId(null)}
-                onSave={saveClient}
                 onDelete={async (id) => { await deleteClient(id); setSelectedId(null); }}
               />
             </div>

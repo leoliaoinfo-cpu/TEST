@@ -12,13 +12,27 @@ import dayjs from 'dayjs';
 const INTENT_LABELS = ['未評估', '低', '中', '高', '非常高'];
 const INTENT_COLORS = ['#8a919b', '#9a9a6f', '#6f9a9c', '#7d9b76', '#bf8a5e'];
 
-export default function ClientDetail({ client, cats, stages, onClose, onSave, onDelete }) {
+// 編輯表單只碰這些欄位；儲存時合併到最新客戶資料，
+// 報價單/時間軸/待辦等不在清單內的資料永遠不會被編輯覆蓋
+const EDITABLE_FIELDS = [
+  'name', 'phone', 'lineId', 'email', 'address', 'source',
+  'clientType', 'taxId', 'industry', 'contacts', 'referrerId', 'referralFee',
+  'catId', 'stageId', 'intentLevel', 'notes', 'customFieldValues',
+];
+
+function pickEditable(client) {
+  const out = {};
+  for (const k of EDITABLE_FIELDS) out[k] = client[k];
+  return out;
+}
+
+export default function ClientDetail({ client, cats, stages, onClose, onDelete }) {
   const {
     clients, customFields, saveTimer, timers, updateClient, thresholds,
     deals, dealFields, saveDeal, todoTemplate,
   } = useApp();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ ...client });
+  const [form, setForm] = useState(() => pickEditable(client));
   const [logInput, setLogInput] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAddTimer, setShowAddTimer] = useState(false);
@@ -61,8 +75,9 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
   function setField(k, v) { setForm((f) => ({ ...f, [k]: v })); }
 
   async function handleSave() {
-    await onSave(form);
     setEditing(false);
+    // 以最新客戶資料為底、只合併可編輯欄位，避免舊快照覆蓋掉報價單/時間軸等
+    await updateClient(client.id, (c) => ({ ...c, ...form }));
   }
 
   async function handleContacted() {
@@ -305,7 +320,7 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
   }
 
   function setNextDate(dateStr) {
-    onSave({ ...client, nextDate: dateStr });
+    updateClient(client.id, (c) => ({ ...c, nextDate: dateStr }));
   }
 
   return (
@@ -328,10 +343,13 @@ export default function ClientDetail({ client, cats, stages, onClose, onSave, on
           {editing ? (
             <>
               <button onClick={handleSave} className="btn-primary text-xs">儲存</button>
-              <button onClick={() => { setEditing(false); setForm({ ...client }); }} className="btn-outline text-xs">取消</button>
+              <button onClick={() => { setEditing(false); setForm(pickEditable(client)); }} className="btn-outline text-xs">取消</button>
             </>
           ) : (
-            <button onClick={() => setEditing(true)} className="btn-outline text-xs">編輯</button>
+            <button
+              onClick={() => { setForm(pickEditable(client)); setEditing(true); }}
+              className="btn-outline text-xs"
+            >編輯</button>
           )}
           <button onClick={onClose} className="md:hidden btn-ghost text-lg px-2">✕</button>
         </div>
