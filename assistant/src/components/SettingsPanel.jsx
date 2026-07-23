@@ -193,7 +193,37 @@ function parseRawCrmText(text, markerInput = '') {
 }
 
 export default function SettingsPanel({ onClose }) {
-  const { cats, stages, customFields, saveCats, saveStages, saveCustomFields, reloadAll, saveClient } = useApp();
+  const {
+    cats, stages, customFields, saveCats, saveStages, saveCustomFields, reloadAll, saveClient,
+    backupInfo, linkBackupFile, reactivateBackup, unlinkBackupFile, restoreFromBackupFile,
+  } = useApp();
+  const [autoBackupMsg, setAutoBackupMsg] = useState('');
+
+  async function handleLinkBackup() {
+    try {
+      const name = await linkBackupFile();
+      setAutoBackupMsg(`✅ 已連結「${name}」，之後每次變動都會自動保存`);
+    } catch (e) {
+      if (e?.name !== 'AbortError') setAutoBackupMsg('❌ 連結失敗：' + (e?.message || e));
+    }
+  }
+  async function handleReactivate() {
+    const ok = await reactivateBackup();
+    setAutoBackupMsg(ok ? '✅ 已重新啟用自動備份' : '❌ 未取得權限');
+  }
+  async function handleRestoreFromFile() {
+    if (!confirm('從備份檔還原會覆蓋現有所有資料，確定繼續？')) return;
+    try {
+      await restoreFromBackupFile();
+      setAutoBackupMsg('✅ 已從備份檔還原所有資料');
+    } catch (e) {
+      if (e?.name !== 'AbortError') setAutoBackupMsg('❌ 還原失敗：' + (e?.message || e));
+    }
+  }
+  async function handleUnlink() {
+    await unlinkBackupFile();
+    setAutoBackupMsg('已取消自動備份連結');
+  }
   const [activeSection, setActiveSection] = useState('backup');
   const [status, setStatus] = useState('');
   const [archiveStatus, setArchiveStatus] = useState('');
@@ -362,8 +392,66 @@ export default function SettingsPanel({ onClose }) {
           {/* ── Backup ── */}
           {activeSection === 'backup' && (
             <section className="space-y-4">
+              {/* ── Durable auto-backup (star feature) ── */}
+              <div className="card p-4 space-y-3 border-2 border-accent/30">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-ink">🛡️ 自動保存到硬碟檔案</h3>
+                  {backupInfo?.linked && backupInfo.permission === 'granted' && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-ok/15 text-ok font-medium">運作中</span>
+                  )}
+                </div>
+
+                {!backupInfo?.supported ? (
+                  <p className="text-xs text-ink-3 leading-relaxed">
+                    此瀏覽器不支援自動檔案保存（建議用電腦版 Chrome 或 Edge）。
+                    請改用下方「下載備份」定期手動保存。
+                  </p>
+                ) : !backupInfo.linked ? (
+                  <>
+                    <p className="text-xs text-ink-3 leading-relaxed">
+                      連結一個硬碟上的備份檔，<strong>之後每次資料變動都會自動寫入</strong>，完全不用手動匯出。
+                      建議把檔案存在 <strong>Google Drive／OneDrive／Dropbox 同步資料夾</strong>，
+                      即使清除瀏覽器或換電腦，資料都還在。
+                    </p>
+                    <button onClick={handleLinkBackup} className="btn-primary text-sm">
+                      🔗 連結自動備份檔案（一次設定，永久自動保存）
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-s2 rounded-lg px-3 py-2 text-xs space-y-1">
+                      <p className="text-ink-2">📄 檔案：<strong>{backupInfo.name}</strong></p>
+                      {backupInfo.lastSaved && (
+                        <p className="text-ink-3">上次自動保存：{dayjs(backupInfo.lastSaved).format('MM/DD HH:mm:ss')}</p>
+                      )}
+                    </div>
+                    {backupInfo.permission !== 'granted' && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-2">
+                        <p className="text-xs text-amber-700">⚠️ 瀏覽器重啟後需重新授權，才能繼續自動保存。</p>
+                        <button onClick={handleReactivate} className="btn-primary text-xs">重新啟用自動備份</button>
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={handleRestoreFromFile} className="btn-outline text-xs">📥 從備份檔還原</button>
+                      <button onClick={handleUnlink} className="btn-ghost text-xs text-ink-3">取消連結</button>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex items-center gap-2 pt-1 border-t border-bdr/40">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${backupInfo?.persisted ? 'bg-ok/15 text-ok' : 'bg-s3 text-ink-3'}`}>
+                    {backupInfo?.persisted ? '✓ 已啟用防清除保護' : '一般儲存'}
+                  </span>
+                  <span className="text-[10px] text-ink-3">
+                    {backupInfo?.persisted ? '瀏覽器不會自動清除本系統資料' : '瀏覽器可能在空間不足時清除資料'}
+                  </span>
+                </div>
+
+                {autoBackupMsg && <p className="text-sm text-ink-2 bg-s2 rounded-lg px-3 py-2">{autoBackupMsg}</p>}
+              </div>
+
               <div className="card p-4 space-y-3">
-                <h3 className="font-semibold text-ink">備份與還原</h3>
+                <h3 className="font-semibold text-ink">手動備份與還原</h3>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={handleExport} className="btn-primary">⬇️ 下載備份 (.json)</button>
                   <button onClick={() => fileRef.current?.click()} className="btn-outline">⬆️ 上傳還原</button>

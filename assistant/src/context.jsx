@@ -4,6 +4,11 @@ import {
 import { db } from './db';
 import { generateId } from './utils/crm';
 import { today, localNow } from './utils/date';
+import {
+  fsSupported, requestPersistentStorage, isStoragePersisted,
+  pickBackupFile, pickRestoreFile, queryPermissionState, ensurePermission,
+  writeFileHandle, readFileHandle,
+} from './utils/autobackup';
 import dayjs from 'dayjs';
 
 const AppContext = createContext(null);
@@ -131,6 +136,41 @@ export function AppProvider({ children }) {
   const saveDebounceRef = useRef({});
   const pendingSavesRef = useRef({});
 
+  // ── Durable auto-backup (File System Access) ──────────────────────────────
+  const backupHandleRef = useRef(null);
+  const autoBackupTimerRef = useRef(null);
+  const [backupInfo, setBackupInfo] = useState({
+    supported: fsSupported(),
+    linked: false,
+    name: '',
+    permission: 'prompt', // 'granted' | 'prompt' | 'denied'
+    lastSaved: null,
+    persisted: false,
+  });
+
+  // Write a full snapshot to the linked file. Debounced by default so bursts of
+  // edits collapse into one write; pass immediate=true to flush now.
+  const scheduleAutoBackup = useCallback((immediate = false) => {
+    const handle = backupHandleRef.current;
+    if (!handle) return;
+    if (autoBackupTimerRef.current) clearTimeout(autoBackupTimerRef.current);
+    const run = async () => {
+      try {
+        const perm = await queryPermissionState(handle, true);
+        if (perm !== 'granted') { setBackupInfo((b) => ({ ...b, permission: perm })); return; }
+        const data = await db.exportAll();
+        await writeFileHandle(handle, JSON.stringify(data, null, 2));
+        const lastSaved = localNow();
+        await db.put('settings', { key: 'backupFileHandle', handle, name: handle.name, lastSaved });
+        setBackupInfo((b) => ({ ...b, lastSaved, permission: 'granted' }));
+      } catch (e) {
+        console.warn('Auto-backup write failed:', e);
+      }
+    };
+    if (immediate) run();
+    else autoBackupTimerRef.current = setTimeout(run, 2500);
+  }, []);
+
   // ── Startup load ──────────────────────────────────────────────────────────
   useEffect(() => {
     async function loadAll() {
@@ -175,6 +215,26 @@ export function AppProvider({ children }) {
     loadAll();
   }, []);
 
+  // ── Init durable backup: request persistence + restore linked file ────────
+  useEffect(() => {
+    async function initBackup() {
+      const persisted = await requestPersistentStorage().then(() => isStoragePersisted());
+      let restored = {};
+      try {
+        const rec = await db.get('settings', 'backupFileHandle');
+        if (rec?.handle) {
+          backupHandleRef.current = rec.handle;
+          const permission = await queryPermissionState(rec.handle, true);
+          restored = { linked: true, name: rec.name || rec.handle.name || '備份檔', permission, lastSaved: rec.lastSaved || null };
+        }
+      } catch (e) {
+        console.warn('Restore backup handle failed:', e);
+      }
+      setBackupInfo((b) => ({ ...b, persisted, ...restored }));
+    }
+    if (fsSupported() || navigator.storage) initBackup();
+  }, []);
+
   // ── Flush pending saves on page unload ───────────────────────────────────
   useEffect(() => {
     function flushPending() {
@@ -193,8 +253,9 @@ export function AppProvider({ children }) {
     saveDebounceRef.current[key] = setTimeout(() => {
       db.put(storeName, value).catch(() => {});
       delete pendingSavesRef.current[key];
+      scheduleAutoBackup();
     }, 300);
-  }, []);
+  }, [scheduleAutoBackup]);
 
   // ── Journal ───────────────────────────────────────────────────────────────
   const loadJournalEntry = useCallback(async (date) => {
@@ -241,13 +302,15 @@ export function AppProvider({ children }) {
     const full = { createdAt: now, ...client, updatedAt: now };
     await db.put('clients', full);
     dispatch({ type: 'UPSERT_CLIENT', payload: full });
+    scheduleAutoBackup();
     return full;
-  }, []);
+  }, [scheduleAutoBackup]);
 
   const deleteClient = useCallback(async (id) => {
     await db.delete('clients', id);
     dispatch({ type: 'DELETE_CLIENT', id });
-  }, []);
+    scheduleAutoBackup();
+  }, [scheduleAutoBackup]);
 
   const saveCats = useCallback(async (cats) => {
     const existing = await db.getAll('cats');
@@ -255,7 +318,8 @@ export function AppProvider({ children }) {
     for (const c of existing) { if (!newIds.has(c.id)) await db.delete('cats', c.id); }
     for (const c of cats) await db.put('cats', c);
     dispatch({ type: 'SET_CATS', payload: cats });
-  }, []);
+    scheduleAutoBackup();
+  }, [scheduleAutoBackup]);
 
   const saveStages = useCallback(async (stages) => {
     const existing = await db.getAll('stages');
@@ -263,7 +327,8 @@ export function AppProvider({ children }) {
     for (const s of existing) { if (!newIds.has(s.id)) await db.delete('stages', s.id); }
     for (const s of stages) await db.put('stages', s);
     dispatch({ type: 'SET_STAGES', payload: stages });
-  }, []);
+    scheduleAutoBackup();
+  }, [scheduleAutoBackup]);
 
   const saveCustomFields = useCallback(async (fields) => {
     const existing = await db.getAll('customFields');
@@ -271,7 +336,8 @@ export function AppProvider({ children }) {
     for (const f of existing) { if (!newIds.has(f.id)) await db.delete('customFields', f.id); }
     for (const f of fields) await db.put('customFields', f);
     dispatch({ type: 'SET_CUSTOM_FIELDS', payload: fields });
-  }, []);
+    scheduleAutoBackup();
+  }, [scheduleAutoBackup]);
 
   // ── Salary ────────────────────────────────────────────────────────────────
   const loadSalaryMonth = useCallback(async (key) => {
@@ -291,12 +357,14 @@ export function AppProvider({ children }) {
   const saveTimer = useCallback(async (timer) => {
     await db.put('timers', timer);
     dispatch({ type: 'UPSERT_TIMER', payload: timer });
-  }, []);
+    scheduleAutoBackup();
+  }, [scheduleAutoBackup]);
 
   const deleteTimer = useCallback(async (id) => {
     await db.delete('timers', id);
     dispatch({ type: 'DELETE_TIMER', id });
-  }, []);
+    scheduleAutoBackup();
+  }, [scheduleAutoBackup]);
 
   // ── Full reload (after import) ────────────────────────────────────────────
   const reloadAll = useCallback(async () => {
@@ -312,6 +380,49 @@ export function AppProvider({ children }) {
       payload: { clients, cats: cats.length > 0 ? cats : DEFAULT_CATS, stages: stages.length > 0 ? stages : DEFAULT_STAGES, customFields, timers },
     });
   }, []);
+
+  // ── Durable backup actions ────────────────────────────────────────────────
+  // Link a real file on disk; from now on every change auto-writes to it.
+  const linkBackupFile = useCallback(async () => {
+    const handle = await pickBackupFile(); // throws AbortError if user cancels
+    const ok = await ensurePermission(handle, true);
+    if (!ok) throw new Error('未取得檔案寫入權限');
+    backupHandleRef.current = handle;
+    const data = await db.exportAll();
+    await writeFileHandle(handle, JSON.stringify(data, null, 2));
+    const lastSaved = localNow();
+    await db.put('settings', { key: 'backupFileHandle', handle, name: handle.name, lastSaved });
+    setBackupInfo((b) => ({ ...b, linked: true, name: handle.name, permission: 'granted', lastSaved }));
+    return handle.name;
+  }, []);
+
+  // Re-grant permission after a browser restart (needs a click).
+  const reactivateBackup = useCallback(async () => {
+    const handle = backupHandleRef.current;
+    if (!handle) return false;
+    const ok = await ensurePermission(handle, true);
+    setBackupInfo((b) => ({ ...b, permission: ok ? 'granted' : 'denied' }));
+    if (ok) scheduleAutoBackup(true);
+    return ok;
+  }, [scheduleAutoBackup]);
+
+  const unlinkBackupFile = useCallback(async () => {
+    backupHandleRef.current = null;
+    if (autoBackupTimerRef.current) clearTimeout(autoBackupTimerRef.current);
+    await db.delete('settings', 'backupFileHandle');
+    setBackupInfo((b) => ({ ...b, linked: false, name: '', permission: 'prompt', lastSaved: null }));
+  }, []);
+
+  // Restore all data from a chosen backup file (used after a browser wipe).
+  const restoreFromBackupFile = useCallback(async () => {
+    const handle = await pickRestoreFile();
+    const text = await readFileHandle(handle);
+    const data = JSON.parse(text);
+    if (data._v === 1) await db.importLegacy(data);
+    else await db.importAll(data);
+    await reloadAll();
+    return true;
+  }, [reloadAll]);
 
   const value = {
     ...state,
@@ -329,6 +440,13 @@ export function AppProvider({ children }) {
     saveTimer,
     deleteTimer,
     reloadAll,
+    // durable auto-backup
+    backupInfo,
+    linkBackupFile,
+    reactivateBackup,
+    unlinkBackupFile,
+    restoreFromBackupFile,
+    scheduleAutoBackup,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

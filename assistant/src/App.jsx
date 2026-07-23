@@ -130,7 +130,7 @@ class ErrorBoundary extends Component {
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 function AppInner() {
-  const { loading, storageMode, timers } = useApp();
+  const { loading, storageMode, timers, backupInfo, reactivateBackup } = useApp();
   const [tab, setTab] = useState('crm');
   const [showSettings, setShowSettings] = useState(false);
   const [openClientId, setOpenClientId] = useState(null);
@@ -184,7 +184,19 @@ function AppInner() {
       )}
       {storageMode === 'local' && (
         <div style={{ background: '#fff5e8', borderBottom: '1px solid #f0d9b8', padding: '6px 16px', fontSize: 12, color: '#7a5030' }}>
-          💾 相容儲存模式（資料已保存於此瀏覽器）。容量較有限，建議定期到「設定 → 備份還原」下載備份。
+          💾 相容儲存模式（資料已保存於此瀏覽器）。容量較有限，建議到「設定 → 備份還原」開啟自動保存。
+        </div>
+      )}
+      {/* 自動備份已連結但重啟後需重新授權 */}
+      {backupInfo?.linked && backupInfo.permission !== 'granted' && (
+        <div style={{ background: '#fff5e8', borderBottom: '1px solid #f0d9b8', padding: '6px 16px', fontSize: 12, color: '#7a5030', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span>🛡️ 自動備份需重新授權才能繼續保存到「{backupInfo.name}」。</span>
+          <button
+            onClick={reactivateBackup}
+            style={{ background: '#c9670a', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+          >
+            重新啟用
+          </button>
         </div>
       )}
 
