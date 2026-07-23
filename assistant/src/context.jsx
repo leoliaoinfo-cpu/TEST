@@ -55,6 +55,7 @@ export function makeWorkRow(name = '') {
 
 const initialState = {
   loading: true,
+  storageMode: null, // 'idb' | 'local' | 'memory' — set after startup probe
   clients: [],
   cats: DEFAULT_CATS,
   stages: DEFAULT_STAGES,
@@ -133,6 +134,10 @@ export function AppProvider({ children }) {
   // ── Startup load ──────────────────────────────────────────────────────────
   useEffect(() => {
     async function loadAll() {
+      // Resilient storage layer auto-selects IndexedDB → localStorage → memory.
+      // storageMode reflects the tier actually in use so the UI can warn only
+      // when data is truly ephemeral (memory).
+      const storageMode = await db.ready().catch(() => 'memory');
       try {
         const [clients, cats, stages, customFields, timers] = await Promise.all([
           db.getAll('clients'),
@@ -150,11 +155,10 @@ export function AppProvider({ children }) {
 
         dispatch({
           type: 'LOAD_INIT',
-          payload: { clients, cats: resolvedCats, stages: resolvedStages, customFields, timers },
+          payload: { clients, cats: resolvedCats, stages: resolvedStages, customFields, timers, storageMode },
         });
       } catch (err) {
-        // IndexedDB 不可用時（file:// 限制、隱私模式等），以空資料繼續執行
-        console.warn('IndexedDB unavailable, running in memory-only mode:', err);
+        console.warn('Storage load failed, running with empty in-memory data:', err);
         dispatch({
           type: 'LOAD_INIT',
           payload: {
@@ -163,7 +167,7 @@ export function AppProvider({ children }) {
             stages: DEFAULT_STAGES,
             customFields: [],
             timers: [],
-            dbUnavailable: true,
+            storageMode: 'memory',
           },
         });
       }

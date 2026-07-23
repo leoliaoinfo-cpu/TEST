@@ -130,7 +130,7 @@ class ErrorBoundary extends Component {
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 function AppInner() {
-  const { loading, dbUnavailable, timers } = useApp();
+  const { loading, storageMode, timers } = useApp();
   const [tab, setTab] = useState('crm');
   const [showSettings, setShowSettings] = useState(false);
   const [openClientId, setOpenClientId] = useState(null);
@@ -167,11 +167,24 @@ function AppInner() {
 
   return (
     <div className="min-h-screen bg-bg font-sans text-ink">
-      {/* DB 不可用提示（隱私模式 / file:// 限制）*/}
-      {dbUnavailable && (
+      {/* 儲存模式提示：僅記憶體模式才是真正無法保存 */}
+      {storageMode === 'memory' && (
+        <div style={{ background: '#fdeaea', borderBottom: '1px solid #f0c0c0', padding: '8px 16px', fontSize: 12, color: '#a02020', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span>
+            ⚠️ <strong>目前無法保存資料</strong>（瀏覽器封鎖了本機儲存，重新整理後將遺失）。
+            請改用 <strong>https</strong> 網址開啟，或在瀏覽器設定允許此網站儲存資料。
+          </span>
+          <button
+            onClick={() => setShowSettings(true)}
+            style={{ background: '#c03030', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+          >
+            立即下載備份
+          </button>
+        </div>
+      )}
+      {storageMode === 'local' && (
         <div style={{ background: '#fff5e8', borderBottom: '1px solid #f0d9b8', padding: '6px 16px', fontSize: 12, color: '#7a5030' }}>
-          ⚠️ 儲存功能受限（瀏覽器安全設定）。資料不會被保存。建議改用
-          <strong> http://localhost</strong> 方式開啟，或啟用 GitHub Pages。
+          💾 相容儲存模式（資料已保存於此瀏覽器）。容量較有限，建議定期到「設定 → 備份還原」下載備份。
         </div>
       )}
 
